@@ -16,6 +16,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cctype>
+#include <cerrno>
+#include <sys/stat.h>
 #include <cmath>
 #include <string>
 #include <chrono>
@@ -111,6 +113,8 @@ typedef HANDLE        HLOCAL;
 typedef HANDLE        HRGN;
 typedef HANDLE        HPEN;
 typedef HANDLE        HKEY;
+typedef HANDLE        HPALETTE;
+typedef unsigned char byte; // rpcndr.h
 typedef LRESULT (*WNDPROC)(HWND, UINT, WPARAM, LPARAM);
 typedef LRESULT (*FARPROC)();
 
@@ -234,13 +238,23 @@ typedef struct tagBITMAPINFOHEADER
 	DWORD biClrImportant;
 } BITMAPINFOHEADER, *LPBITMAPINFOHEADER, *PBITMAPINFOHEADER;
 
+typedef struct tagBITMAPCOREHEADER
+{
+	DWORD bcSize;
+	WORD bcWidth;
+	WORD bcHeight;
+	WORD bcPlanes;
+	WORD bcBitCount;
+} BITMAPCOREHEADER, *LPBITMAPCOREHEADER, *PBITMAPCOREHEADER;
+
 typedef struct tagRGBQUAD
 {
 	BYTE rgbBlue;
 	BYTE rgbGreen;
 	BYTE rgbRed;
 	BYTE rgbReserved;
-} RGBQUAD;
+} RGBQUAD, *LPRGBQUAD;
+typedef struct tagRGBTRIPLE { BYTE rgbtBlue, rgbtGreen, rgbtRed; } RGBTRIPLE;
 
 typedef struct tagBITMAPINFO
 {
@@ -356,6 +370,7 @@ struct KoWin32Hooks
 	void (*postQuit)(int code)                   = nullptr;
 	int (*messageBox)(const char* text, const char* caption, UINT type) = nullptr;
 	int (*isKeyDown)(int vk)                     = nullptr;
+	void (*openUrl)(const char* url)             = nullptr;
 };
 KoWin32Hooks& KoWin32GetHooks();
 
@@ -493,6 +508,7 @@ typedef struct _SYSTEMTIME
 void GetLocalTime(SYSTEMTIME* st);
 void GetSystemTime(SYSTEMTIME* st);
 inline BOOL Beep(DWORD, DWORD) { return TRUE; }
+inline UINT GetDoubleClickTime() { return 500; }
 
 // Mesaj döngüsü (SDL platform katmanı kendi döngüsünü kullanır; bunlar yalnızca derleme uyumu için)
 #define PM_REMOVE 0x0001
@@ -532,6 +548,85 @@ inline void _makepath(char* path, const char* drive, const char* dir, const char
 	}
 	std::strcpy(path, s.c_str());
 }
+
+// Ekran modu (mobilde ekran modu değiştirilemez; çağrılar başarı döner)
+typedef struct _devicemode
+{
+	WORD dmSize;
+	DWORD dmFields;
+	DWORD dmBitsPerPel;
+	DWORD dmPelsWidth;
+	DWORD dmPelsHeight;
+	DWORD dmDisplayFrequency;
+} DEVMODE, *LPDEVMODE, DEVMODEA;
+#define DM_BITSPERPEL 0x00040000
+#define DM_PELSWIDTH  0x00080000
+#define DM_PELSHEIGHT 0x00100000
+#define DM_DISPLAYFREQUENCY 0x00400000
+#define ENUM_CURRENT_SETTINGS  ((DWORD) -1)
+#define ENUM_REGISTRY_SETTINGS ((DWORD) -2)
+#define CDS_FULLSCREEN 0x00000004
+#define DISP_CHANGE_SUCCESSFUL 0
+BOOL EnumDisplaySettings(LPCSTR device, DWORD mode, DEVMODE* dm);
+LONG ChangeDisplaySettings(DEVMODE* dm, DWORD flags);
+
+// Kayıt defteri — dosya tabanlı öykünme (compat/win32/registry.cpp)
+#define HKEY_CLASSES_ROOT  ((HKEY) (ULONG_PTR) 0x80000000)
+#define HKEY_CURRENT_USER  ((HKEY) (ULONG_PTR) 0x80000001)
+#define HKEY_LOCAL_MACHINE ((HKEY) (ULONG_PTR) 0x80000002)
+#define ERROR_SUCCESS   0L
+#define ERROR_MORE_DATA 234L
+#define ERROR_FILE_NOT_FOUND 2L
+#define REG_NONE   0
+#define REG_SZ     1
+#define REG_BINARY 3
+#define REG_DWORD  4
+#define KEY_READ 0x20019
+#define KEY_WRITE 0x20006
+#define KEY_ALL_ACCESS 0xF003F
+LONG RegOpenKey(HKEY root, LPCSTR subKey, HKEY* out);
+LONG RegOpenKeyEx(HKEY root, LPCSTR subKey, DWORD options, DWORD sam, HKEY* out);
+LONG RegCreateKey(HKEY root, LPCSTR subKey, HKEY* out);
+LONG RegSetValueEx(HKEY key, LPCSTR name, DWORD reserved, DWORD type, const BYTE* data, DWORD len);
+LONG RegQueryValueEx(HKEY key, LPCSTR name, LPDWORD reserved, LPDWORD type, LPBYTE data, LPDWORD len);
+LONG RegDeleteValue(HKEY key, LPCSTR name);
+LONG RegCloseKey(HKEY key);
+/// Kayıt defteri dosyasının yazılacağı dizin (varsayılan: çalışma dizini)
+void KoRegistrySetDirectory(const char* dir);
+
+// INI dosyaları (GetPrivateProfile*) ve hata kodu
+DWORD GetPrivateProfileString(LPCSTR section, LPCSTR key, LPCSTR def, LPSTR out, DWORD outSize, LPCSTR file);
+UINT GetPrivateProfileInt(LPCSTR section, LPCSTR key, INT def, LPCSTR file);
+BOOL WritePrivateProfileString(LPCSTR section, LPCSTR key, LPCSTR value, LPCSTR file);
+inline DWORD GetLastError() { return (DWORD) errno; }
+inline void SetLastError(DWORD e) { errno = (int) e; }
+
+// Geçici dosya
+UINT GetTempFileName(LPCSTR path, LPCSTR prefix, UINT unique, LPSTR out);
+inline UINT GetTempFileNameA(LPCSTR p, LPCSTR pre, UINT u, LPSTR o) { return GetTempFileName(p, pre, u, o); }
+DWORD GetTempPath(DWORD n, LPSTR buf);
+inline BOOL DeleteFile(LPCSTR path) { return std::remove(path) == 0; }
+inline BOOL DeleteFileA(LPCSTR path) { return DeleteFile(path); }
+inline BOOL CopyFile(LPCSTR src, LPCSTR dst, BOOL failIfExists)
+{
+	if (failIfExists) { FILE* t = std::fopen(dst, "rb"); if (t) { std::fclose(t); return FALSE; } }
+	FILE* in = std::fopen(src, "rb"); if (!in) return FALSE;
+	FILE* out = std::fopen(dst, "wb"); if (!out) { std::fclose(in); return FALSE; }
+	char buf[65536]; size_t n;
+	while ((n = std::fread(buf, 1, sizeof(buf), in)) > 0) std::fwrite(buf, 1, n, out);
+	std::fclose(in); std::fclose(out);
+	return TRUE;
+}
+inline BOOL MoveFile(LPCSTR src, LPCSTR dst) { return std::rename(src, dst) == 0; }
+inline BOOL CreateDirectory(LPCSTR path, void*) { return mkdir(path, 0755) == 0; }
+
+// Kabuk / yerel ayar
+#define SW_SHOWNORMAL 1
+HINSTANCE ShellExecute(HWND, LPCSTR op, LPCSTR file, LPCSTR params, LPCSTR dir, int show);
+inline HINSTANCE ShellExecuteA(HWND h, LPCSTR op, LPCSTR f, LPCSTR p, LPCSTR d, int s) { return ShellExecute(h, op, f, p, d, s); }
+inline WORD GetUserDefaultLangID() { return 0x0409; }
+inline WORD GetSystemDefaultLangID() { return 0x0409; }
+HCURSOR GetCursor();
 
 // Pencere / imleç / çeşitli — platform kancalarına yönlendirilir.
 HWND GetActiveWindow();

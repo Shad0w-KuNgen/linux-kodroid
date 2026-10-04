@@ -32,7 +32,35 @@ HWND SetFocus(HWND) { return g_mainWindow; }
 HWND SetActiveWindow(HWND) { return g_mainWindow; }
 BOOL ShowWindow(HWND, int) { return TRUE; }
 BOOL SetWindowText(HWND, LPCSTR) { return TRUE; }
-HCURSOR SetCursor(HCURSOR c) { return c; }
+HCURSOR g_cursor = nullptr;
+HCURSOR SetCursor(HCURSOR c) { HCURSOR old = g_cursor; g_cursor = c; return old; }
+HCURSOR GetCursor() { return g_cursor; }
+
+BOOL EnumDisplaySettings(LPCSTR, DWORD, DEVMODE* dm)
+{
+	int w = 1024, h = 768;
+	if (KoWin32GetHooks().getClientSize)
+		KoWin32GetHooks().getClientSize(&w, &h);
+	*dm = {};
+	dm->dmSize = sizeof(DEVMODE);
+	dm->dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+	dm->dmBitsPerPel = 32;
+	dm->dmPelsWidth = (DWORD) w;
+	dm->dmPelsHeight = (DWORD) h;
+	dm->dmDisplayFrequency = 60;
+	return TRUE;
+}
+
+LONG ChangeDisplaySettings(DEVMODE*, DWORD) { return DISP_CHANGE_SUCCESSFUL; }
+
+HINSTANCE ShellExecute(HWND, LPCSTR, LPCSTR file, LPCSTR, LPCSTR, int)
+{
+	if (KoWin32GetHooks().openUrl && file)
+		KoWin32GetHooks().openUrl(file);
+	else
+		std::fprintf(stderr, "[ShellExecute] %s\n", file ? file : "");
+	return (HINSTANCE) (ULONG_PTR) 33;
+}
 HCURSOR LoadCursor(HINSTANCE, LPCSTR id) { return (HCURSOR) id; }
 HICON LoadIcon(HINSTANCE, LPCSTR id) { return (HICON) id; }
 LRESULT SendMessage(HWND, UINT, WPARAM, LPARAM) { return 0; }
@@ -164,6 +192,26 @@ void GetSystemTime(SYSTEMTIME* st)
 	st->wYear = (WORD) (tm.tm_year + 1900); st->wMonth = (WORD) (tm.tm_mon + 1); st->wDayOfWeek = (WORD) tm.tm_wday;
 	st->wDay = (WORD) tm.tm_mday; st->wHour = (WORD) tm.tm_hour; st->wMinute = (WORD) tm.tm_min; st->wSecond = (WORD) tm.tm_sec;
 	st->wMilliseconds = (WORD) (duration_cast<milliseconds>(now.time_since_epoch()).count() % 1000);
+}
+
+UINT GetTempFileName(LPCSTR path, LPCSTR prefix, UINT unique, LPSTR out)
+{
+	static unsigned counter = 0;
+	unsigned id = unique ? unique : (unsigned) (getpid() * 1000 + (++counter));
+	std::snprintf(out, MAX_PATH, "%s/%s%04X.tmp", (path && *path) ? path : "/tmp", prefix ? prefix : "tmp", id & 0xFFFF);
+	if (!unique)
+	{
+		FILE* f = std::fopen(out, "wb");
+		if (f) std::fclose(f);
+	}
+	return id;
+}
+
+DWORD GetTempPath(DWORD n, LPSTR buf)
+{
+	const char* t = std::getenv("TMPDIR");
+	std::snprintf(buf, n, "%s/", t ? t : "/tmp");
+	return (DWORD) std::strlen(buf);
 }
 
 void OutputDebugString(LPCSTR s)

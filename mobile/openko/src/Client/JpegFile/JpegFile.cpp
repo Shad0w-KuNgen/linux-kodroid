@@ -1,4 +1,4 @@
-﻿////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
 //	JpegFile - A C++ class to allow reading and writing of
 //	RGB and Grayscale JPEG images.
 //	It is based on the IJG V.6 code.
@@ -450,6 +450,7 @@ BOOL CJpegFile::BGRFromRGB(BYTE* buf, UINT widthPix, UINT height)
 	}
 	return TRUE;
 }
+#if defined(_WIN32)
 
 int CJpegFile::PalEntriesOnDevice(HDC hDC)
 {
@@ -525,6 +526,7 @@ HPALETTE CJpegFile::GetSystemPalette()
 
 	return hPal;
 }
+#endif // _WIN32
 
 WORD CJpegFile::DIBNumColors(LPSTR lpDIB)
 {
@@ -576,6 +578,7 @@ WORD CJpegFile::PaletteSize(LPSTR lpDIB)
 	else
 		return (DIBNumColors(lpDIB) * sizeof(RGBTRIPLE));
 }
+#if defined(_WIN32)
 
 HANDLE CJpegFile::BitmapToDIB(HBITMAP hBitmap, HPALETTE hPal)
 {
@@ -886,6 +889,8 @@ HANDLE CJpegFile::AllocRoomForDIB(BITMAPINFOHEADER bi, HBITMAP hBitmap)
 
 	return hTemp;
 }
+
+#endif // _WIN32 (GDI ekran yakalama; taşınabilir sürüm: mobile/engine-port/JpegFile_portable.cpp)
 
 static RGBQUAD QuadFromWord(WORD b16)
 {

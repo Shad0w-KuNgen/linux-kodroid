@@ -32,6 +32,21 @@ typedef struct WSAData
 #define WSAECONNRESET  ECONNRESET
 #define WSAETIMEDOUT   ETIMEDOUT
 
+#define FD_READ    0x01
+#define FD_WRITE   0x02
+#define FD_OOB     0x04
+#define FD_ACCEPT  0x08
+#define FD_CONNECT 0x10
+#define FD_CLOSE   0x20
+#define WSAGETSELECTEVENT(lParam) LOWORD(lParam)
+#define WSAGETSELECTERROR(lParam) HIWORD(lParam)
+
+/// Windows'ta WSAAsyncSelect soket olaylarını pencere mesajı olarak gönderir. Burada soket
+/// kaydedilir; platform döngüsü her karede KoWinsockPoll() çağırarak FD_READ/FD_CLOSE üretir.
+int WSAAsyncSelect(SOCKET s, HWND hwnd, unsigned msg, long events);
+typedef void (*KoWinsockEventFn)(SOCKET s, HWND hwnd, unsigned msg, long event);
+void KoWinsockPoll(KoWinsockEventFn fn);
+
 inline int WSAStartup(WORD, WSAData* d) { if (d) { d->wVersion = 0x0101; d->wHighVersion = 0x0202; } return 0; }
 inline int WSACleanup() { return 0; }
 inline int WSAGetLastError() { return errno; }

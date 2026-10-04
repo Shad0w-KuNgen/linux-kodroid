@@ -35,7 +35,7 @@ set(D3D9GLES_BUILD_TESTS ${KO_BUILD_TESTS})
 add_subdirectory(d3d9gles)
 
 # --- compat ----------------------------------------------------------------
-add_library(ko_compat STATIC compat/win32/windows.cpp)
+add_library(ko_compat STATIC compat/win32/windows.cpp compat/win32/registry.cpp compat/win32/findfile.cpp compat/win32/ini.cpp compat/win32/winsock.cpp)
 target_include_directories(ko_compat PUBLIC
   ${KO_COMPAT}/win32
   ${KO_COMPAT}/spdlog-bundled
@@ -111,6 +111,53 @@ target_include_directories(ko_n3base PUBLIC ${OPENKO_SRC}/N3Base ${MPG123_INCLUD
 target_link_libraries(ko_n3base PUBLIC ko_fileio ko_mathutils ko_shared d3d9gles
   PkgConfig::MPG123 PkgConfig::OPENAL PkgConfig::FREETYPE)
 target_precompile_headers(ko_n3base PRIVATE ${OPENKO_SRC}/N3Base/StdAfxBase.h)
+
+# --- JpegFile ------------------------------------------------------------------
+pkg_check_modules(JPEG REQUIRED IMPORTED_TARGET libjpeg)
+add_library(ko_jpegfile STATIC ${OPENKO_SRC}/Client/JpegFile/JpegFile.cpp engine-port/JpegFile_portable.cpp)
+ko_openko_target(ko_jpegfile)
+target_include_directories(ko_jpegfile PUBLIC ${OPENKO_SRC}/Client)
+target_link_libraries(ko_jpegfile PUBLIC PkgConfig::JPEG d3d9gles)
+
+# --- WarFare (oyun istemcisi) --------------------------------------------------
+set(WARFARE_DIR ${OPENKO_SRC}/Client/WarFare)
+set(WARFARE_CONFIG_DIR ${CMAKE_BINARY_DIR}/WarFare)
+file(MAKE_DIRECTORY ${WARFARE_CONFIG_DIR})
+if(NOT EXISTS ${WARFARE_CONFIG_DIR}/warfare_config.h)
+  configure_file(${WARFARE_DIR}/warfare_config.h.default ${WARFARE_CONFIG_DIR}/warfare_config.h COPYONLY)
+endif()
+file(GLOB WARFARE_ALL_SOURCES CONFIGURE_DEPENDS ${WARFARE_DIR}/*.cpp)
+set(WARFARE_EXCLUDE
+  WarFareMain.cpp  # → platform/main_sdl.cpp
+  LocalInput.cpp   # → platform/LocalInput_sdl.cpp
+)
+set(WARFARE_SOURCES)
+foreach(src ${WARFARE_ALL_SOURCES})
+  get_filename_component(name ${src} NAME)
+  if(NOT name IN_LIST WARFARE_EXCLUDE)
+    list(APPEND WARFARE_SOURCES ${src})
+  endif()
+endforeach()
+add_library(ko_warfare STATIC ${WARFARE_SOURCES})
+ko_openko_target(ko_warfare)
+target_include_directories(ko_warfare PUBLIC ${WARFARE_DIR} ${WARFARE_CONFIG_DIR})
+target_link_libraries(ko_warfare PUBLIC ko_n3base ko_jpegfile)
+target_precompile_headers(ko_warfare PRIVATE ${WARFARE_DIR}/StdAfx.h)
+
+# --- Uygulama (SDL2 kabuğu) ---------------------------------------------------
+add_executable(KnightOnLine
+  platform/main_sdl.cpp
+  platform/LocalInput_sdl.cpp
+  platform/KoPlatformInput.cpp
+)
+ko_openko_target(KnightOnLine)
+target_include_directories(KnightOnLine PRIVATE platform)
+target_link_libraries(KnightOnLine PRIVATE ko_warfare)
+if(ANDROID)
+  target_link_libraries(KnightOnLine PRIVATE SDL2 GLESv3 EGL android log)
+else()
+  target_link_libraries(KnightOnLine PRIVATE PkgConfig::SDL2 GLESv2 EGL)
+endif()
 
 # --- Testler -----------------------------------------------------------------
 if(KO_BUILD_TESTS AND NOT ANDROID)
