@@ -1,4 +1,4 @@
-﻿// N3UIEdit.cpp: implementation of the CN3UIEdit class.
+// N3UIEdit.cpp: implementation of the CN3UIEdit class.
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -11,7 +11,9 @@
 
 #include "N3SndMgr.h"
 #include "N3SndObj.h"
+#if defined(_WIN32)
 #include <imm.h>
+#endif
 
 constexpr float CARET_FLICKERING_TIME = 0.4f;
 
@@ -95,6 +97,7 @@ void CN3UIEdit::CN3Caret::InitFlckering()
 // CN3UIEdit
 //////////////////////////////////////////////////////////////////////
 
+#if defined(_WIN32)
 BOOL CN3UIEdit::CreateEditWindow(HWND hParent, RECT rect)
 {
 	if (nullptr == hParent)
@@ -187,6 +190,8 @@ LRESULT APIENTRY CN3UIEdit::EditWndProc(HWND hWnd, uint16_t Message, WPARAM wPar
 	return CallWindowProc(s_lpfnEditProc, hWnd, Message, wParam, lParam);
 }
 
+#endif // _WIN32
+
 CN3UIEdit::CN3Caret CN3UIEdit::s_Caret;
 
 CN3UIEdit::CN3UIEdit()
@@ -242,6 +247,9 @@ void CN3UIEdit::KillFocus()
 {
 	if (HaveFocus())
 	{
+#if !defined(_WIN32)
+		CN3UIEdit::OnFocusLost(this);
+#endif
 		s_pFocusedEdit     = nullptr;
 		s_Caret.m_bVisible = FALSE;
 
@@ -269,6 +277,9 @@ bool CN3UIEdit::SetFocus()
 
 	s_Caret.m_bVisible = TRUE;
 	s_Caret.InitFlckering();
+#if !defined(_WIN32)
+	CN3UIEdit::OnFocusGained(this); // SDL metin girişi tamponunu bu edit'e bağla
+#endif
 	CN3UIEdit::UpdateCaretPosFromEditCtrl(); // 캐럿 포지션 설정
 
 	if (s_hWndEdit)
@@ -560,6 +571,7 @@ std::string CN3UIEdit::GetSndFName_Typing() const
 }
 #endif
 
+#if defined(_WIN32)
 void CN3UIEdit::UpdateTextFromEditCtrl()
 {
 	if (nullptr == s_pFocusedEdit || nullptr == s_hWndEdit)
@@ -612,6 +624,8 @@ void CN3UIEdit::SetImeStatus(POINT ptPos, bool bOpen)
 	}
 #endif
 }
+
+#endif // _WIN32
 
 /*
 ///////////////////////////////////////////////////////////////////////////////////////////////////////

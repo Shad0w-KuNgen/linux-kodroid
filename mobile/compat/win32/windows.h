@@ -15,6 +15,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <cctype>
 #include <cmath>
 #include <string>
 #include <chrono>
@@ -397,6 +398,15 @@ inline int lstrcmpiA(const char* a, const char* b) { return strcasecmp(a, b); }
 #define _snprintf snprintf
 #define _itoa(v, s, r) sprintf((s), "%d", (v))
 
+inline char* CharLower(char* s) { for (char* p = s; p && *p; ++p) *p = (char) tolower((unsigned char) *p); return s; }
+inline char* CharUpper(char* s) { for (char* p = s; p && *p; ++p) *p = (char) toupper((unsigned char) *p); return s; }
+inline char* CharLowerA(char* s) { return CharLower(s); }
+inline char* CharUpperA(char* s) { return CharUpper(s); }
+inline char* _strlwr(char* s) { return CharLower(s); }
+inline char* _strupr(char* s) { return CharUpper(s); }
+inline char* strlwr(char* s) { return CharLower(s); }
+inline char* strupr(char* s) { return CharUpper(s); }
+
 inline int MulDiv(int a, int b, int c)
 {
 	if (c == 0) return -1;
@@ -475,6 +485,54 @@ inline BOOL QueryPerformanceCounter(LARGE_INTEGER* c)
 }
 inline void Sleep(DWORD ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
 
+// Sistem saati
+typedef struct _SYSTEMTIME
+{
+	WORD wYear, wMonth, wDayOfWeek, wDay, wHour, wMinute, wSecond, wMilliseconds;
+} SYSTEMTIME, *LPSYSTEMTIME;
+void GetLocalTime(SYSTEMTIME* st);
+void GetSystemTime(SYSTEMTIME* st);
+inline BOOL Beep(DWORD, DWORD) { return TRUE; }
+
+// Mesaj döngüsü (SDL platform katmanı kendi döngüsünü kullanır; bunlar yalnızca derleme uyumu için)
+#define PM_REMOVE 0x0001
+#define PM_NOREMOVE 0x0000
+inline BOOL PeekMessage(MSG* msg, HWND, UINT, UINT, UINT) { if (msg) std::memset(msg, 0, sizeof(MSG)); return FALSE; }
+inline BOOL GetMessage(MSG* msg, HWND, UINT, UINT) { if (msg) std::memset(msg, 0, sizeof(MSG)); return FALSE; }
+inline BOOL TranslateMessage(const MSG*) { return FALSE; }
+inline LRESULT DispatchMessage(const MSG*) { return 0; }
+inline LRESULT DefWindowProc(HWND, UINT, WPARAM, LPARAM) { return 0; }
+inline int lstrcmpA(const char* a, const char* b) { return std::strcmp(a, b); }
+
+// Bellek (GlobalAlloc/GlobalFree — N3VMesh ve BitMapFile kullanıyor)
+#define GMEM_FIXED    0x0000
+#define GMEM_MOVEABLE 0x0002
+#define GMEM_ZEROINIT 0x0040
+#define GPTR          0x0040
+inline HGLOBAL GlobalAlloc(UINT flags, size_t bytes) { return (flags & GMEM_ZEROINIT) ? std::calloc(1, bytes ? bytes : 1) : std::malloc(bytes ? bytes : 1); }
+inline HGLOBAL GlobalFree(HGLOBAL h) { std::free(h); return nullptr; }
+inline LPVOID GlobalLock(HGLOBAL h) { return h; }
+inline BOOL GlobalUnlock(HGLOBAL) { return TRUE; }
+
+// Yol birleştirme
+inline void _makepath(char* path, const char* drive, const char* dir, const char* fname, const char* ext)
+{
+	std::string s;
+	if (drive && *drive) s += drive;
+	if (dir && *dir)
+	{
+		s += dir;
+		if (s.back() != '/' && s.back() != '\\') s += '/';
+	}
+	if (fname && *fname) s += fname;
+	if (ext && *ext)
+	{
+		if (*ext != '.') s += '.';
+		s += ext;
+	}
+	std::strcpy(path, s.c_str());
+}
+
 // Pencere / imleç / çeşitli — platform kancalarına yönlendirilir.
 HWND GetActiveWindow();
 HWND GetForegroundWindow();
@@ -498,6 +556,8 @@ BOOL ClientToScreen(HWND, POINT*);
 BOOL ScreenToClient(HWND, POINT*);
 int MessageBox(HWND, LPCSTR text, LPCSTR caption, UINT type);
 int MessageBoxA(HWND, LPCSTR text, LPCSTR caption, UINT type);
+int MessageBoxW(HWND, LPCWSTR text, LPCWSTR caption, UINT type);
+BOOL MoveWindow(HWND, int x, int y, int w, int h, BOOL repaint);
 SHORT GetAsyncKeyState(int vk);
 SHORT GetKeyState(int vk);
 DWORD GetCurrentDirectory(DWORD n, LPSTR buf);

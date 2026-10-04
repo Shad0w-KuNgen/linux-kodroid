@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <cstdio>
+#include <ctime>
 #include <filesystem>
 #include <unistd.h>
 
@@ -90,6 +91,16 @@ int MessageBox(HWND, LPCSTR text, LPCSTR caption, UINT type)
 
 int MessageBoxA(HWND h, LPCSTR text, LPCSTR caption, UINT type) { return MessageBox(h, text, caption, type); }
 
+int MessageBoxW(HWND h, LPCWSTR text, LPCWSTR caption, UINT type)
+{
+	char t[1024] = "", c[256] = "";
+	if (text) std::snprintf(t, sizeof(t), "%ls", text);
+	if (caption) std::snprintf(c, sizeof(c), "%ls", caption);
+	return MessageBox(h, t, c, type);
+}
+
+BOOL MoveWindow(HWND, int, int, int, int, BOOL) { return TRUE; }
+
 SHORT GetAsyncKeyState(int vk)
 {
 	if (KoWin32GetHooks().isKeyDown && KoWin32GetHooks().isKeyDown(vk))
@@ -129,6 +140,30 @@ void _splitpath(const char* path, char* drive, char* dir, char* fname, char* ext
 	}
 	if (fname) std::strcpy(fname, p.stem().string().c_str());
 	if (ext) std::strcpy(ext, p.extension().string().c_str());
+}
+
+void GetLocalTime(SYSTEMTIME* st)
+{
+	using namespace std::chrono;
+	auto now = system_clock::now();
+	std::time_t t = system_clock::to_time_t(now);
+	std::tm tm {};
+	localtime_r(&t, &tm);
+	st->wYear = (WORD) (tm.tm_year + 1900); st->wMonth = (WORD) (tm.tm_mon + 1); st->wDayOfWeek = (WORD) tm.tm_wday;
+	st->wDay = (WORD) tm.tm_mday; st->wHour = (WORD) tm.tm_hour; st->wMinute = (WORD) tm.tm_min; st->wSecond = (WORD) tm.tm_sec;
+	st->wMilliseconds = (WORD) (duration_cast<milliseconds>(now.time_since_epoch()).count() % 1000);
+}
+
+void GetSystemTime(SYSTEMTIME* st)
+{
+	using namespace std::chrono;
+	auto now = system_clock::now();
+	std::time_t t = system_clock::to_time_t(now);
+	std::tm tm {};
+	gmtime_r(&t, &tm);
+	st->wYear = (WORD) (tm.tm_year + 1900); st->wMonth = (WORD) (tm.tm_mon + 1); st->wDayOfWeek = (WORD) tm.tm_wday;
+	st->wDay = (WORD) tm.tm_mday; st->wHour = (WORD) tm.tm_hour; st->wMinute = (WORD) tm.tm_min; st->wSecond = (WORD) tm.tm_sec;
+	st->wMilliseconds = (WORD) (duration_cast<milliseconds>(now.time_since_epoch()).count() % 1000);
 }
 
 void OutputDebugString(LPCSTR s)

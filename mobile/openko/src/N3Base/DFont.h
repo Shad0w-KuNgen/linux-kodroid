@@ -1,9 +1,12 @@
-﻿#if !defined(AFX_DFONT_H__B1A14901_0027_40BC_8A6C_7FC78DE38686__INCLUDED_)
+#if !defined(AFX_DFONT_H__B1A14901_0027_40BC_8A6C_7FC78DE38686__INCLUDED_)
 #define AFX_DFONT_H__B1A14901_0027_40BC_8A6C_7FC78DE38686__INCLUDED_
 
 #pragma once
 
 #include "N3Base.h"
+
+#include <vector>
+#include <cstdint>
 
 enum e_D3DFontFlags : uint8_t
 {
@@ -39,7 +42,11 @@ public:
 
 	int GetFontHeightInLogicalUnit() const
 	{
+#if defined(_WIN32)
 		return -MulDiv(m_dwFontHeight, GetDeviceCaps(s_hDC, LOGPIXELSY), 72);
+#else
+		return -MulDiv(m_dwFontHeight, 96, 72);
+#endif
 	}
 
 	uint32_t GetFontFlags() const
@@ -58,9 +65,11 @@ public:
 	}
 
 protected:
+#if defined(_WIN32)
 	static HDC s_hDC;               // DC handle
-	static int s_iInstanceCount;    // Class Instance Count
 	static HFONT s_hFontOld;        // default font
+#endif
+	static int s_iInstanceCount;    // Class Instance Count
 
 	std::string m_szFontName;       // Font properties
 	uint32_t m_dwFontHeight;        // Font Size
@@ -75,8 +84,18 @@ protected:
 									// 따른 texture 크기 제한을 넘어버리기 때문에
 									// 이런 경우 Scale을 이용하여 크게 늘려 찍는다.
 
-									//	HDC			m_hDC;							// DC handle
+#if defined(_WIN32)
 	HFONT m_hFont;           // Font handle
+#else
+	// FreeType portu (mobile/engine-port/DFont_ft.cpp)
+	void* m_ftFace;                  // FT_Face (paylaşılan önbellekten)
+	int m_iLineHeight;               // piksel satır yüksekliği
+	int m_iAscender;                 // taban çizgisi
+	std::vector<uint8_t> m_coverage; // SetText sırasında rasterize tamponu
+	bool LoadFace();
+	int MeasureWidth(const uint32_t* cps, size_t n) const;
+	void DrawGlyphs(const uint32_t* cps, size_t n, int x, int y);
+#endif
 	UINT m_iPrimitiveCount;  // 글씨 찍을 판의 갯수
 	__Vector2 m_PrevLeftTop; // DrawText의 경우 찍는 곳의 위치가 변경되었을때를 위한 변수
 	uint32_t m_dwFontColor;  // 글씨 색

@@ -14,4 +14,5 @@ typedef ULONG_PTR HCRYPTKEY;
 #define CALG_SHA 0x8004
 #define CALG_SHA1 0x8004
 #define CALG_RC4 0x6801
+#define MS_ENHANCED_PROV "Microsoft Enhanced Cryptographic Provider v1.0"
 #endif

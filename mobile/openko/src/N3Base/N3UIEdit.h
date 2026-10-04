@@ -1,4 +1,4 @@
-﻿// N3UIEdit.h: interface for the CN3UIEdit class.
+// N3UIEdit.h: interface for the CN3UIEdit class.
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -52,6 +52,28 @@ public:
 	static LRESULT APIENTRY EditWndProc(HWND hWnd, uint16_t Message, WPARAM wParam, LPARAM lParam);
 	static void UpdateTextFromEditCtrl();
 	static void UpdateCaretPosFromEditCtrl();
+
+#if !defined(_WIN32)
+	// Taşınabilir metin girişi (mobile/engine-port/N3UIEdit_portable.cpp).
+	// Platform katmanı (SDL) klavye/dokunmatik klavye olaylarını buraya iletir.
+	enum e_EditKey : int
+	{
+		EDITKEY_BACKSPACE = 1,
+		EDITKEY_DELETE,
+		EDITKEY_LEFT,
+		EDITKEY_RIGHT,
+		EDITKEY_HOME,
+		EDITKEY_END,
+		EDITKEY_RETURN,
+		EDITKEY_TAB,
+		EDITKEY_ESCAPE
+	};
+	static void InputText(const char* utf8);   // SDL_TEXTINPUT
+	static void InputKey(e_EditKey key);       // SDL_KEYDOWN
+	static bool WantsTextInput();              // odaklı edit var mı (sanal klavye için)
+	static void OnFocusGained(CN3UIEdit* pEdit);
+	static void OnFocusLost(CN3UIEdit* pEdit);
+#endif
 
 protected:
 	static CN3Caret s_Caret;
