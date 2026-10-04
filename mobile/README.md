@@ -97,11 +97,32 @@ FetchContent ile çekilir (SDL2 2.30, openal-soft, mpg123, libjpeg, FreeType, sp
 ```
 cd mobile/android
 ./gradlew assembleDebug       # Android Studio / SDK + NDK r27 gerekir
-adb install app/build/outputs/apk/debug/app-debug.apk
-adb push assets/. /sdcard/Android/data/online.knight.mobile/files/
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Veri dizini `SDL_AndroidGetExternalStoragePath()` ile bulunur; `Option.ini` ve `Server.ini` oraya konur.
+Debug APK depodaki sabit `debug.keystore` ile imzalanır; böylece her CI derlemesi bir öncekinin
+üzerine kurulabilir (farklı anahtar → `INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
+
+### Oyun verisini telefona kurma
+
+Uygulama açılınca `SetupActivity` oyun verisini arar; yoksa iki seçenek sunar:
+
+1. **Zip dosyası seç**: istemci klasörünü (`UI/`, `Data/`, `Misc/`, `Server.ini`, `Option.ini`, ...)
+   tek bir `.zip` yapıp telefona atın (Download klasörü yeterli) ve seçin. Zip tek bir üst klasörle
+   paketlenmişse içeriği otomatik kök dizine taşınır.
+2. **Adresten indir**: aynı zip'in `http(s)://` adresini yazın; akış doğrudan veri dizinine açılır.
+
+Veri dizini `Android/data/online.knight.mobile/files/` (yoksa `/data/data/online.knight.mobile/files/`),
+oyuna `--client-dir` argümanıyla iletilir. Android 11+ sürümlerinde `adb push` ile buraya atılan
+dosyaların sahibi `shell` olduğundan oyun bunları okuyamaz; o yüzden veri uygulamanın kendisi
+tarafından açılır. Root'suz cihazda adb ile hızlı yükleme (debug APK, `run-as` ile):
+
+```
+adb push ko-assets.zip /data/local/tmp/ko.zip
+adb shell run-as online.knight.mobile sh -c 'mkdir -p files && cd files && unzip -o /data/local/tmp/ko.zip'
+# unzip yoksa: tar ile paketleyip  run-as online.knight.mobile tar -xf /data/local/tmp/ko.tar -C files
+```
+
 Yazı tipi için `<veri>/fonts/default.ttf` koyun (yoksa `/system/fonts/` denenir).
 
 ## Nasıl çalışıyor (kısa)

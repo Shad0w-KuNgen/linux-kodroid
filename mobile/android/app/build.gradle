@@ -18,7 +18,20 @@ android {
             }
         }
     }
+    // Her CI derlemesinin aynı anahtarla imzalanması için depodaki sabit debug anahtarı
+    // (yoksa "yeni APK eskisinin üzerine kurulmuyor" hatası çıkıyor).
+    signingConfigs {
+        debug {
+            storeFile rootProject.file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
