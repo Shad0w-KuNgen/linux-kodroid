@@ -112,7 +112,10 @@ Uygulama açılınca `SetupActivity` oyun verisini arar; yoksa iki seçenek suna
    paketlenmişse içeriği otomatik kök dizine taşınır.
 2. **Adresten indir**: aynı zip'in `http(s)://` adresini yazın; akış doğrudan veri dizinine açılır.
    Alan varsayılan olarak `http://86.105.4.195/knightonline-mobile.zip` ile gelir
-   (`GameData.DEFAULT_DATA_URL`).
+   (`GameData.DEFAULT_DATA_URL`). Bağlantı koparsa `ResumingHttpStream` kaldığı bayttan
+   `Range` isteğiyle yeniden bağlanır (30 denemeye kadar, üstel bekleme); sunucu `Range`
+   desteklemiyorsa eksik baytlar okunup atılır. Ekranda yüzde, alınan/toplam MB, hız ve kalan süre
+   gösterilir; indirme boyunca ekran açık tutulur.
 
 Kurulumdan sonra ve her oyun başlatılışında `Server.ini` denetlenir: dosya yoksa yazılır, `[Server]`
 altında `IP0` yok ya da `127.0.0.1`/boş ise `IP0=86.105.4.195` (`GameData.DEFAULT_SERVER_IP`) yapılır.

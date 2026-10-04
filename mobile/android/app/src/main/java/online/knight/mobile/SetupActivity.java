@@ -8,6 +8,9 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.WindowManager;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -22,8 +25,7 @@ import android.widget.TextView;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.Locale;
 
 /**
  * Başlatıcı etkinlik: oyun verisi yoksa kullanıcıdan bir zip seçmesini ya da bir adresten
@@ -42,6 +44,22 @@ public class SetupActivity extends Activity {
     private EditText urlEdit;
     private volatile boolean cancelRequested;
     private Thread worker;
+
+    // İlerleme durumu (iş parçacığından yazılır, UI zamanlayıcısı okur)
+    private volatile long progDone, progTotal = -1;
+    private volatile String progEntry = "", progNote = "";
+    private volatile int progReconnects;
+    private long speedLastTime, speedLastBytes;
+    private double speedBps;
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
+    private final Runnable uiTick = new Runnable() {
+        @Override
+        public void run() {
+            updateProgressUi();
+            if (worker != null && worker.isAlive())
+                uiHandler.postDelayed(this, 400);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -163,6 +181,9 @@ public class SetupActivity extends Activity {
         if (busy) {
             bar.setIndeterminate(true);
             bar.setProgress(0);
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
     }
 
@@ -211,17 +232,20 @@ public class SetupActivity extends Activity {
         }
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(PREF_URL, url).apply();
         runImport("İndiriliyor", () -> {
-            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-            conn.setConnectTimeout(30000);
-            conn.setReadTimeout(60000);
-            conn.setInstanceFollowRedirects(true);
-            conn.setRequestProperty("User-Agent", "KnightOnlineMobile/0.1");
-            conn.connect();
-            int code = conn.getResponseCode();
-            if (code / 100 != 2)
-                throw new IOException("HTTP " + code);
-            long len = conn.getContentLengthLong();
-            return new Source(conn.getInputStream(), len);
+            ResumingHttpStream in = new ResumingHttpStream(url, new ResumingHttpStream.Listener() {
+                @Override
+                public void onReconnect(int attempt, int maxAttempts, String reason) {
+                    progReconnects = attempt;
+                    progNote = "Bağlantı koptu (" + reason + "), kaldığı yerden yeniden bağlanıyor... "
+                            + attempt + "/" + maxAttempts;
+                }
+
+                @Override
+                public boolean isCancelled() {
+                    return cancelRequested;
+                }
+            }).open();
+            return new Source(in, in.total());
         });
     }
 
@@ -262,47 +286,87 @@ public class SetupActivity extends Activity {
 
     private void runImport(final String verb, final SourceOpener opener) {
         cancelRequested = false;
+        progDone = 0;
+        progTotal = -1;
+        progEntry = "";
+        progNote = "";
+        progReconnects = 0;
+        speedLastTime = System.currentTimeMillis();
+        speedLastBytes = 0;
+        speedBps = 0;
+        currentVerb = verb;
         setBusy(true);
         status.setText(verb + "...");
         worker = new Thread(() -> {
             String error = null;
             try {
                 Source src = opener.open();
+                progTotal = src.total;
                 try (InputStream in = src.in) {
-                    final long[] lastUi = { 0 };
                     GameData.extractZip(in, src.total, dataDir, (done, total, entry) -> {
-                        long now = System.currentTimeMillis();
-                        if (now - lastUi[0] > 150) {
-                            lastUi[0] = now;
-                            runOnUiThread(() -> {
-                                if (total > 0) {
-                                    bar.setIndeterminate(false);
-                                    bar.setProgress((int) (done * 1000 / total));
-                                }
-                                status.setText(verb + ": " + GameData.humanBytes(done)
-                                        + (total > 0 ? " / " + GameData.humanBytes(total) : "")
-                                        + "\n" + entry);
-                            });
-                        }
+                        if (done > progDone)
+                            progNote = "";          // veri akıyor: kopma notunu kaldır
+                        progDone = done;
+                        if (total > 0)
+                            progTotal = total;
+                        progEntry = entry;
                         return !cancelRequested;
                     });
                 }
             } catch (Exception e) {
-                error = cancelRequested ? "İptal edildi." : "Hata: " + e.getMessage();
+                error = cancelRequested ? "İptal edildi." : "Hata: " + e.getMessage()
+                        + (progReconnects > 0 ? " (" + progReconnects + " yeniden bağlanma denemesinden sonra)" : "");
             }
             final String err = error;
             runOnUiThread(() -> {
+                uiHandler.removeCallbacks(uiTick);
                 setBusy(false);
                 refreshState();
                 if (err != null)
-                    status.setText(err);
+                    status.setText(err + "\n" + GameData.humanBytes(progDone) + " alınmıştı.");
                 else if (GameData.hasGameData(dataDir))
-                    status.setText("Kurulum tamamlandı. Oyunu başlatabilirsiniz.");
+                    status.setText("Kurulum tamamlandı (" + GameData.humanBytes(progDone)
+                            + "). Oyunu başlatabilirsiniz.");
                 else
-                    status.setText("Zip açıldı ama içinde oyun verisi (UI klasörü / Server.ini) bulunamadı.");
+                    status.setText("Zip açıldı ama içinde oyun verisi (UI klasörü) bulunamadı.");
             });
         }, "ko-import");
         worker.start();
+        uiHandler.postDelayed(uiTick, 400);
+    }
+
+    private String currentVerb = "";
+
+    private void updateProgressUi() {
+        long done = progDone, total = progTotal;
+        long now = System.currentTimeMillis();
+        if (now - speedLastTime >= 1000) {
+            speedBps = (done - speedLastBytes) * 1000.0 / (now - speedLastTime);
+            speedLastTime = now;
+            speedLastBytes = done;
+        }
+        StringBuilder sb = new StringBuilder(currentVerb);
+        if (total > 0) {
+            int permille = (int) Math.min(1000, done * 1000 / total);
+            bar.setIndeterminate(false);
+            bar.setProgress(permille);
+            sb.append(String.format(Locale.ROOT, ": %%%d  (%s / %s)", permille / 10,
+                    GameData.humanBytes(done), GameData.humanBytes(total)));
+            if (speedBps > 1024) {
+                long etaSec = (long) ((total - done) / speedBps);
+                sb.append(String.format(Locale.ROOT, "\n%.1f MB/sn, kalan ~%d:%02d",
+                        speedBps / (1024 * 1024), etaSec / 60, etaSec % 60));
+            }
+        } else {
+            sb.append(": ").append(GameData.humanBytes(done));
+            if (speedBps > 1024)
+                sb.append(String.format(Locale.ROOT, "\n%.1f MB/sn", speedBps / (1024 * 1024)));
+        }
+        if (progNote.length() > 0)
+            sb.append("\n").append(progNote);
+        if (progEntry.length() > 0)
+            sb.append("\n").append(progEntry);
+        status.setText(sb.toString());
     }
 
     private void startGame() {
