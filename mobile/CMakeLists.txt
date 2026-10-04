@@ -141,6 +141,7 @@ set(KO_APP_SOURCES
   platform/main_sdl.cpp
   platform/LocalInput_sdl.cpp
   platform/KoPlatformInput.cpp
+  platform/KoTouchOverlay.cpp
 )
 if(ANDROID)
   # Android'de uygulama bir paylaşılan kütüphanedir; SDLActivity libKnightOnLine.so içindeki SDL_main'i çağırır

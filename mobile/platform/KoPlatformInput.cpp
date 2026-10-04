@@ -99,10 +99,16 @@ void KoInputUpdateKeyboard()
 	const Uint8* keys = SDL_GetKeyboardState(&n);
 	std::memset(st.keysDIK, 0, sizeof(st.keysDIK));
 	if (!keys || !st.windowFocused)
+	{
+		for (int i = 0; i < 256; ++i)
+			st.keysDIK[i] |= st.virtualKeysDIK[i];
 		return;
+	}
 	for (const DikMap& m : kDikMap)
 		if (m.sc < n && keys[m.sc])
 			st.keysDIK[m.dik] = 0x80;
+	for (int i = 0; i < 256; ++i)
+		st.keysDIK[i] |= st.virtualKeysDIK[i];
 }
 
 int KoInputIsVkDown(int vk)

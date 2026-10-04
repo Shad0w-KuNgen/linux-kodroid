@@ -47,6 +47,7 @@ namespace d3d9gles
 /// Platform katmanının sağladığı kancalar: tampon takası ve çizim alanı boyutu.
 struct PlatformHooks
 {
+	void (*beforePresent)(void* user)                = nullptr; // çizim hedefi hâlâ bağlıyken (kaplama çizimi)
 	void (*present)(void* user)                      = nullptr;
 	void (*getDrawableSize)(void* user, int* w, int* h) = nullptr;
 	void* user                                       = nullptr;

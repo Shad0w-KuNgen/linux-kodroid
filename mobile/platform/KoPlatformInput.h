@@ -15,6 +15,8 @@ struct KoInputState
 	int wheelDelta = 0;           // birikmiş tekerlek (120 = bir çentik)
 	bool windowFocused = true;
 	uint8_t keysDIK[256] = {};    // DirectInput tarama kodu → basılı mı (0x80)
+	uint8_t virtualKeysDIK[256] = {}; // dokunmatik kaplamanın ürettiği tuşlar (fiziksel ile OR'lanır)
+	int pendingLbUpFrames = 0;    // dokunmatik "tık": sol tuş bu kadar kare sonra bırakılır
 };
 
 KoInputState& KoInput();

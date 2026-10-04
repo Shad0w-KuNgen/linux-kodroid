@@ -155,6 +155,14 @@ struct DeviceImpl
 	IDirect3DIndexBuffer9* indices = nullptr;
 	bool inScene = false;
 
+	// İsteğe bağlı ölçekli çizim hedefi: arka tampon (mantıksal çözünürlük) fiziksel çizim
+	// alanından farklıysa bir FBO'ya çizilir ve Present'te ekrana büyütülür (mobil performans/UI boyutu).
+	GLuint fbo = 0, fboColor = 0, fboDepth = 0;
+	int fboW = 0, fboH = 0;
+	bool useFbo = false;
+	void EnsureRenderTarget();
+	void RenderTargetSize(int* w, int* h) const;
+
 	// GL nesneleri
 	GLuint vao = 0;
 	GLuint streamVbo = 0, streamIbo = 0;

@@ -183,6 +183,64 @@ void DeviceImpl::GetDrawableSize(int* w, int* h) const
 	*h = (int) pp.BackBufferHeight;
 }
 
+void DeviceImpl::RenderTargetSize(int* w, int* h) const
+{
+	if (useFbo)
+	{
+		*w = fboW;
+		*h = fboH;
+		return;
+	}
+	GetDrawableSize(w, h);
+}
+
+void DeviceImpl::EnsureRenderTarget()
+{
+	int dw, dh;
+	GetDrawableSize(&dw, &dh);
+	int bw = (int) pp.BackBufferWidth, bh = (int) pp.BackBufferHeight;
+	bool want = bw > 0 && bh > 0 && (bw != dw || bh != dh);
+	if (!want)
+	{
+		if (fbo) glDeleteFramebuffers(1, &fbo);
+		if (fboColor) glDeleteTextures(1, &fboColor);
+		if (fboDepth) glDeleteRenderbuffers(1, &fboDepth);
+		fbo = fboColor = fboDepth = 0;
+		useFbo = false;
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		return;
+	}
+	if (useFbo && fboW == bw && fboH == bh)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		return;
+	}
+	if (!fbo) glGenFramebuffers(1, &fbo);
+	if (!fboColor) glGenTextures(1, &fboColor);
+	if (!fboDepth) glGenRenderbuffers(1, &fboDepth);
+	glBindTexture(GL_TEXTURE_2D, fboColor);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, bw, bh, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	glBindRenderbuffer(GL_RENDERBUFFER, fboDepth);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, bw, bh);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboColor, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fboDepth);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		Log("d3d9gles: ölçekli çizim hedefi oluşturulamadı (%dx%d); doğrudan çizim", bw, bh);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		useFbo = false;
+		return;
+	}
+	fboW   = bw;
+	fboH   = bh;
+	useFbo = true;
+	Log("d3d9gles: mantıksal %dx%d → fiziksel %dx%d ölçekleme etkin", bw, bh, dw, dh);
+}
+
 void DeviceImpl::InitGL()
 {
 	const char* ext = (const char*) glGetString(GL_EXTENSIONS);
@@ -236,6 +294,10 @@ void DeviceImpl::ShutdownGL()
 	for (auto& kv : programs)
 		glDeleteProgram(kv.second.id);
 	programs.clear();
+	if (fbo) glDeleteFramebuffers(1, &fbo);
+	if (fboColor) glDeleteTextures(1, &fboColor);
+	if (fboDepth) glDeleteRenderbuffers(1, &fboDepth);
+	fbo = fboColor = fboDepth = 0;
 	if (whiteTexture) glDeleteTextures(1, &whiteTexture);
 	if (streamVbo) glDeleteBuffers(1, &streamVbo);
 	if (streamIbo) glDeleteBuffers(1, &streamIbo);
@@ -394,7 +456,7 @@ inline float AsFloat(DWORD v)
 void DeviceImpl::SetUniforms(Program& p, const ProgramKey& key, const FvfLayout&)
 {
 	int dw, dh;
-	GetDrawableSize(&dw, &dh);
+	RenderTargetSize(&dw, &dh);
 
 	D3DMATRIX wv, wvp;
 	MatMul(world, view, wv);
@@ -541,7 +603,7 @@ GLenum MinFilterToGL(DWORD minf, DWORD mipf)
 void DeviceImpl::ApplyGLState(const FvfLayout&)
 {
 	int dw, dh;
-	GetDrawableSize(&dw, &dh);
+	RenderTargetSize(&dw, &dh);
 
 	// Görünüm alanı (D3D: y yukarıdan; GL: y aşağıdan)
 	glViewport((GLint) viewport.X, (GLint) (dh - (int) (viewport.Y + viewport.Height)), (GLsizei) viewport.Width, (GLsizei) viewport.Height);
@@ -929,6 +991,7 @@ IDirect3DDevice9::IDirect3DDevice9(IDirect3D9* parent, const D3DPRESENT_PARAMETE
 	d.clipStatus = {D3DCS_ALL, D3DCS_ALL};
 
 	d.InitGL();
+	d.EnsureRenderTarget();
 }
 
 IDirect3DDevice9::~IDirect3DDevice9()
@@ -1001,14 +1064,55 @@ HRESULT IDirect3DDevice9::Reset(D3DPRESENT_PARAMETERS* pp)
 	if (m_impl->pp.BackBufferWidth == 0) m_impl->pp.BackBufferWidth = (UINT) w;
 	if (m_impl->pp.BackBufferHeight == 0) m_impl->pp.BackBufferHeight = (UINT) h;
 	m_impl->viewport = {0, 0, m_impl->pp.BackBufferWidth, m_impl->pp.BackBufferHeight, 0.0f, 1.0f};
+	m_impl->EnsureRenderTarget();
 	return D3D_OK;
 }
 
 HRESULT IDirect3DDevice9::Present(const RECT*, const RECT*, HWND, const RGNDATA*)
 {
+	DeviceImpl& d = *m_impl;
+	if (g_hooks.beforePresent)
+		g_hooks.beforePresent(g_hooks.user);
+	if (d.useFbo)
+	{
+		int dw, dh;
+		d.GetDrawableSize(&dw, &dh);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, d.fbo);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		glDisable(GL_SCISSOR_TEST);
+		glBlitFramebuffer(0, 0, d.fboW, d.fboH, 0, 0, dw, dh, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
 	if (g_hooks.present)
 		g_hooks.present(g_hooks.user);
-	m_impl->drawCalls = 0;
+	d.drawCalls = 0;
+	d.EnsureRenderTarget(); // çizim alanı değiştiyse yeniden boyutlandır, FBO'yu geri bağla
+	return D3D_OK;
+}
+
+HRESULT IDirect3DDevice9::GetFrontBufferData(UINT, IDirect3DSurface9* dst)
+{
+	if (!dst)
+		return D3DERR_INVALIDCALL;
+	D3DSURFACE_DESC dd;
+	dst->GetDesc(&dd);
+	int w, h;
+	m_impl->RenderTargetSize(&w, &h);
+	std::vector<uint8_t> rgba((size_t) w * h * 4);
+	glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+	std::vector<uint8_t> flipped(rgba.size());
+	for (int y = 0; y < h; ++y)
+		std::memcpy(flipped.data() + (size_t) y * w * 4, rgba.data() + (size_t) (h - 1 - y) * w * 4, (size_t) w * 4);
+	D3DLOCKED_RECT lr;
+	dst->LockRect(&lr, nullptr, 0);
+	UINT cw = std::min<UINT>((UINT) w, dd.Width), ch = std::min<UINT>((UINT) h, dd.Height);
+	std::vector<uint8_t> row(cw * FormatBytesPerPixel(dd.Format));
+	for (UINT y = 0; y < ch; ++y)
+	{
+		RGBA8ToPixels(dd.Format, cw, 1, flipped.data() + (size_t) y * w * 4, row.data());
+		std::memcpy(static_cast<uint8_t*>(lr.pBits) + y * lr.Pitch, row.data(), row.size());
+	}
+	dst->UnlockRect();
 	return D3D_OK;
 }
 
@@ -1081,33 +1185,6 @@ HRESULT IDirect3DDevice9::UpdateSurface(IDirect3DSurface9* src, const RECT* srcR
 	return D3D_OK;
 }
 
-HRESULT IDirect3DDevice9::GetFrontBufferData(UINT, IDirect3DSurface9* dst)
-{
-	if (!dst)
-		return D3DERR_INVALIDCALL;
-	D3DSURFACE_DESC dd;
-	dst->GetDesc(&dd);
-	int w, h;
-	m_impl->GetDrawableSize(&w, &h);
-	std::vector<uint8_t> rgba((size_t) w * h * 4);
-	glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
-	// GL alttan yukarı okur; D3D üstten aşağı bekler
-	std::vector<uint8_t> flipped(rgba.size());
-	for (int y = 0; y < h; ++y)
-		std::memcpy(flipped.data() + (size_t) y * w * 4, rgba.data() + (size_t) (h - 1 - y) * w * 4, (size_t) w * 4);
-	D3DLOCKED_RECT lr;
-	dst->LockRect(&lr, nullptr, 0);
-	UINT cw = std::min<UINT>((UINT) w, dd.Width), ch = std::min<UINT>((UINT) h, dd.Height);
-	std::vector<uint8_t> row(cw * FormatBytesPerPixel(dd.Format));
-	for (UINT y = 0; y < ch; ++y)
-	{
-		RGBA8ToPixels(dd.Format, cw, 1, flipped.data() + (size_t) y * w * 4, row.data());
-		std::memcpy(static_cast<uint8_t*>(lr.pBits) + y * lr.Pitch, row.data(), row.size());
-	}
-	dst->UnlockRect();
-	return D3D_OK;
-}
-
 HRESULT IDirect3DDevice9::ColorFill(IDirect3DSurface9* surf, const RECT* rect, D3DCOLOR color)
 {
 	if (!surf)
@@ -1146,7 +1223,7 @@ HRESULT IDirect3DDevice9::Clear(DWORD count, const D3DRECT* rects, DWORD flags, 
 {
 	DeviceImpl& d = *m_impl;
 	int dw, dh;
-	d.GetDrawableSize(&dw, &dh);
+	d.RenderTargetSize(&dw, &dh);
 	GLbitfield mask = 0;
 	if (flags & D3DCLEAR_TARGET)
 	{

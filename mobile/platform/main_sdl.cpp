@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "KoPlatformInput.h"
+#include "KoTouchOverlay.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -39,6 +40,29 @@ namespace
 SDL_Window* g_window = nullptr;
 SDL_GLContext g_glContext = nullptr;
 bool g_quit = false;
+int g_logicalW = 1024, g_logicalH = 768; // oyunun gördüğü çözünürlük
+float g_scaleX = 1.0f, g_scaleY = 1.0f;  // fiziksel → mantıksal
+int g_mobileLogicalHeight = 0;           // [Mobile] LogicalHeight (0 = ölçekleme yok)
+bool g_touchControls = false;
+
+void UpdateLogicalSize()
+{
+	int dw = 1, dh = 1;
+	SDL_GL_GetDrawableSize(g_window, &dw, &dh);
+	if (g_mobileLogicalHeight > 0 && dh > g_mobileLogicalHeight)
+	{
+		g_logicalH = g_mobileLogicalHeight;
+		g_logicalW = (int) ((long long) dw * g_logicalH / dh);
+	}
+	else
+	{
+		g_logicalW = dw;
+		g_logicalH = dh;
+	}
+	g_scaleX = (float) g_logicalW / (float) dw;
+	g_scaleY = (float) g_logicalH / (float) dh;
+	KoTouch().Layout(g_logicalW, g_logicalH);
+}
 
 void LoadOptions(const std::string& iniPath)
 {
@@ -59,6 +83,15 @@ void LoadOptions(const std::string& iniPath)
 	o.bWindowCursor   = ini.GetBool("Cursor", "WindowCursor", true);
 	o.bWindowMode     = ini.GetBool("Screen", "WindowMode", true);
 	o.bVSyncEnabled   = ini.GetBool("Screen", "VSyncEnabled", true);
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
+	g_mobileLogicalHeight = ini.GetInt("Mobile", "LogicalHeight", 768);
+	g_touchControls       = ini.GetBool("Mobile", "TouchControls", true);
+#else
+	g_mobileLogicalHeight = ini.GetInt("Mobile", "LogicalHeight", 0);
+	g_touchControls       = ini.GetBool("Mobile", "TouchControls", false) || std::getenv("KO_TOUCH") != nullptr;
+#endif
+	if (const char* lh = std::getenv("KO_LOGICAL_HEIGHT"))
+		g_mobileLogicalHeight = std::atoi(lh);
 }
 
 std::string ResolveClientDir(int argc, char** argv)
@@ -88,7 +121,12 @@ void HookDrawableSize(void*, int* w, int* h)
 }
 void HookClientSize(int* w, int* h)
 {
-	SDL_GL_GetDrawableSize(g_window, w, h);
+	*w = g_logicalW; // oyun mantıksal çözünürlükte çalışır; d3d9gles fiziksel ekrana ölçekler
+	*h = g_logicalH;
+}
+void HookBeforePresent(void*)
+{
+	KoTouch().Render(CN3Base::s_lpD3DDev);
 }
 void HookGetCursorPos(int* x, int* y)
 {
@@ -99,7 +137,7 @@ void HookSetCursorPos(int x, int y)
 {
 	KoInput().mouseX = x;
 	KoInput().mouseY = y;
-	SDL_WarpMouseInWindow(g_window, x, y);
+	SDL_WarpMouseInWindow(g_window, (int) (x / g_scaleX), (int) (y / g_scaleY));
 }
 int HookShowCursor(BOOL show)
 {
@@ -129,8 +167,7 @@ void HookOpenUrl(const char* url)
 
 void SaveScreenshotPPM(const char* path)
 {
-	int w = 0, h = 0;
-	SDL_GL_GetDrawableSize(g_window, &w, &h);
+	int w = g_logicalW, h = g_logicalH;
 	std::vector<unsigned char> rgba((size_t) w * h * 4);
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
 	glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
@@ -224,8 +261,9 @@ void HandleTextInputKey(const SDL_KeyboardEvent& key)
 void PumpEvents()
 {
 	KoInputState& in = KoInput();
-	int dw = 1, dh = 1;
-	SDL_GL_GetDrawableSize(g_window, &dw, &dh);
+	const int lw = g_logicalW, lh = g_logicalH;
+	auto lx = [&](int px) { return (int) (px * g_scaleX); };
+	auto ly = [&](int py) { return (int) (py * g_scaleY); };
 	SDL_Event e;
 	while (SDL_PollEvent(&e))
 	{
@@ -236,12 +274,13 @@ void PumpEvents()
 			case SDL_WINDOWEVENT:
 				if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) OnFocusChanged(true);
 				else if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) OnFocusChanged(false);
+				else if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) UpdateLogicalSize();
 				break;
 			case SDL_MOUSEMOTION:
 				if (e.motion.which != SDL_TOUCH_MOUSEID)
 				{
-					in.mouseX = e.motion.x;
-					in.mouseY = e.motion.y;
+					in.mouseX = lx(e.motion.x);
+					in.mouseY = ly(e.motion.y);
 				}
 				break;
 			case SDL_MOUSEBUTTONDOWN:
@@ -249,8 +288,8 @@ void PumpEvents()
 				if (e.button.which != SDL_TOUCH_MOUSEID)
 				{
 					bool down = e.type == SDL_MOUSEBUTTONDOWN;
-					in.mouseX = e.button.x;
-					in.mouseY = e.button.y;
+					in.mouseX = lx(e.button.x);
+					in.mouseY = ly(e.button.y);
 					if (e.button.button == SDL_BUTTON_LEFT) in.lbDown = down;
 					else if (e.button.button == SDL_BUTTON_MIDDLE) in.mbDown = down;
 					else if (e.button.button == SDL_BUTTON_RIGHT) in.rbDown = down;
@@ -260,35 +299,37 @@ void PumpEvents()
 				if (e.wheel.y != 0)
 					OnMouseWheel((short) (e.wheel.y * WHEEL_DELTA));
 				break;
-			// Dokunmatik: ilk parmak sol tık, ikinci parmak sağ tık (ilk sürüm)
+			// Dokunmatik
 			case SDL_FINGERDOWN:
 			case SDL_FINGERMOTION:
 			case SDL_FINGERUP:
 			{
-				int fingers = SDL_GetNumTouchFingers(e.tfinger.touchId);
-				int x = (int) (e.tfinger.x * dw), y = (int) (e.tfinger.y * dh);
-				if (e.type == SDL_FINGERDOWN)
+				int x = (int) (e.tfinger.x * lw), y = (int) (e.tfinger.y * lh);
+				int64_t id = (int64_t) e.tfinger.fingerId;
+				if (KoTouch().Enabled())
 				{
-					if (fingers <= 1)
-					{
-						in.mouseX = x; in.mouseY = y; in.lbDown = true;
-					}
-					else
-					{
-						in.rbDown = true;
-					}
-				}
-				else if (e.type == SDL_FINGERMOTION)
-				{
-					if (fingers <= 1 || e.tfinger.fingerId == 0)
-					{
-						in.mouseX = x; in.mouseY = y;
-					}
+					if (e.type == SDL_FINGERDOWN) KoTouch().OnFingerDown(id, x, y);
+					else if (e.type == SDL_FINGERMOTION) KoTouch().OnFingerMotion(id, x, y);
+					else KoTouch().OnFingerUp(id, x, y);
 				}
 				else
 				{
-					if (fingers <= 1) { in.lbDown = false; in.rbDown = false; }
-					else in.rbDown = false;
+					// Basit eşleme: ilk parmak sol tık, ikinci parmak sağ tık
+					int fingers = SDL_GetNumTouchFingers(e.tfinger.touchId);
+					if (e.type == SDL_FINGERDOWN)
+					{
+						if (fingers <= 1) { in.mouseX = x; in.mouseY = y; in.lbDown = true; }
+						else in.rbDown = true;
+					}
+					else if (e.type == SDL_FINGERMOTION)
+					{
+						if (fingers <= 1) { in.mouseX = x; in.mouseY = y; }
+					}
+					else
+					{
+						if (fingers <= 1) { in.lbDown = false; in.rbDown = false; }
+						else in.rbDown = false;
+					}
 				}
 				break;
 			}
@@ -356,13 +397,16 @@ int main(int argc, char** argv)
 	}
 	SDL_GL_SetSwapInterval(CN3Base::s_Options.bVSyncEnabled ? 1 : 0);
 
-	// Gerçek çizim alanı (mobilde tam ekran) oyun seçeneklerine yazılır
-	int dw = 0, dh = 0;
-	SDL_GL_GetDrawableSize(g_window, &dw, &dh);
-	CN3Base::s_Options.iViewWidth  = dw;
-	CN3Base::s_Options.iViewHeight = dh;
+	// Mantıksal çözünürlük (mobilde ekran yüksekliği 768'e ölçeklenir; d3d9gles FBO ile büyütür)
+	KoTouch().SetEnabled(g_touchControls);
+	if (std::getenv("KO_TOUCH_DEBUG"))
+		KoTouch().SetForceVisible(true);
+	UpdateLogicalSize();
+	CN3Base::s_Options.iViewWidth  = g_logicalW;
+	CN3Base::s_Options.iViewHeight = g_logicalH;
 
 	d3d9gles::PlatformHooks gl {};
+	gl.beforePresent   = HookBeforePresent;
 	gl.present         = HookPresent;
 	gl.getDrawableSize = HookDrawableSize;
 	d3d9gles::SetPlatformHooks(gl);
@@ -393,6 +437,7 @@ int main(int argc, char** argv)
 	while (!g_quit)
 	{
 		PumpEvents();
+		KoTouch().Update();
 		KoWinsockPoll(OnSocketEvent);
 		CGameProcedure::TickActive();
 		CGameProcedure::RenderActive();
