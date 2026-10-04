@@ -29,6 +29,21 @@ const PlatformHooks& GetPlatformHooks()
 	return g_hooks;
 }
 
+void ComputePresentRect(int bw, int bh, int dw, int dh, int* x, int* y, int* w, int* h)
+{
+	if (bw <= 0 || bh <= 0 || dw <= 0 || dh <= 0 || std::getenv("D3D9GLES_STRETCH"))
+	{
+		*x = 0; *y = 0; *w = dw; *h = dh;
+		return;
+	}
+	double sx = (double) dw / bw, sy = (double) dh / bh;
+	double sc = std::min(sx, sy);
+	*w = (int) (bw * sc + 0.5);
+	*h = (int) (bh * sc + 0.5);
+	*x = (dw - *w) / 2;
+	*y = (dh - *h) / 2;
+}
+
 void Log(const char* fmt, ...)
 {
 	char buf[1024];
@@ -1077,10 +1092,19 @@ HRESULT IDirect3DDevice9::Present(const RECT*, const RECT*, HWND, const RGNDATA*
 	{
 		int dw, dh;
 		d.GetDrawableSize(&dw, &dh);
+		int px, py, pw, ph;
+		ComputePresentRect(d.fboW, d.fboH, dw, dh, &px, &py, &pw, &ph);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glDisable(GL_SCISSOR_TEST);
+		if (px != 0 || py != 0)
+		{
+			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+			glClearColor(0, 0, 0, 1);
+			glClear(GL_COLOR_BUFFER_BIT);
+		}
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, d.fbo);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-		glDisable(GL_SCISSOR_TEST);
-		glBlitFramebuffer(0, 0, d.fboW, d.fboH, 0, 0, dw, dh, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+		glBlitFramebuffer(0, 0, d.fboW, d.fboH, px, py, px + pw, py + ph, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 	if (g_hooks.present)

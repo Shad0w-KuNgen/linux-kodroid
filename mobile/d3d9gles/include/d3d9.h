@@ -55,6 +55,11 @@ struct PlatformHooks
 void SetPlatformHooks(const PlatformHooks& hooks);
 const PlatformHooks& GetPlatformHooks();
 
+/// Arka tampon (bw×bh) fiziksel çizim alanına (dw×dh) en-boy oranı korunarak yerleştirilir
+/// (yanlarda/üstte siyah bant). D3D9GLES_STRETCH=1 ile tam ekrana gerilir. Platform katmanı
+/// dokunma koordinatlarını mantıksal çözünürlüğe çevirmek için aynı dikdörtgeni kullanır.
+void ComputePresentRect(int bw, int bh, int dw, int dh, int* x, int* y, int* w, int* h);
+
 /// Hata/uyarı günlüğü (varsayılan: stderr; Android'de logcat).
 void Log(const char* fmt, ...);
 } // namespace d3d9gles

@@ -41,26 +41,36 @@ SDL_Window* g_window = nullptr;
 SDL_GLContext g_glContext = nullptr;
 bool g_quit = false;
 int g_logicalW = 1024, g_logicalH = 768; // oyunun gördüğü çözünürlük
-float g_scaleX = 1.0f, g_scaleY = 1.0f;  // fiziksel → mantıksal
+int g_presentX = 0, g_presentY = 0, g_presentW = 1, g_presentH = 1; // mantıksal görüntünün ekrandaki yeri
 int g_mobileLogicalHeight = 0;           // [Mobile] LogicalHeight (0 = ölçekleme yok)
 bool g_touchControls = false;
+bool g_physicalShotPending = false;
+std::string g_physicalShotPath;
+
+// Fiziksel piksel → mantıksal koordinat (bantlar hesaba katılır)
+int ToLogicalX(int px) { return (int) ((long long) (px - g_presentX) * g_logicalW / std::max(1, g_presentW)); }
+int ToLogicalY(int py) { return (int) ((long long) (py - g_presentY) * g_logicalH / std::max(1, g_presentH)); }
 
 void UpdateLogicalSize()
 {
 	int dw = 1, dh = 1;
 	SDL_GL_GetDrawableSize(g_window, &dw, &dh);
-	if (g_mobileLogicalHeight > 0 && dh > g_mobileLogicalHeight)
+	if (g_mobileLogicalHeight > 0)
 	{
-		g_logicalH = g_mobileLogicalHeight;
-		g_logicalW = (int) ((long long) dw * g_logicalH / dh);
+		// Oyunun arayüzü belirli çözünürlükler için tasarlanmış: 16:9 ve daha geniş ekranlarda
+		// 1366x768, daha dar (tablet 4:3 vb.) ekranlarda 1024x768. En-boy oranı korunur.
+		double aspect = (double) dw / (double) dh;
+		g_logicalH    = g_mobileLogicalHeight;
+		g_logicalW    = (aspect >= 1.5) ? (int) (g_logicalH * 1366.0 / 768.0 + 0.5) : (int) (g_logicalH * 4.0 / 3.0 + 0.5);
+		if (const char* lw = std::getenv("KO_LOGICAL_WIDTH"))
+			g_logicalW = std::atoi(lw);
 	}
 	else
 	{
 		g_logicalW = dw;
 		g_logicalH = dh;
 	}
-	g_scaleX = (float) g_logicalW / (float) dw;
-	g_scaleY = (float) g_logicalH / (float) dh;
+	d3d9gles::ComputePresentRect(g_logicalW, g_logicalH, dw, dh, &g_presentX, &g_presentY, &g_presentW, &g_presentH);
 	KoTouch().Layout(g_logicalW, g_logicalH);
 }
 
@@ -111,8 +121,32 @@ std::string ResolveClientDir(int argc, char** argv)
 }
 
 // ---- Kancalar ---------------------------------------------------------------
+void SavePhysicalScreenshot(const char* path)
+{
+	int w = 0, h = 0;
+	SDL_GL_GetDrawableSize(g_window, &w, &h);
+	std::vector<unsigned char> rgba((size_t) w * h * 4);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+	FILE* f = std::fopen(path, "wb");
+	if (!f)
+		return;
+	std::fprintf(f, "P6\n%d %d\n255\n", w, h);
+	for (int y = h - 1; y >= 0; --y)
+		for (int x = 0; x < w; ++x)
+			std::fwrite(&rgba[((size_t) y * w + x) * 4], 1, 3, f);
+	std::fclose(f);
+	std::fprintf(stderr, "fiziksel ekran görüntüsü yazıldı: %s (%dx%d)\n", path, w, h);
+}
+
 void HookPresent(void*)
 {
+	if (g_physicalShotPending)
+	{
+		g_physicalShotPending = false;
+		SavePhysicalScreenshot(g_physicalShotPath.c_str());
+	}
 	SDL_GL_SwapWindow(g_window);
 }
 void HookDrawableSize(void*, int* w, int* h)
@@ -137,7 +171,7 @@ void HookSetCursorPos(int x, int y)
 {
 	KoInput().mouseX = x;
 	KoInput().mouseY = y;
-	SDL_WarpMouseInWindow(g_window, (int) (x / g_scaleX), (int) (y / g_scaleY));
+	SDL_WarpMouseInWindow(g_window, g_presentX + (int) ((long long) x * g_presentW / std::max(1, g_logicalW)), g_presentY + (int) ((long long) y * g_presentH / std::max(1, g_logicalH)));
 }
 int HookShowCursor(BOOL show)
 {
@@ -261,9 +295,10 @@ void HandleTextInputKey(const SDL_KeyboardEvent& key)
 void PumpEvents()
 {
 	KoInputState& in = KoInput();
-	const int lw = g_logicalW, lh = g_logicalH;
-	auto lx = [&](int px) { return (int) (px * g_scaleX); };
-	auto ly = [&](int py) { return (int) (py * g_scaleY); };
+	int dw = 1, dh = 1;
+	SDL_GL_GetDrawableSize(g_window, &dw, &dh);
+	auto lx = [&](int px) { return ToLogicalX(px); };
+	auto ly = [&](int py) { return ToLogicalY(py); };
 	SDL_Event e;
 	while (SDL_PollEvent(&e))
 	{
@@ -304,7 +339,7 @@ void PumpEvents()
 			case SDL_FINGERMOTION:
 			case SDL_FINGERUP:
 			{
-				int x = (int) (e.tfinger.x * lw), y = (int) (e.tfinger.y * lh);
+				int x = ToLogicalX((int) (e.tfinger.x * dw)), y = ToLogicalY((int) (e.tfinger.y * dh));
 				int64_t id = (int64_t) e.tfinger.fingerId;
 				if (KoTouch().Enabled())
 				{
@@ -433,6 +468,7 @@ int main(int argc, char** argv)
 	// Başsız test için: KO_MAX_FRAMES=N kare sonra çık, KO_SCREENSHOT=dosya.ppm ile son kareyi kaydet
 	long maxFrames = std::getenv("KO_MAX_FRAMES") ? std::atol(std::getenv("KO_MAX_FRAMES")) : -1;
 	const char* shotPath = std::getenv("KO_SCREENSHOT");
+	const char* physShot = std::getenv("KO_SCREENSHOT_PHYSICAL");
 	long frame = 0;
 	while (!g_quit)
 	{
@@ -442,6 +478,11 @@ int main(int argc, char** argv)
 		CGameProcedure::TickActive();
 		CGameProcedure::RenderActive();
 		++frame;
+		if (physShot && maxFrames >= 0 && frame == maxFrames - 1)
+		{
+			g_physicalShotPending = true; // bir sonraki Present'te (bantlar dahil) kaydedilir
+			g_physicalShotPath    = physShot;
+		}
 		if (maxFrames >= 0 && frame >= maxFrames)
 		{
 			if (shotPath)
