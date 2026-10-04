@@ -601,6 +601,10 @@ BOOL WritePrivateProfileString(LPCSTR section, LPCSTR key, LPCSTR value, LPCSTR 
 inline DWORD GetLastError() { return (DWORD) errno; }
 inline void SetLastError(DWORD e) { errno = (int) e; }
 
+// Yol çözümleme ('\\' → '/', harf duyarsız; compat/win32/paths.cpp)
+std::string KoResolvePath(const std::string& path);
+void KoPathCacheReset();
+
 // Geçici dosya
 UINT GetTempFileName(LPCSTR path, LPCSTR prefix, UINT unique, LPSTR out);
 inline UINT GetTempFileNameA(LPCSTR p, LPCSTR pre, UINT u, LPSTR o) { return GetTempFileName(p, pre, u, o); }

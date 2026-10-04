@@ -22,6 +22,10 @@
 #include <winsock2.h>
 
 #include <SDL.h>
+#include <GLES3/gl3.h>
+
+#include <algorithm>
+#include <vector>
 
 #include "KoPlatformInput.h"
 
@@ -121,6 +125,24 @@ void HookOpenUrl(const char* url)
 		SDL_OpenURL(url);
 	else
 		CLogWriter::Write("[ShellExecute] desteklenmiyor: {}", url ? url : "");
+}
+
+void SaveScreenshotPPM(const char* path)
+{
+	int w = 0, h = 0;
+	SDL_GL_GetDrawableSize(g_window, &w, &h);
+	std::vector<unsigned char> rgba((size_t) w * h * 4);
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+	FILE* f = std::fopen(path, "wb");
+	if (!f)
+		return;
+	std::fprintf(f, "P6\n%d %d\n255\n", w, h);
+	for (int y = h - 1; y >= 0; --y)
+		for (int x = 0; x < w; ++x)
+			std::fwrite(&rgba[((size_t) y * w + x) * 4], 1, 3, f);
+	std::fclose(f);
+	std::fprintf(stderr, "ekran görüntüsü yazıldı: %s (%dx%d)\n", path, w, h);
 }
 
 void OnSocketEvent(SOCKET, HWND, unsigned, long event)
@@ -364,12 +386,23 @@ int main(int argc, char** argv)
 	CGameProcedure::StaticMemberInit(nullptr, hWndMain);
 	CGameProcedure::ProcActiveSet((CGameProcedure*) CGameProcedure::s_pProcLogIn);
 
+	// Başsız test için: KO_MAX_FRAMES=N kare sonra çık, KO_SCREENSHOT=dosya.ppm ile son kareyi kaydet
+	long maxFrames = std::getenv("KO_MAX_FRAMES") ? std::atol(std::getenv("KO_MAX_FRAMES")) : -1;
+	const char* shotPath = std::getenv("KO_SCREENSHOT");
+	long frame = 0;
 	while (!g_quit)
 	{
 		PumpEvents();
 		KoWinsockPoll(OnSocketEvent);
 		CGameProcedure::TickActive();
 		CGameProcedure::RenderActive();
+		++frame;
+		if (maxFrames >= 0 && frame >= maxFrames)
+		{
+			if (shotPath)
+				SaveScreenshotPPM(shotPath);
+			g_quit = true;
+		}
 	}
 
 	CGameProcedure::StaticMemberRelease();

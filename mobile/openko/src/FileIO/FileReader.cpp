@@ -1,4 +1,7 @@
-﻿#include "FileReader.h"
+#include "FileReader.h"
+#if !defined(_WIN32)
+#include <windows.h>
+#endif
 
 #include <cassert>
 #include <cstdio>  // SEEK_SET, SEEK_CUR, SEEK_END
@@ -18,7 +21,12 @@ bool FileReader::OpenExisting(const std::filesystem::path& path)
 	// Open and map the given file into memory for reading.
 	try
 	{
+#if !defined(_WIN32)
+		std::string resolvedPath = KoResolvePath(path.string());
+		_mappedFileHandle = boost_ipc::file_mapping(resolvedPath.c_str(), boost_ipc::read_only);
+#else
 		_mappedFileHandle = boost_ipc::file_mapping(path.native().c_str(), boost_ipc::read_only);
+#endif
 		_mappedFileRegion = boost_ipc::mapped_region(_mappedFileHandle, boost_ipc::read_only);
 	}
 	catch (const boost_ipc::interprocess_exception&)

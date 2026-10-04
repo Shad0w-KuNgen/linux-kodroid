@@ -35,7 +35,7 @@ set(D3D9GLES_BUILD_TESTS ${KO_BUILD_TESTS})
 add_subdirectory(d3d9gles)
 
 # --- compat ----------------------------------------------------------------
-add_library(ko_compat STATIC compat/win32/windows.cpp compat/win32/registry.cpp compat/win32/findfile.cpp compat/win32/ini.cpp compat/win32/winsock.cpp)
+add_library(ko_compat STATIC compat/win32/windows.cpp compat/win32/registry.cpp compat/win32/findfile.cpp compat/win32/ini.cpp compat/win32/winsock.cpp compat/win32/paths.cpp)
 target_include_directories(ko_compat PUBLIC
   ${KO_COMPAT}/win32
   ${KO_COMPAT}/spdlog-bundled
@@ -49,6 +49,9 @@ function(ko_openko_target tgt)
   target_compile_definitions(${tgt} PUBLIC _N3GAME NOMINMAX _CRT_SECURE_NO_WARNINGS KO_MOBILE=1)
   target_include_directories(${tgt} PUBLIC ${OPENKO_SRC})
   target_link_libraries(${tgt} PUBLIC ko_compat PkgConfig::FMT PkgConfig::SPDLOG)
+  if(NOT WIN32)
+    target_compile_options(${tgt} PRIVATE -include ${KO_COMPAT}/win32/ko_fopen.h)
+  endif()
   target_compile_options(${tgt} PRIVATE -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare
     -Wno-unused-but-set-variable -Wno-misleading-indentation -Wno-parentheses -Wno-reorder -Wno-switch
     -Wno-deprecated-declarations -Wno-unknown-pragmas -Wno-missing-field-initializers
