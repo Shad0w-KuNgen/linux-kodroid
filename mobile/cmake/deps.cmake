@@ -63,7 +63,7 @@ if(ANDROID)
   add_library(ko::freetype ALIAS freetype)
 
   # SDL2 (Android: libSDL2.so + Java tarafı mobile/android/app/src/main/java/org/libsdl/app)
-  FetchContent_Declare(sdl2 GIT_REPOSITORY https://github.com/libsdl-org/SDL.git GIT_TAG release-2.30.10 GIT_SHALLOW ON)
+  FetchContent_Declare(sdl2 GIT_REPOSITORY https://github.com/libsdl-org/SDL.git GIT_TAG release-2.30.12 GIT_SHALLOW ON)
   set(SDL_SHARED ON CACHE BOOL "" FORCE)
   set(SDL_STATIC OFF CACHE BOOL "" FORCE)
   set(SDL_TEST OFF CACHE BOOL "" FORCE)
