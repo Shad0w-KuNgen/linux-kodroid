@@ -1,12 +1,17 @@
-﻿#ifndef FILEIO_FILEREADER_H
+#ifndef FILEIO_FILEREADER_H
 #define FILEIO_FILEREADER_H
 
 #pragma once
 
 #include "File.h"
 
+#if defined(_WIN32)
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
+#else
+#include <cassert> // Boost başlıkları bunu dolaylı sağlıyordu; bazı kaynaklar assert kullanır
+#include <cstring>
+#endif
 
 /// \brief FileReader implements a read-only file interface.
 ///
@@ -15,12 +20,14 @@
 class FileReader : public File
 {
 public:
+#if defined(_WIN32)
 	/// \brief Gets the underlying mapped file region. Intended only for testing.
 	/// \returns Reference to the mapped_region used internally.
 	boost::interprocess::mapped_region& MappedFileRegion()
 	{
 		return _mappedFileRegion;
 	}
+#endif
 
 	/// \brief Gets the pointer to the mapped memory for the loaded file.
 	/// \returns the pointer to the mapped memory for the loaded file.
@@ -75,11 +82,17 @@ public:
 	~FileReader() override;
 
 protected:
+#if defined(_WIN32)
 	/// \brief Memory-mapped file handle for read access.
 	boost::interprocess::file_mapping _mappedFileHandle;
 
 	/// \brief Memory-mapped file region for read access.
 	boost::interprocess::mapped_region _mappedFileRegion;
+#else
+	// POSIX mmap (mobile/engine-port/FileReader_posix.cpp) — Boost bağımlılığı yok
+	int _fd         = -1;
+	size_t _mapSize = 0;
+#endif
 
 	/// \brief Pointer to the memory-mapped data.
 	void* _address = nullptr;

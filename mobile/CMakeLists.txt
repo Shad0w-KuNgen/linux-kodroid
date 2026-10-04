@@ -19,16 +19,7 @@ set(KO_COMPAT  "${CMAKE_CURRENT_SOURCE_DIR}/compat")
 
 option(KO_BUILD_TESTS "Birim testlerini derle" ON)
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(FMT REQUIRED IMPORTED_TARGET fmt)
-pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
-pkg_check_modules(MPG123 REQUIRED IMPORTED_TARGET libmpg123)
-pkg_check_modules(OPENAL REQUIRED IMPORTED_TARGET openal)
-pkg_check_modules(FREETYPE REQUIRED IMPORTED_TARGET freetype2)
-if(NOT ANDROID)
-  pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
-endif()
-find_package(Boost REQUIRED)
+include(cmake/deps.cmake)
 
 # --- d3d9gles --------------------------------------------------------------
 set(D3D9GLES_BUILD_TESTS ${KO_BUILD_TESTS})
@@ -36,10 +27,10 @@ add_subdirectory(d3d9gles)
 
 # --- compat ----------------------------------------------------------------
 add_library(ko_compat STATIC compat/win32/windows.cpp compat/win32/registry.cpp compat/win32/findfile.cpp compat/win32/ini.cpp compat/win32/winsock.cpp compat/win32/paths.cpp)
-target_include_directories(ko_compat PUBLIC
-  ${KO_COMPAT}/win32
-  ${KO_COMPAT}/spdlog-bundled
-)
+target_include_directories(ko_compat PUBLIC ${KO_COMPAT}/win32)
+if(KO_SPDLOG_EXTERNAL_FMT)
+  target_include_directories(ko_compat PUBLIC ${KO_COMPAT}/spdlog-bundled)
+endif()
 if(ANDROID)
   target_link_libraries(ko_compat PUBLIC log)
 endif()
@@ -48,7 +39,7 @@ endif()
 function(ko_openko_target tgt)
   target_compile_definitions(${tgt} PUBLIC _N3GAME NOMINMAX _CRT_SECURE_NO_WARNINGS KO_MOBILE=1)
   target_include_directories(${tgt} PUBLIC ${OPENKO_SRC})
-  target_link_libraries(${tgt} PUBLIC ko_compat PkgConfig::FMT PkgConfig::SPDLOG)
+  target_link_libraries(${tgt} PUBLIC ko_compat ko::fmt ko::spdlog)
   if(NOT WIN32)
     target_compile_options(${tgt} PRIVATE -include ${KO_COMPAT}/win32/ko_fopen.h)
   endif()
@@ -79,11 +70,10 @@ set_source_files_properties(${OPENKO_SRC}/shared/crc32.cpp ${OPENKO_SRC}/shared/
 
 # --- FileIO / MathUtils ------------------------------------------------------
 add_library(ko_fileio STATIC
-  ${OPENKO_SRC}/FileIO/FileReader.cpp
+  engine-port/FileReader_posix.cpp   # Boost yerine POSIX mmap
   ${OPENKO_SRC}/FileIO/FileWriter.cpp
 )
 ko_openko_target(ko_fileio)
-target_include_directories(ko_fileio PUBLIC ${Boost_INCLUDE_DIRS})
 
 add_library(ko_mathutils STATIC ${OPENKO_SRC}/MathUtils/MathUtils.cpp)
 ko_openko_target(ko_mathutils)
@@ -110,17 +100,16 @@ add_library(ko_n3base STATIC
   engine-port/N3UIEdit_portable.cpp
 )
 ko_openko_target(ko_n3base)
-target_include_directories(ko_n3base PUBLIC ${OPENKO_SRC}/N3Base ${MPG123_INCLUDE_DIRS})
+target_include_directories(ko_n3base PUBLIC ${OPENKO_SRC}/N3Base)
 target_link_libraries(ko_n3base PUBLIC ko_fileio ko_mathutils ko_shared d3d9gles
-  PkgConfig::MPG123 PkgConfig::OPENAL PkgConfig::FREETYPE)
+  ko::mpg123 ko::openal ko::freetype)
 target_precompile_headers(ko_n3base PRIVATE ${OPENKO_SRC}/N3Base/StdAfxBase.h)
 
 # --- JpegFile ------------------------------------------------------------------
-pkg_check_modules(JPEG REQUIRED IMPORTED_TARGET libjpeg)
 add_library(ko_jpegfile STATIC ${OPENKO_SRC}/Client/JpegFile/JpegFile.cpp engine-port/JpegFile_portable.cpp)
 ko_openko_target(ko_jpegfile)
 target_include_directories(ko_jpegfile PUBLIC ${OPENKO_SRC}/Client)
-target_link_libraries(ko_jpegfile PUBLIC PkgConfig::JPEG d3d9gles)
+target_link_libraries(ko_jpegfile PUBLIC ko::jpeg d3d9gles)
 
 # --- WarFare (oyun istemcisi) --------------------------------------------------
 set(WARFARE_DIR ${OPENKO_SRC}/Client/WarFare)
@@ -148,19 +137,21 @@ target_link_libraries(ko_warfare PUBLIC ko_n3base ko_jpegfile)
 target_precompile_headers(ko_warfare PRIVATE ${WARFARE_DIR}/StdAfx.h)
 
 # --- Uygulama (SDL2 kabuğu) ---------------------------------------------------
-add_executable(KnightOnLine
+set(KO_APP_SOURCES
   platform/main_sdl.cpp
   platform/LocalInput_sdl.cpp
   platform/KoPlatformInput.cpp
 )
+if(ANDROID)
+  # Android'de uygulama bir paylaşılan kütüphanedir; SDLActivity libKnightOnLine.so içindeki SDL_main'i çağırır
+  add_library(KnightOnLine SHARED ${KO_APP_SOURCES})
+  target_link_libraries(KnightOnLine PRIVATE ko_warfare ko::sdl2 GLESv3 EGL android log)
+else()
+  add_executable(KnightOnLine ${KO_APP_SOURCES})
+  target_link_libraries(KnightOnLine PRIVATE ko_warfare ko::sdl2 GLESv2 EGL)
+endif()
 ko_openko_target(KnightOnLine)
 target_include_directories(KnightOnLine PRIVATE platform)
-target_link_libraries(KnightOnLine PRIVATE ko_warfare)
-if(ANDROID)
-  target_link_libraries(KnightOnLine PRIVATE SDL2 GLESv3 EGL android log)
-else()
-  target_link_libraries(KnightOnLine PRIVATE PkgConfig::SDL2 GLESv2 EGL)
-endif()
 
 # --- Testler -----------------------------------------------------------------
 if(KO_BUILD_TESTS AND NOT ANDROID)
