@@ -14,7 +14,7 @@ android {
             cmake {
                 arguments "-DANDROID_STL=c++_shared", "-DANDROID_PLATFORM=android-24", "-DCMAKE_BUILD_TYPE=Release"
                 cppFlags "-std=c++20 -frtti -fexceptions"
-                abiFilters 'arm64-v8a'   // ilk hedef; 'armeabi-v7a', 'x86_64' eklenebilir
+                abiFilters 'arm64-v8a', 'x86_64'   // telefon (ARM) + emülatör (x86_64)
             }
         }
     }
