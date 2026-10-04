@@ -11,7 +11,7 @@ if(ANDROID)
   set(KO_SPDLOG_EXTERNAL_FMT OFF)
 
   # spdlog (paketli fmt ile; OpenKO <spdlog/fmt/bundled/format.h> kullanır)
-  FetchContent_Declare(spdlog GIT_REPOSITORY https://github.com/Open-KO/spdlog.git GIT_TAG v1.x GIT_SHALLOW ON)
+  FetchContent_Declare(spdlog GIT_REPOSITORY https://github.com/Open-KO/spdlog.git GIT_TAG v1.15.3b-OpenKO GIT_SHALLOW ON)
   set(SPDLOG_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(spdlog)
   add_library(ko::spdlog ALIAS spdlog)
@@ -36,9 +36,14 @@ if(ANDROID)
   add_library(ko::openal ALIAS OpenAL)
 
   # libjpeg
-  FetchContent_Declare(libjpeg GIT_REPOSITORY https://github.com/Open-KO/jpeg-cmake.git GIT_SHALLOW ON)
+  FetchContent_Declare(libjpeg GIT_REPOSITORY https://github.com/Open-KO/jpeg-cmake.git GIT_TAG v1.3.0a-OpenKO GIT_SHALLOW ON)
+  set(LIBJPEG_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  set(LIBJPEG_BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
+  set(LIBJPEG_INSTALL OFF CACHE BOOL "" FORCE)
+  set(LIBJPEG_BUILD_EXECUTABLES OFF CACHE BOOL "" FORCE)
+  set(LIBJPEG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(libjpeg)
-  add_library(ko::jpeg ALIAS jpeg)
+  add_library(ko::jpeg ALIAS jpeg_static)
 
   # FreeType
   FetchContent_Declare(freetype GIT_REPOSITORY https://github.com/freetype/freetype.git GIT_TAG VER-2-13-3 GIT_SHALLOW ON)

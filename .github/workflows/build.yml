@@ -1,0 +1,62 @@
+name: build
+
+on:
+  push:
+    branches: ["**"]
+    paths: ["mobile/**", ".github/workflows/build.yml"]
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux (OpenGL ES, headless tests)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Paketler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build pkg-config libgles-dev libegl-dev libsdl2-dev \
+            libfreetype-dev libopenal-dev libmpg123-dev libjpeg-dev libspdlog-dev libfmt-dev mesa-utils libgl1-mesa-dri
+      - name: Derle
+        run: |
+          cmake -S mobile -B mobile/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          ninja -C mobile/build
+      - name: Testler (Mesa llvmpipe, başsız EGL)
+        env:
+          EGL_PLATFORM: surfaceless
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: ctest --test-dir mobile/build --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KnightOnLine-linux-x86_64
+          path: mobile/build/KnightOnLine
+
+  android:
+    name: Android APK (arm64-v8a)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Android SDK / NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+      - name: Gradle önbelleği
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('mobile/android/**/*.gradle*') }}
+      - name: APK derle
+        working-directory: mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KnightOnline-android-debug-apk
+          path: mobile/android/app/build/outputs/apk/debug/*.apk
