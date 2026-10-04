@@ -18,7 +18,9 @@ public class KnightOnlineActivity extends SDLActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         dataDir = GameData.dataDir(this);
-        if (!GameData.hasGameData(dataDir)) {
+        if (GameData.hasGameData(dataDir))
+            GameData.ensureServerIni(dataDir); // Server.ini yoksa / 127.0.0.1 ise varsayılan sunucu
+        else {
             Intent i = new Intent(this, SetupActivity.class);
             i.putExtra("setup", true);
             startActivity(i);

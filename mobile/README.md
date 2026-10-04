@@ -111,6 +111,12 @@ Uygulama açılınca `SetupActivity` oyun verisini arar; yoksa iki seçenek suna
    tek bir `.zip` yapıp telefona atın (Download klasörü yeterli) ve seçin. Zip tek bir üst klasörle
    paketlenmişse içeriği otomatik kök dizine taşınır.
 2. **Adresten indir**: aynı zip'in `http(s)://` adresini yazın; akış doğrudan veri dizinine açılır.
+   Alan varsayılan olarak `http://86.105.4.195/knightonline-mobile.zip` ile gelir
+   (`GameData.DEFAULT_DATA_URL`).
+
+Kurulumdan sonra ve her oyun başlatılışında `Server.ini` denetlenir: dosya yoksa yazılır, `[Server]`
+altında `IP0` yok ya da `127.0.0.1`/boş ise `IP0=86.105.4.195` (`GameData.DEFAULT_SERVER_IP`) yapılır.
+Elle başka bir adres yazılmışsa dokunulmaz.
 
 Veri dizini `Android/data/online.knight.mobile/files/` (yoksa `/data/data/online.knight.mobile/files/`),
 oyuna `--client-dir` argümanıyla iletilir. Android 11+ sürümlerinde `adb push` ile buraya atılan

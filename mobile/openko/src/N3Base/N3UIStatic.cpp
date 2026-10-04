@@ -57,7 +57,13 @@ bool CN3UIStatic::Load(File& file)
 
 	// 이전 uif파일을 컨버팅 하려면 사운드 로드 하는 부분 막기
 	int iSndFNLen = -1;
-	file.Read(&iSndFNLen, sizeof(int)); // 사운드 파일 문자열 길이
+
+	// Some 1.298 UI files (e.g. ui_us\co_tooltip_us.uif, loaded into CN3UITooltip) were saved as a
+	// plain CN3UIBase and end right after the base data, so there is no click sound field to read.
+	// The original client silently read past EOF and ended up without a click sound; do the same
+	// instead of rejecting the file.
+	if (!file.Read(&iSndFNLen, sizeof(int))) // 사운드 파일 문자열 길이
+		return true;
 
 	if (iSndFNLen < 0 || iSndFNLen > MAX_SUPPORTED_PATH_LENGTH)
 		throw std::runtime_error("CN3UIStatic: invalid 'click' sound filename length");

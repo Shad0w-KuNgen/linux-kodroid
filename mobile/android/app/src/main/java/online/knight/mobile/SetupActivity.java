@@ -97,7 +97,7 @@ public class SetupActivity extends Activity {
         urlEdit.setSingleLine(true);
         urlEdit.setTextColor(Color.WHITE);
         urlEdit.setHintTextColor(Color.GRAY);
-        urlEdit.setText(getSharedPreferences(PREFS, MODE_PRIVATE).getString(PREF_URL, ""));
+        urlEdit.setText(getSharedPreferences(PREFS, MODE_PRIVATE).getString(PREF_URL, GameData.DEFAULT_DATA_URL));
         root.addView(urlEdit, matchWrap());
 
         btnDownload = new Button(this);
@@ -306,6 +306,7 @@ public class SetupActivity extends Activity {
     }
 
     private void startGame() {
+        GameData.ensureServerIni(dataDir);
         Intent i = new Intent(this, KnightOnlineActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(i);
