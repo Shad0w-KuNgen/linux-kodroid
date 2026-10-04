@@ -1,0 +1,136 @@
+//////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////// 
+/////////////////  SkyRusher Istırap Project    //////////////// 
+/////////////////          GM KODLARI           ////////////////
+/////////////////      Discord: SkyRusher       ////////////////
+//////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////// 
+
++help				Show all commands.
++resetloyalty			Reset Loyalty
++give				Gives a player an item. Arguments: character name | item ID | Count | Time
++zone_give_item			Gives an item to the whole player. Arguments: ZoneID | item ID | Count | Time
++online_give_item		Gives an item to the whole player. Arguments: Item ID | Count | Time
++zone				Teleports you to the specified zone. Arguments: +zone 'Zone ID' 
++mon				Spawns the specified monster (does not respawn). Arguments: monster's database ID
++npc				Spawns the specified NPC (does not respawn). Arguments: NPC's database ID
++kill				Kill a NPC or Monster, Arguments: select an Npc and monster than use this command
++open1				Opens war zone 1
++open2				Opens war zone 2
++open3				Opens war zone 3
++open4				Opens war zone 4
++open5				Opens war zone 5
++open6				Opens war zone 6
++captain			Sets the captains/commanders for the war
++snow				Opens the snow war zone
++csw				Opens the Castle Siege War zone. How does it work? Expamle : +csw
++close				Closes the active war zone. How does it work? Expamle : +close
++cswclose			Closes the active CSW Zone. How does it work? Expamle : +cswclose
++np				Change a player an loyalty. How does it work? Expamle : +np CharacterNick 100
++exp				Change a player an exp. How does it work? Expamle : +exp CharacterNick 100
++noah				Change a player an gold. How does it work? Expamle : +noah CharacterNick 100
++kc				Change a player an KC. How does it work? Expamle : +kc CharacterNick 100 
++tl				Change a player an KC. How does it work? Expamle : +kc CharacterNick 100 
++exp_add			Sets the server-wide XP event. If bonusPercent is set to 0, the event is ended. Arguments: bonusPercent
++np_add				Sets the server-wide NP event. If bonusPercent is set to 0, the event is ended. Arguments: bonusPercent
++money_add			Sets the server-wide coin event. If bonusPercent is set to 0, the event is ended. Arguments: bonusPercent
++drop_add			Sets the server-wide drop event. If bonusPercent is set to 0, the event is ended. Arguments: bonusPercent
++tpall				Players send to home zone.
++pmall				Players send to Private.. How does it work? Expamle : +pmall Title Message
++summonknights			Teleport the clan users. Arguments: clan name
++warresult			Set result for War"},
++resetranking			Reset player ranking. Arguments : Zone ID"},
++nation_change			Player Nation Change
++item				Gives the item to the using GM. Arguments: item ID | [optional stack size]
++summonuser			Summons the specified user to your location: Username
++tpon				Teleports you to  the specified user's location: Username
++goto				Teleports you to the specified location. How does it work? Expamle : /goto X Y (Note : X and Y cordinate)
++mute				Player mute. How does it work? Expamle : +mute 'Character Nick' 
++unmute				Player unmute. How does it work? Expamle : +unmute 'Character Nick' 
++ftopen				Open Forgetten Temple
++ftclose			Close Forgetten Temple
++allow				Player Allow Attack
++disable			Player Disable Attack
++changeroom			Player Changes Event Room
++hapis				Player Send to Prsion Zone. How does it work? Expamle : +hapis
++user_bots			Server User Bot Command Count Time(AS MINUTE) ResType(1 Mining 2 Fishing 3 Standing 4 Sitting 5 Random) minlevel
++mbot				merchant add bot
++mbotsave			merchant add table bot
++sbot				merchant clear bot
++testing			Server Code Test Command
++chaosopen			Open is Chaos Expansion. How does it work? Expamle : +chaosopen
++borderopen			Open is Border Defence War. How does it work? Expamle : +borderopen
++juraidopen			Open is Juraid Mountain. How does it work? Expamle : +juraidopen
++beefopen			Open is Beef Event. How does it work? Expamle : +beefopen		
++chaosclose			Chaos Expansion Close. How does it work? Expamle : +chaosclose
++beefclose			Beef Close. How does it work? Expamle : +beefclose
++borderclose			Border Defence War Close. How does it work? Expamle : +borderclose
++juraidclose			Juraid Mountain Close. How does it work? Expamle : +juraidclose
++drop				In Game Npc & Monster Drop tester. . How does it work? Expamle : Z Target and +drop Max 9999 count
++reload_table			Reload Table
++fishing			In Game Fishing Drop tester. How does it work? Expamle : +fishing
++mining				In Game Mining Drop tester. How does it work? Expamle : +mining
++clear				In Game Inventory Clear. How does it work? Expamle : +clear 'Character Nick' 
++lottery			In Game Lottery Start. How does it work? Expamle : +lottery 
++lotteryclose			In Game Lottery Start. How does it work? Expamle : +lottery 
++gm					Changes Game Master And Users . How does it work? Expamle : +gm
++partytp			Belirlenen nick'teki kullanıcının partisini komple  yanına çeker 
++level				Player Give Level(+-)
++count				Get Count Player
++changegm			Belirlenen nick'teki kullanıcıyı gm olarak değiştirir 
++npcinfo			Get Npc Info. How does it work? Expamle : Z Target and +npcinfo
++cropen				Start to Collection Race Event. How does it work? Expamle : +cropen 1 or 2 or 3 - Note:numbers are events Id on Database
++crclose			Close to Collection Race Event. How does it work? Expamle : +crclose
++tbl				TBL verilerini kaydeder.
++info				Acik programları gosterir. How does it work? Expamle : +info 'Character Nick' 
++job				Anlik Olarak Job Degismenizi Saglar. How does it work? Expamle : +Job (1-Warrior, 2-Rogue, 3-Mage, 4Priest) 
++gender				Anlik Olarak Cinsiyet Degismenizi Saglar 
++genie				Target seçili iken genie açıksa kapatır kapalıysa açar. How does it work? Expamle : +Genie 'Character Nick'  
++block				Player permanent ban. How does it work? Expamle : +block 'Character Nick' Or +block 'Character Nick' (1,2,3,999). 
++pcblock			Player permanent ban. How does it work? Expamle : +block 'Character Nick' Or +block 'Character Nick' (1,2,3,999). 
++unblock			Player unban. How does it work? Expamle : +unblock 'Character Nick' 
++cindopen			Open Cindirella Event
++cindclose			Close Cindirella Event
++countzone			Online total players in (Zone).
++countlevel			Online total players in (Level).
++remove_bots			Oyundaki Aktif Botlarin Hepsini Disconnect Eder 
++botfarmer			Bot Farmer.
++reloadnotice			Reloads the in-game notice list.
++reloadalltables		Reloads the in-game all tables.
++reloadtables			Reloads the in-game tables.
++reloadtables2			Reloads the in-game tables.
++reloadtables3			Reloads the in-game tables.
++reloadmagics			Reloads the in-game magic tables.
++reloadquests			Reloads the in-game quest tables.
++reloadranks			Reloads the in-game rank tables.
++reloaddrops			Reloads the in-game drops tables.
++reloaddrops2			Reloads the in-game drops tables.
++reloadkings			Reloads the in-game King tables.
++reloadtitle			Reloads the in-game Right Top Title tables. 
++reloadpus			Reloads the in-game tables. 
++reloaditems			Reloads the in-game Item tables.
++reloaddungeon			Reloads the in-game Dungeon Defence tables
++reloaddraki			Reloads the in-game Draki Tower tables
++reloadevent			Reloads the in-game Event Schedule Timer tables
++reloadpremium			Reload Clan Premium Table in game reset.
++reloadsocial			SocialGroup Icon
++reloadclanpnotice		Reloads the in-game clan P Notice list.
++reload_item			reload item table
++reloadupgrade			reload upgrade table
++reloadbug			reload upgrade bug table
++reloadbot			reload upgrade bot info table
++reloadzoneon			reload zone online reward table
++savebotmerchant		reload upgrade bug table
++loadbotmerchant		reload upgrade bug table
++reloadlreward			reload level reward table
++reloadmreward			reload merchant level reward table
++reload_cind			Reloads the in-game Fun Class Event Table list
++aireset			AI Reset Komutu"	
++event				special event open command
++givegenie			Give Genie
++bowlevent			Bowl Event
++bug				askida kalan karakteri kurtar
++bot_login			Bot login Types
++open_master			Player master opened.
++open_skill			Player all skill unlock.
++open_questskill		Player all Quest skill unlock.

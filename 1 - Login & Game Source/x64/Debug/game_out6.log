@@ -1,0 +1,91 @@
+                               ************************************************
+                               *                                              *
+                               *          ISTIRAP GAME SERVER FILES           *
+                               *                                              *
+                               *                                              *
+                               *              ISTIRAP GAME SYSTEMS            *
+                               *				              *
+                               *                                              *
+                               ************************************************
+Server started on 2026-09-06 at 15:05
+
+Database Baglantisi [ OK ].
+Tablo Yukleme Tamamlandi [ OK ] -> COLLECTION_RACE_EVENT_SETTINGS2369
+Tablo Yukleme Tamamlandi [ OK ] -> ITEM
+Tablo Yukleme Tamamlandi [ OK ] -> ITEM_SELLTABLE2369
+Tablo Yukleme Tamamlandi [ OK ] -> SET_ITEM
+Tablo Yukleme Tamamlandi [ OK ] -> ITEM_EXCHANGE2369
+Tablo Yukleme Tamamlandi [ OK ] -> ITEM_EXCHANGE_EXP
+Tablo Yukleme Tamamlandi [ OK ] -> ITEM_SPECIAL_SEWING2369
+Tablo Yukleme Tamamlandi [ OK ] -> ITEM_SMASH
+Tablo Yukleme Tamamlandi [ OK ] -> ITEM_OP
+Tablo Yukleme Tamamlandi [ OK ] -> SERVER_RESOURCE
+Tablo Yukleme Tamamlandi [ OK ] -> QUEST_HELPER
+Tablo Yukleme Tamamlandi [ OK ] -> QUEST_MONSTER
+Tablo Yukleme Tamamlandi [ OK ] -> MAGIC
+Tablo Yukleme Tamamlandi [ OK ] -> MAGIC_TYPE1
+Tablo Yukleme Tamamlandi [ OK ] -> MAGIC_TYPE2
+Tablo Yukleme Tamamlandi [ OK ] -> MAGIC_TYPE3
+Tablo Yukleme Tamamlandi [ OK ] -> MAGIC_TYPE4
+Tablo Yukleme Tamamlandi [ OK ] -> MAGIC_TYPE5
+Tablo Yukleme Tamamlandi [ OK ] -> MAGIC_TYPE6
+Tablo Yukleme Tamamlandi [ OK ] -> MAGIC_TYPE7
+Tablo Yukleme Tamamlandi [ OK ] -> MAGIC_TYPE8
+Tablo Yukleme Tamamlandi [ OK ] -> MAGIC_TYPE9
+Tablo Yukleme Tamamlandi [ OK ] -> K_OBJECTPOS2369
+Tablo Yukleme Tamamlandi [ OK ] -> PUS_ITEMS2369
+Tablo Yukleme Tamamlandi [ OK ] -> RENTAL_ITEM
+Tablo Yukleme Tamamlandi [ OK ] -> MAKE_ITEM_LARECODE
+Tablo Yukleme Tamamlandi [ OK ] -> MAKE_ITEM_GRADECODE
+Tablo Yukleme Tamamlandi [ OK ] -> MAKE_DEFENSIVE
+Tablo Yukleme Tamamlandi [ OK ] -> MAKE_WEAPON
+Tablo Yukleme Tamamlandi [ OK ] -> MAKE_ITEM_GROUP
+Tablo Yukleme Tamamlandi [ OK ] -> MAKE_ITEM_GROUP_RANDOM
+Tablo Yukleme Tamamlandi [ OK ] -> K_NPC_ITEM
+Tablo Yukleme Tamamlandi [ OK ] -> K_MONSTER_ITEM2369
+Tablo Yukleme Tamamlandi [ OK ] -> CHARACTER_SET_VALIDS
+Tablo Yukleme Tamamlandi [ OK ] -> ITEM_RANDOM2369
+Tablo Yukleme Tamamlandi [ OK ] -> SEND_MESSAGES
+Tablo Yukleme Tamamlandi [ OK ] -> RIGHT_TOP_TITLE
+Tablo Yukleme Tamamlandi [ OK ] -> TOPLEFT
+Tablo Yukleme Tamamlandi [ OK ] -> K_MONSTER2369
+Tablo Yukleme Tamamlandi [ OK ] -> K_NPC2369
+Tablo Yukleme Tamamlandi [ OK ] -> COEFFICIENT
+Tablo Yukleme Tamamlandi [ OK ] -> COEFFICIENT_DAMAGE
+Tablo Yukleme Tamamlandi [ OK ] -> LEVEL_UP2369
+Tablo Yukleme Tamamlandi [ OK ] -> KNIGHTS_ALLIANCE
+Tablo Yukleme Tamamlandi [ OK ] -> KNIGHTS_SIEGE_WARFARE
+Tablo Yukleme Tamamlandi [ OK ] -> USER_CHARACTER_SEAL_ITEMS
+Tablo Yukleme Tamamlandi [ OK ] -> KNIGHTS_CAPE2369
+Tablo Yukleme Tamamlandi [ OK ] -> KNIGHTS_CAPE_CASTELLAN_BONUS
+Tablo Yukleme Tamamlandi [ OK ] -> KNIGHTS_RATING
+Tablo Yukleme Tamamlandi [ OK ] -> START_POSITION2369
+Tablo Yukleme Tamamlandi [ OK ] -> START_POSITION_RANDOM
+Tablo Yukleme Tamamlandi [ OK ] -> BATTLE
+Tablo Yukleme Tamamlandi [ OK ] -> ZONE_INFO2369
+Tablo Yukleme Tamamlandi [ OK ] -> EVENT
+Tablo Yukleme Tamamlandi [ OK ] -> KING_SYSTEM
+Tablo Yukleme Tamamlandi [ OK ] -> KING_CANDIDACY_NOTICE_BOARD
+Tablo Yukleme Tamamlandi [ OK ] -> KING_NOMINATION_LIST
+Tablo Yukleme Tamamlandi [ OK ] -> KING_ELECTION_LIST
+Tablo Yukleme Tamamlandi [ OK ] -> SHERIFF_REPORTS
+Tablo Yukleme Tamamlandi [ OK ] -> EVENT_TRIGGER
+Tablo Yukleme Tamamlandi [ OK ] -> MONSTER_RESOURCE
+Tablo Yukleme Tamamlandi [ OK ] -> MONSTER_CHALLENGE
+Tablo Yukleme Tamamlandi [ OK ] -> MONSTER_CHALLENGE_SUMMON_LIST
+Tablo Yukleme Tamamlandi [ OK ] -> MONSTER_SUMMON_LIST
+Tablo Yukleme Tamamlandi [ OK ] -> CHAOS_STONE_SUMMON_LIST2369
+Tablo Yukleme Tamamlandi [ OK ] -> CHAOS_STONE_SPAWN2369
+Tablo Yukleme Tamamlandi [ OK ] -> MONSTER_UNDER_THE_CASTLE
+Tablo Yukleme Tamamlandi [ OK ] -> MONSTER_STONE_RESPAWN_LIST
+Tablo Yukleme Tamamlandi [ OK ] -> MONSTER_JURAID_MOUNTAIN_RESPAWN_LIST
+Tablo Yukleme Tamamlandi [ OK ] -> MINING_FISHING_ITEM
+Tablo Yukleme Tamamlandi [ OK ] -> PREMIUM_ITEM
+Tablo Yukleme Tamamlandi [ OK ] -> PREMIUM_ITEM_EXP
+Tablo Yukleme Tamamlandi [ OK ] -> PREMIUM_GIFT_ITEM
+Tablo Yukleme Tamamlandi [ OK ] -> MINING_EXCHANGE
+Tablo Yukleme Tamamlandi [ OK ] -> USER_DAILY_OP
+Tablo Yukleme Tamamlandi [ OK ] -> USER_ITEMS
+Tablo Yukleme Tamamlandi [ OK ] -> ACHIEVE_TITLE
+Tablo Yukleme Tamamlandi [ OK ] -> ACHIEVE_MAIN
+Tablo Yukle

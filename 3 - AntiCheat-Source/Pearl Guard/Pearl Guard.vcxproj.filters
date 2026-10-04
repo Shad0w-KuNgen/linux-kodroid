@@ -1,0 +1,877 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\N3SDK">
+      <UniqueIdentifier>{ecb7c1b7-9901-41fb-81b4-c2ff5a02de76}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Engine">
+      <UniqueIdentifier>{baff0416-3c60-4721-8276-c1accc7e9b03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Engine">
+      <UniqueIdentifier>{c9d3a34f-731f-48c5-be6b-09f1bdecd5a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\GUI">
+      <UniqueIdentifier>{1bb522ae-a4eb-4893-bb92-d1d2986b57d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\3rd">
+      <UniqueIdentifier>{665c43ac-96f8-4605-b0e6-8471044bbb11}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\TableSDK">
+      <UniqueIdentifier>{2174bebd-dda0-407e-9645-013507ee70b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\TableSDK\TBL">
+      <UniqueIdentifier>{cb699e0d-65b2-4620-998c-a51158c47541}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook">
+      <UniqueIdentifier>{40a09669-f2c5-4bbe-b0a4-17e2a63d2ab1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Models">
+      <UniqueIdentifier>{85437c4c-0b07-408d-92f5-d18b8f06c283}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Voice">
+      <UniqueIdentifier>{82e5c642-56ec-4fda-9698-f8a10daa997d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Models\GUI">
+      <UniqueIdentifier>{417c0b88-6531-4a41-b70f-e19f8efaf7ca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Discord SDK">
+      <UniqueIdentifier>{f5c571be-92d6-48c7-9efd-ffc8e1b2fdf2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Zindan Score Board">
+      <UniqueIdentifier>{9f138a4f-d3b1-416b-9f36-a5ee49be9a66}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\UI Login">
+      <UniqueIdentifier>{29fd7f48-bab3-4809-903d-034c3adf44e5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\UI State">
+      <UniqueIdentifier>{c787bb4c-2ddd-4896-9001-a92ff81029f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Target Bar">
+      <UniqueIdentifier>{8ea23b05-b786-4831-84a7-9647616e056b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Mini Menu">
+      <UniqueIdentifier>{8f285690-cf09-4325-b726-b2d3cc839ff6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Tooltip">
+      <UniqueIdentifier>{c3e4db93-0477-46bd-b4a4-cc7fbd7e5b24}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Trade System">
+      <UniqueIdentifier>{ce41d85d-f250-4bf5-b63c-20b97d750ebe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\InformationWind">
+      <UniqueIdentifier>{cbaec9fd-b52a-4750-8cb3-ea530cab9458}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Schedular">
+      <UniqueIdentifier>{a4647176-19cf-4a5b-9af3-3fe37f6c89d4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Taskbar Main Sub">
+      <UniqueIdentifier>{331a5da3-8eab-46b6-87d7-4e0f5480340d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Chatting Box">
+      <UniqueIdentifier>{a44b4e74-ded1-49b3-9e7e-d905a0c44eae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\PlayerRank">
+      <UniqueIdentifier>{be2c0b69-8569-44d7-bd5e-baf134d408db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Character And Quest Info">
+      <UniqueIdentifier>{632956d6-f79c-4633-ae55-765c726e3480}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\PartyBBS">
+      <UniqueIdentifier>{deab96ef-bf29-40d2-9101-899105c30f79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Lottery Event">
+      <UniqueIdentifier>{17e0de6e-c01b-452f-9eca-71084d664c6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Merchant System">
+      <UniqueIdentifier>{1a4ef5b7-3083-4c3b-9d0b-af397ed04cca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UI Manager">
+      <UniqueIdentifier>{417c4d4c-22e4-4331-adc1-7fae4b9db26d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Tag Name Change">
+      <UniqueIdentifier>{ef940a1d-0d22-4f1d-9f65-79c60bacb044}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\N3SDK\N3BASE">
+      <UniqueIdentifier>{f6980163-c2fe-4246-9afc-6aaad94e2df5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Account Register">
+      <UniqueIdentifier>{2e65d9b1-9dcb-4b1a-aba1-3b7f34014bc7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Event Show List">
+      <UniqueIdentifier>{577e21e7-e39d-486f-9963-c9fb194c5be7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Drop Result - Mining &amp; Fishing">
+      <UniqueIdentifier>{d01c3fed-13e3-47b6-80e2-410154b0d30f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Daily Quests">
+      <UniqueIdentifier>{bae3ff43-6d1d-45f1-a9e2-de3bfff3dcf8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Collection Race">
+      <UniqueIdentifier>{a107ba84-53e5-40ff-94f9-ee7ebec3c00a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Skill Page">
+      <UniqueIdentifier>{745a2c60-5451-4330-bf4a-7b56ad679de7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Clan Page">
+      <UniqueIdentifier>{41bc0e19-36ab-4ae8-8bef-b0a7a11086ea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Support Report">
+      <UniqueIdentifier>{c58a6a77-a8ff-4e51-9851-cf9c93236edb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Search Monster Drop">
+      <UniqueIdentifier>{832b8fc6-82e5-4856-87d8-4549bd27a004}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\PM">
+      <UniqueIdentifier>{e776dcca-d722-4798-b2be-4d69859d8c75}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Hp Bar &amp; Menu">
+      <UniqueIdentifier>{46d8401e-79e2-47e5-bfd6-71a22d941ee2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Power Up Store">
+      <UniqueIdentifier>{4f3ffe20-670a-4cc0-aac8-11885e7b5f39}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Top Right War lcon">
+      <UniqueIdentifier>{bf23c844-a6a2-42f5-88b8-81b0c7bd848b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\UI Inventory">
+      <UniqueIdentifier>{833c9cdc-2972-48ea-ab30-38e140f7e5be}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\F10 Seed Helper">
+      <UniqueIdentifier>{b97d8ed7-b5ae-4c1c-8119-fdfdd4c7516b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Genie Main &amp; Sub">
+      <UniqueIdentifier>{275e36d2-01af-4bb1-bf29-d62f62c6a746}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Quest Complated">
+      <UniqueIdentifier>{4257cffd-51a7-4e95-874d-32982f7f96d5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Ban System">
+      <UniqueIdentifier>{79425f31-9f40-4281-a506-9af751442274}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Wheel Of Fun">
+      <UniqueIdentifier>{434f1f09-a3ef-4869-9adb-920f05abc74f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\RC5">
+      <UniqueIdentifier>{0c555200-3e7a-4ab3-9b59-76371704ff33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\UI">
+      <UniqueIdentifier>{220e4dea-e4f9-4449-8887-5be88ee3991e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\UI\Message Box">
+      <UniqueIdentifier>{e92dac6a-0276-4131-a579-bd2ecbfa2259}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\UI\MerchantEyes">
+      <UniqueIdentifier>{1dff3f75-499e-4074-a14b-9173313e0f80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Cindirella">
+      <UniqueIdentifier>{8b4b5757-aa98-445d-89f5-e5b1ce5ef3a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\UI\RightCorner">
+      <UniqueIdentifier>{3ab2e8d6-de91-4880-9446-e9642f74577a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\UI\CastleSiegeWar">
+      <UniqueIdentifier>{a71db92b-0199-44a9-bd9a-aae89438fcf3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\UI\JuraidMountain">
+      <UniqueIdentifier>{dfb1b7a8-d459-488e-a8bc-177845f22c20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Perk Menu">
+      <UniqueIdentifier>{05c946ba-b365-45a8-aa2b-88b7624fc7aa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\RightClickExchange">
+      <UniqueIdentifier>{272b932c-e195-4e95-ba25-109b953135d4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\UIFHook\Mini Menu\Mini Map">
+      <UniqueIdentifier>{5ce0ecdb-e359-4421-9cf8-a42d68f49e4c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Pearl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Pearl Engine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PearlGui.cpp">
+      <Filter>Source Files\GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="ItemOrg.cpp">
+      <Filter>Header Files\TableSDK\TBL</Filter>
+    </ClCompile>
+    <ClCompile Include="TableManager.cpp">
+      <Filter>Header Files\TableSDK</Filter>
+    </ClCompile>
+    <ClCompile Include="StringHelper.cpp">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="Models\MerchantSlot.cpp">
+      <Filter>Header Files\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Models\MerchantInvSlot.cpp">
+      <Filter>Header Files\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="SettingsManager.cpp">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="Timer.cpp">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UIButton.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UIEdit.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UIImage.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UIList.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UIProgress.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UIScrollBar.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UIStatic.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UIString.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UITooltip.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UITrackBar.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\LogWriter.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3AlphaPrimitiveManager.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3AnimKey.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3Base.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3BaseFileAccess.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3Texture.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3Transform.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UIArea.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\N3UIBase.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="N3BASE\DFont.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="LocalInput.cpp">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="Texts.cpp">
+      <Filter>Header Files\TableSDK\TBL</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerBase.cpp">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="N3TableBase.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="HDRReader.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="md5.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="N3UIIcon.cpp">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClCompile>
+    <ClCompile Include="sha1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WaveFile.cpp">
+      <Filter>Source Files\Voice</Filter>
+    </ClCompile>
+    <ClCompile Include="RC5\RC5.cpp">
+      <Filter>Source Files\RC5</Filter>
+    </ClCompile>
+    <ClCompile Include="Discord.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="discord-rpc-master\src\connection_win.cpp">
+      <Filter>Header Files\Discord SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="discord-rpc-master\src\discord_register_win.cpp">
+      <Filter>Header Files\Discord SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="discord-rpc-master\src\discord_rpc.cpp">
+      <Filter>Header Files\Discord SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="discord-rpc-master\src\rpc_connection.cpp">
+      <Filter>Header Files\Discord SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="discord-rpc-master\src\serialization.cpp">
+      <Filter>Header Files\Discord SDK</Filter>
+    </ClCompile>
+    <ClCompile Include="CTagChange.cpp">
+      <Filter>Header Files\UIFHook\Tag Name Change</Filter>
+    </ClCompile>
+    <ClCompile Include="DropResult.cpp">
+      <Filter>Header Files\UIFHook\Drop Result - Mining &amp; Fishing</Filter>
+    </ClCompile>
+    <ClCompile Include="MessageBoxUIF.cpp">
+      <Filter>Header Files\UIFHook\UI\Message Box</Filter>
+    </ClCompile>
+    <ClCompile Include="MerchantManager.cpp">
+      <Filter>Header Files\UIFHook\Merchant System</Filter>
+    </ClCompile>
+    <ClCompile Include="UIManager.cpp">
+      <Filter>Header Files\UI Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="UIPMHook.cpp">
+      <Filter>Header Files\UIFHook\PM</Filter>
+    </ClCompile>
+    <ClCompile Include="UIHPBar.cpp">
+      <Filter>Header Files\UIFHook\Hp Bar &amp; Menu</Filter>
+    </ClCompile>
+    <ClCompile Include="UIInventory.cpp">
+      <Filter>Header Files\UIFHook\UI Inventory</Filter>
+    </ClCompile>
+    <ClCompile Include="UIMinimap.cpp">
+      <Filter>Header Files\UIFHook\Mini Menu\Mini Map</Filter>
+    </ClCompile>
+    <ClCompile Include="UITaskbarMain.cpp">
+      <Filter>Header Files\UIFHook\Taskbar Main Sub</Filter>
+    </ClCompile>
+    <ClCompile Include="UITaskbarSub.cpp">
+      <Filter>Header Files\UIFHook\Taskbar Main Sub</Filter>
+    </ClCompile>
+    <ClCompile Include="UIScoreBoard.cpp">
+      <Filter>Header Files\UIFHook\Zindan Score Board</Filter>
+    </ClCompile>
+    <ClCompile Include="UISeedHelper.cpp">
+      <Filter>Header Files\UIFHook\F10 Seed Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="UIClanWindow.cpp">
+      <Filter>Header Files\UIFHook\Clan Page</Filter>
+    </ClCompile>
+    <ClCompile Include="UILogin.cpp">
+      <Filter>Header Files\UIFHook\UI Login</Filter>
+    </ClCompile>
+    <ClCompile Include="UIState.cpp">
+      <Filter>Header Files\UIFHook\UI State</Filter>
+    </ClCompile>
+    <ClCompile Include="UITargetBar.cpp">
+      <Filter>Header Files\UIFHook\Target Bar</Filter>
+    </ClCompile>
+    <ClCompile Include="TopRightReWarIcon.cpp">
+      <Filter>Header Files\UIFHook\Top Right War lcon</Filter>
+    </ClCompile>
+    <ClCompile Include="UIMiniMenu.cpp">
+      <Filter>Header Files\UIFHook\Mini Menu</Filter>
+    </ClCompile>
+    <ClCompile Include="UITooltip.cpp">
+      <Filter>Header Files\UIFHook\Tooltip</Filter>
+    </ClCompile>
+    <ClCompile Include="UITradeInventory.cpp">
+      <Filter>Header Files\UIFHook\Trade System</Filter>
+    </ClCompile>
+    <ClCompile Include="UITradeItemDisplay.cpp">
+      <Filter>Header Files\UIFHook\Trade System</Filter>
+    </ClCompile>
+    <ClCompile Include="UITradeItemDisplaySpecial.cpp">
+      <Filter>Header Files\UIFHook\Trade System</Filter>
+    </ClCompile>
+    <ClCompile Include="UITradePrice.cpp">
+      <Filter>Header Files\UIFHook\Trade System</Filter>
+    </ClCompile>
+    <ClCompile Include="UIPieceChange.cpp">
+      <Filter>Header Files\UIFHook\Trade System</Filter>
+    </ClCompile>
+    <ClCompile Include="UIDailyQuests.cpp">
+      <Filter>Header Files\UIFHook\Daily Quests</Filter>
+    </ClCompile>
+    <ClCompile Include="UIInformationWind.cpp">
+      <Filter>Header Files\UIFHook\InformationWind</Filter>
+    </ClCompile>
+    <ClCompile Include="UINoticeMsgWind.cpp">
+      <Filter>Header Files\UIFHook\InformationWind</Filter>
+    </ClCompile>
+    <ClCompile Include="FunctionGuard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="crc32.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UISchedular.cpp">
+      <Filter>Header Files\UIFHook\Schedular</Filter>
+    </ClCompile>
+    <ClCompile Include="UIGenieMain.cpp">
+      <Filter>Header Files\UIFHook\Genie Main &amp; Sub</Filter>
+    </ClCompile>
+    <ClCompile Include="UIChatBar.cpp">
+      <Filter>Header Files\UIFHook\Chatting Box</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerRank.cpp">
+      <Filter>Header Files\UIFHook\PlayerRank</Filter>
+    </ClCompile>
+    <ClCompile Include="CharacterToolTip.cpp">
+      <Filter>Header Files\UIFHook\Character And Quest Info</Filter>
+    </ClCompile>
+    <ClCompile Include="UIPartyBBS.cpp">
+      <Filter>Header Files\UIFHook\PartyBBS</Filter>
+    </ClCompile>
+    <ClCompile Include="UIHpBarMenu.cpp">
+      <Filter>Header Files\UIFHook\Hp Bar &amp; Menu</Filter>
+    </ClCompile>
+    <ClCompile Include="hAccountRegister.cpp">
+      <Filter>Header Files\UIFHook\Account Register</Filter>
+    </ClCompile>
+    <ClCompile Include="hPowerUpStore.cpp">
+      <Filter>Header Files\UIFHook\Power Up Store</Filter>
+    </ClCompile>
+    <ClCompile Include="Support.cpp">
+      <Filter>Header Files\UIFHook\Support Report</Filter>
+    </ClCompile>
+    <ClCompile Include="CollectionRace.cpp">
+      <Filter>Header Files\UIFHook\Collection Race</Filter>
+    </ClCompile>
+    <ClCompile Include="hWhellOfFun.cpp">
+      <Filter>Header Files\UIFHook\Wheel Of Fun</Filter>
+    </ClCompile>
+    <ClCompile Include="hLotteryEvent.cpp">
+      <Filter>Header Files\UIFHook\Lottery Event</Filter>
+    </ClCompile>
+    <ClCompile Include="hSearchMonsterDrop.cpp">
+      <Filter>Header Files\UIFHook\Search Monster Drop</Filter>
+    </ClCompile>
+    <ClCompile Include="hEventShowList.cpp">
+      <Filter>Header Files\UIFHook\Event Show List</Filter>
+    </ClCompile>
+    <ClCompile Include="HookSkillPage.cpp">
+      <Filter>Header Files\UIFHook\Skill Page</Filter>
+    </ClCompile>
+    <ClCompile Include="UIGenieSub.cpp">
+      <Filter>Header Files\UIFHook\Genie Main &amp; Sub</Filter>
+    </ClCompile>
+    <ClCompile Include="hMerchantList.cpp">
+      <Filter>Header Files\UIFHook\Merchant System</Filter>
+    </ClCompile>
+    <ClCompile Include="QuestComplated.cpp">
+      <Filter>Header Files\UIFHook\Quest Complated</Filter>
+    </ClCompile>
+    <ClCompile Include="BanSystem.cpp">
+      <Filter>Header Files\Ban System</Filter>
+    </ClCompile>
+    <ClCompile Include="MerchantEye.cpp">
+      <Filter>Header Files\UIFHook\UI\MerchantEyes</Filter>
+    </ClCompile>
+    <ClCompile Include="Cindirella.cpp">
+      <Filter>Header Files\UIFHook\Cindirella</Filter>
+    </ClCompile>
+    <ClCompile Include="RightCorner.cpp">
+      <Filter>Header Files\UIFHook\UI\RightCorner</Filter>
+    </ClCompile>
+    <ClCompile Include="CastleSiegeWar.cpp">
+      <Filter>Header Files\UIFHook\UI\CastleSiegeWar</Filter>
+    </ClCompile>
+    <ClCompile Include="JuraidMountain.cpp">
+      <Filter>Header Files\UIFHook\UI\JuraidMountain</Filter>
+    </ClCompile>
+    <ClCompile Include="PerkMenu.cpp">
+      <Filter>Header Files\UIFHook\Perk Menu</Filter>
+    </ClCompile>
+    <ClCompile Include="RightClickExchange.cpp">
+      <Filter>Header Files\UIFHook\RightClickExchange</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Packet.h">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="ByteBuffer.h">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="types.h">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="PearlGui.h">
+      <Filter>Header Files\Models\GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="ItemOrg.h">
+      <Filter>Header Files\TableSDK\TBL</Filter>
+    </ClInclude>
+    <ClInclude Include="CustomStringList.h">
+      <Filter>Header Files\TableSDK</Filter>
+    </ClInclude>
+    <ClInclude Include="TableManager.h">
+      <Filter>Header Files\TableSDK</Filter>
+    </ClInclude>
+    <ClInclude Include="StringHelper.h">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="My_3DStruct.h">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="Models\MerchantSlot.h">
+      <Filter>Header Files\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="Models\MerchantInvSlot.h">
+      <Filter>Header Files\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="SettingsManager.h">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="Timer.h">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIBase.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIButton.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIDef.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIEdit.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIIcon.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIImage.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIList.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIManager.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIProgress.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIScrollBar.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIStatic.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIString.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UITooltip.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UITrackBar.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\DFont.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3AlphaPrimitiveManager.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3AnimatedTexures.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3AnimKey.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3Base.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3BaseFileAccess.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3Mng.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3TableBase.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3Texture.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3Transform.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\N3UIArea.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\GameDef.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="N3BASE\LogWriter.h">
+      <Filter>Header Files\N3SDK\N3BASE</Filter>
+    </ClInclude>
+    <ClInclude Include="LocalInput.h">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="Texts.h">
+      <Filter>Header Files\TableSDK\TBL</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerBase.h">
+      <Filter>Header Files\N3SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="HDRReader.h">
+      <Filter>Header Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="xorstr.h">
+      <Filter>Header Files\3rd</Filter>
+    </ClInclude>
+    <ClInclude Include="md5.h">
+      <Filter>Header Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="sha1.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="va_g729a.h">
+      <Filter>Source Files\Voice</Filter>
+    </ClInclude>
+    <ClInclude Include="WaveFile.h">
+      <Filter>Source Files\Voice</Filter>
+    </ClInclude>
+    <ClInclude Include="STLMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="splash.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RC5\RC5.h">
+      <Filter>Source Files\RC5</Filter>
+    </ClInclude>
+    <ClInclude Include="Discord.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="discord-rpc-master\src\backoff.h">
+      <Filter>Header Files\Discord SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="discord-rpc-master\src\rpc_connection.h">
+      <Filter>Header Files\Discord SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="CItem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CTagChange.h">
+      <Filter>Header Files\UIFHook\Tag Name Change</Filter>
+    </ClInclude>
+    <ClInclude Include="DropResult.h">
+      <Filter>Header Files\UIFHook\Drop Result - Mining &amp; Fishing</Filter>
+    </ClInclude>
+    <ClInclude Include="MessageBoxUIF.h">
+      <Filter>Header Files\UIFHook\UI\Message Box</Filter>
+    </ClInclude>
+    <ClInclude Include="MerchantManager.h">
+      <Filter>Header Files\UIFHook\Merchant System</Filter>
+    </ClInclude>
+    <ClInclude Include="UIManager.h">
+      <Filter>Header Files\UI Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="UIPMHook.h">
+      <Filter>Header Files\UIFHook\PM</Filter>
+    </ClInclude>
+    <ClInclude Include="UIHPBar.h">
+      <Filter>Header Files\UIFHook\Hp Bar &amp; Menu</Filter>
+    </ClInclude>
+    <ClInclude Include="UIInventory.h">
+      <Filter>Header Files\UIFHook\UI Inventory</Filter>
+    </ClInclude>
+    <ClInclude Include="UIMinimap.h">
+      <Filter>Header Files\UIFHook\Mini Menu\Mini Map</Filter>
+    </ClInclude>
+    <ClInclude Include="UITaskbarMain.h">
+      <Filter>Header Files\UIFHook\Taskbar Main Sub</Filter>
+    </ClInclude>
+    <ClInclude Include="UITaskbarSub.h">
+      <Filter>Header Files\UIFHook\Taskbar Main Sub</Filter>
+    </ClInclude>
+    <ClInclude Include="UIScoreBoard.h">
+      <Filter>Header Files\UIFHook\Zindan Score Board</Filter>
+    </ClInclude>
+    <ClInclude Include="UISeedHelper.h">
+      <Filter>Header Files\UIFHook\F10 Seed Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="UIClanWindow.h">
+      <Filter>Header Files\UIFHook\Clan Page</Filter>
+    </ClInclude>
+    <ClInclude Include="UILogin.h">
+      <Filter>Header Files\UIFHook\UI Login</Filter>
+    </ClInclude>
+    <ClInclude Include="UIState.h">
+      <Filter>Header Files\UIFHook\UI State</Filter>
+    </ClInclude>
+    <ClInclude Include="UITargetBar.h">
+      <Filter>Header Files\UIFHook\Target Bar</Filter>
+    </ClInclude>
+    <ClInclude Include="TopRightReWarIcon.h">
+      <Filter>Header Files\UIFHook\Top Right War lcon</Filter>
+    </ClInclude>
+    <ClInclude Include="UIMiniMenu.h">
+      <Filter>Header Files\UIFHook\Mini Menu</Filter>
+    </ClInclude>
+    <ClInclude Include="UITooltip.h">
+      <Filter>Header Files\UIFHook\Tooltip</Filter>
+    </ClInclude>
+    <ClInclude Include="UITradeInventory.h">
+      <Filter>Header Files\UIFHook\Trade System</Filter>
+    </ClInclude>
+    <ClInclude Include="UITradeItemDisplay.h">
+      <Filter>Header Files\UIFHook\Trade System</Filter>
+    </ClInclude>
+    <ClInclude Include="UITradeItemDisplaySpecial.h">
+      <Filter>Header Files\UIFHook\Trade System</Filter>
+    </ClInclude>
+    <ClInclude Include="UITradePrice.h">
+      <Filter>Header Files\UIFHook\Trade System</Filter>
+    </ClInclude>
+    <ClInclude Include="UIPieceChange.h">
+      <Filter>Header Files\UIFHook\Trade System</Filter>
+    </ClInclude>
+    <ClInclude Include="UIDailyQuests.h">
+      <Filter>Header Files\UIFHook\Daily Quests</Filter>
+    </ClInclude>
+    <ClInclude Include="CSpell.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UIInformationWind.h">
+      <Filter>Header Files\UIFHook\InformationWind</Filter>
+    </ClInclude>
+    <ClInclude Include="UINoticeMsgWind.h">
+      <Filter>Header Files\UIFHook\InformationWind</Filter>
+    </ClInclude>
+    <ClInclude Include="FunctionGuard.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="crc32.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UISchedular.h">
+      <Filter>Header Files\UIFHook\Schedular</Filter>
+    </ClInclude>
+    <ClInclude Include="UIGenieMain.h">
+      <Filter>Header Files\UIFHook\Genie Main &amp; Sub</Filter>
+    </ClInclude>
+    <ClInclude Include="UIChatBar.h">
+      <Filter>Header Files\UIFHook\Chatting Box</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerRank.h">
+      <Filter>Header Files\UIFHook\PlayerRank</Filter>
+    </ClInclude>
+    <ClInclude Include="CharacterToolTip.h">
+      <Filter>Header Files\UIFHook\Character And Quest Info</Filter>
+    </ClInclude>
+    <ClInclude Include="UIPartyBBS.h">
+      <Filter>Header Files\UIFHook\PartyBBS</Filter>
+    </ClInclude>
+    <ClInclude Include="UIHpBarMenu.h">
+      <Filter>Header Files\UIFHook\Hp Bar &amp; Menu</Filter>
+    </ClInclude>
+    <ClInclude Include="hAccountRegister.h">
+      <Filter>Header Files\UIFHook\Account Register</Filter>
+    </ClInclude>
+    <ClInclude Include="hPowerUpStore.h">
+      <Filter>Header Files\UIFHook\Power Up Store</Filter>
+    </ClInclude>
+    <ClInclude Include="Support.h">
+      <Filter>Header Files\UIFHook\Support Report</Filter>
+    </ClInclude>
+    <ClInclude Include="CollectionRace.h">
+      <Filter>Header Files\UIFHook\Collection Race</Filter>
+    </ClInclude>
+    <ClInclude Include="hWhellOfFun.h">
+      <Filter>Header Files\UIFHook\Wheel Of Fun</Filter>
+    </ClInclude>
+    <ClInclude Include="hLotteryEvent.h">
+      <Filter>Header Files\UIFHook\Lottery Event</Filter>
+    </ClInclude>
+    <ClInclude Include="hSearchMonsterDrop.h">
+      <Filter>Header Files\UIFHook\Search Monster Drop</Filter>
+    </ClInclude>
+    <ClInclude Include="hEventShowList.h">
+      <Filter>Header Files\UIFHook\Event Show List</Filter>
+    </ClInclude>
+    <ClInclude Include="HookSkillPage.h">
+      <Filter>Header Files\UIFHook\Skill Page</Filter>
+    </ClInclude>
+    <ClInclude Include="UIGenieSub.h">
+      <Filter>Header Files\UIFHook\Genie Main &amp; Sub</Filter>
+    </ClInclude>
+    <ClInclude Include="hMerchantList.h">
+      <Filter>Header Files\UIFHook\Merchant System</Filter>
+    </ClInclude>
+    <ClInclude Include="QuestComplated.h">
+      <Filter>Header Files\UIFHook\Quest Complated</Filter>
+    </ClInclude>
+    <ClInclude Include="BanSystem.h">
+      <Filter>Header Files\Ban System</Filter>
+    </ClInclude>
+    <ClInclude Include="MerchantEye.h">
+      <Filter>Header Files\UIFHook\UI\MerchantEyes</Filter>
+    </ClInclude>
+    <ClInclude Include="Cindirella.h">
+      <Filter>Header Files\UIFHook\Cindirella</Filter>
+    </ClInclude>
+    <ClInclude Include="RightCorner.h">
+      <Filter>Header Files\UIFHook\UI\RightCorner</Filter>
+    </ClInclude>
+    <ClInclude Include="CastleSiegeWar.h">
+      <Filter>Header Files\UIFHook\UI\CastleSiegeWar</Filter>
+    </ClInclude>
+    <ClInclude Include="JuraidMountain.h">
+      <Filter>Header Files\UIFHook\UI\JuraidMountain</Filter>
+    </ClInclude>
+    <ClInclude Include="PerkMenu.h">
+      <Filter>Header Files\UIFHook\Perk Menu</Filter>
+    </ClInclude>
+    <ClInclude Include="RightClickExchange.h">
+      <Filter>Header Files\UIFHook\RightClickExchange</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Pearl Guard.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="ko.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="splash.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="mouse.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+</Project>

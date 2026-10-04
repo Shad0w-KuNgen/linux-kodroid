@@ -1,0 +1,358 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <ProjectGuid>{710F3AD0-E063-490A-A7B4-B643FE7D56F7}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>PearlGuard</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
+    <ProjectName>ISTIRAP Client - Anti Cheat</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <TargetExt>.dll</TargetExt>
+    <TargetName>ISTIRAP</TargetName>
+    <IncludePath>$(ProjectDir)discord-rpc-master\include;$(DXSDK_DIR)Include;$(ProjectDir)DetourAPI\3.0\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(DXSDK_DIR)Lib;$(ProjectDir)DetourAPI\3.0\lib;$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <ExcludePath>$(CommonExcludePath);$(VC_ExecutablePath_x86);$(VC_LibraryPath_x86)</ExcludePath>
+    <ExecutablePath>$(VC_ExecutablePath_x86);$(WindowsSDK_ExecutablePath);$(VS_ExecutablePath);$(MSBuild_ExecutablePath);$(SystemRoot)\SysWow64;$(FxCopDir);$(PATH);</ExecutablePath>
+    <IntDir>$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>$(DXSDK_DIR)Include;$(ProjectDir)DetourAPI\3.0\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(DXSDK_DIR)Lib;$(ProjectDir)DetourAPI\3.0\lib;$(LibraryPath)</LibraryPath>
+    <TargetName>ISTIRAP</TargetName>
+    <TargetExt>.dll</TargetExt>
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;WIN32;NDEBUG;PEARLGUARD_EXPORTS;_WINDOWS;_USRDLL;_N3GAME;DIRECTINPUT_VERSION=0x0800;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>false</ConformanceMode>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <ExpandAttributedSource>false</ExpandAttributedSource>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <Optimization>MaxSpeed</Optimization>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>true</EnableUAC>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;winmm.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;DSound.lib;dxguid.lib;DSetup.lib;Dinput8.lib;comctl32.lib;Imm32.lib;va_g729.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <GenerateMapFile>true</GenerateMapFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;WIN32;PEARLGUARD_EXPORTS;_WINDOWS;_USRDLL;_N3GAME;DIRECTINPUT_VERSION=0x0800;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <DisableSpecificWarnings>
+      </DisableSpecificWarnings>
+      <AdditionalOptions>/LD %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(ProjectDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <SupportJustMyCode>false</SupportJustMyCode>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableUAC>false</EnableUAC>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;winmm.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;DSound.lib;dxguid.lib;DSetup.lib;Dinput8.lib;comctl32.lib;Imm32.lib;va_g729.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="BanSystem.cpp" />
+    <ClCompile Include="CastleSiegeWar.cpp" />
+    <ClCompile Include="CharacterToolTip.cpp" />
+    <ClCompile Include="Cindirella.cpp" />
+    <ClCompile Include="CollectionRace.cpp" />
+    <ClCompile Include="crc32.cpp" />
+    <ClCompile Include="CTagChange.cpp" />
+    <ClCompile Include="discord-rpc-master\src\connection_win.cpp" />
+    <ClCompile Include="discord-rpc-master\src\discord_register_win.cpp" />
+    <ClCompile Include="discord-rpc-master\src\discord_rpc.cpp" />
+    <ClCompile Include="discord-rpc-master\src\rpc_connection.cpp" />
+    <ClCompile Include="discord-rpc-master\src\serialization.cpp" />
+    <ClCompile Include="Discord.cpp" />
+    <ClCompile Include="DropResult.cpp" />
+    <ClCompile Include="FunctionGuard.cpp" />
+    <ClCompile Include="hAccountRegister.cpp" />
+    <ClCompile Include="HDRReader.cpp" />
+    <ClCompile Include="hEventShowList.cpp" />
+    <ClCompile Include="hLotteryEvent.cpp" />
+    <ClCompile Include="hMerchantList.cpp" />
+    <ClCompile Include="hPowerUpStore.cpp" />
+    <ClCompile Include="hWhellOfFun.cpp" />
+    <ClCompile Include="ItemOrg.cpp" />
+    <ClCompile Include="JuraidMountain.cpp" />
+    <ClCompile Include="LocalInput.cpp" />
+    <ClCompile Include="md5.cpp" />
+    <ClCompile Include="MerchantEye.cpp" />
+    <ClCompile Include="MerchantManager.cpp" />
+    <ClCompile Include="MessageBoxUIF.cpp" />
+    <ClCompile Include="Models\MerchantInvSlot.cpp" />
+    <ClCompile Include="Models\MerchantSlot.cpp" />
+    <ClCompile Include="N3BASE\DFont.cpp" />
+    <ClCompile Include="N3BASE\LogWriter.cpp" />
+    <ClCompile Include="N3BASE\N3AlphaPrimitiveManager.cpp" />
+    <ClCompile Include="N3BASE\N3AnimKey.cpp" />
+    <ClCompile Include="N3BASE\N3Base.cpp" />
+    <ClCompile Include="N3BASE\N3BaseFileAccess.cpp" />
+    <ClCompile Include="N3BASE\N3Texture.cpp" />
+    <ClCompile Include="N3BASE\N3Transform.cpp" />
+    <ClCompile Include="N3BASE\N3UIArea.cpp" />
+    <ClCompile Include="N3BASE\N3UIBase.cpp" />
+    <ClCompile Include="N3BASE\N3UIButton.cpp" />
+    <ClCompile Include="N3BASE\N3UIEdit.cpp" />
+    <ClCompile Include="N3BASE\N3UIImage.cpp" />
+    <ClCompile Include="N3BASE\N3UIList.cpp" />
+    <ClCompile Include="N3BASE\N3UIProgress.cpp" />
+    <ClCompile Include="N3BASE\N3UIScrollBar.cpp" />
+    <ClCompile Include="N3BASE\N3UIStatic.cpp" />
+    <ClCompile Include="N3BASE\N3UIString.cpp" />
+    <ClCompile Include="N3BASE\N3UITooltip.cpp" />
+    <ClCompile Include="N3BASE\N3UITrackBar.cpp" />
+    <ClCompile Include="N3TableBase.cpp" />
+    <ClCompile Include="N3UIIcon.cpp" />
+    <ClCompile Include="Pearl Engine.cpp" />
+    <ClCompile Include="Pearl.cpp" />
+    <ClCompile Include="PearlGui.cpp" />
+    <ClCompile Include="PerkMenu.cpp" />
+    <ClCompile Include="PlayerBase.cpp" />
+    <ClCompile Include="QuestComplated.cpp" />
+    <ClCompile Include="RC5\RC5.cpp" />
+    <ClCompile Include="hSearchMonsterDrop.cpp" />
+    <ClCompile Include="RightClickExchange.cpp" />
+    <ClCompile Include="RightCorner.cpp" />
+    <ClCompile Include="SettingsManager.cpp" />
+    <ClCompile Include="sha1.cpp" />
+    <ClCompile Include="PlayerRank.cpp" />
+    <ClCompile Include="HookSkillPage.cpp" />
+    <ClCompile Include="Support.cpp" />
+    <ClCompile Include="UIHpBarMenu.cpp" />
+    <ClCompile Include="UIPartyBBS.cpp" />
+    <ClCompile Include="StringHelper.cpp" />
+    <ClCompile Include="TableManager.cpp" />
+    <ClCompile Include="Texts.cpp" />
+    <ClCompile Include="Timer.cpp" />
+    <ClCompile Include="TopRightReWarIcon.cpp" />
+    <ClCompile Include="UIChatBar.cpp" />
+    <ClCompile Include="UIClanWindow.cpp" />
+    <ClCompile Include="UIDailyQuests.cpp" />
+    <ClCompile Include="UIGenieMain.cpp" />
+    <ClCompile Include="UIGenieSub.cpp" />
+    <ClCompile Include="UIHPBar.cpp" />
+    <ClCompile Include="UIInformationWind.cpp" />
+    <ClCompile Include="UIInventory.cpp" />
+    <ClCompile Include="UILogin.cpp" />
+    <ClCompile Include="UIManager.cpp" />
+    <ClCompile Include="UIMinimap.cpp" />
+    <ClCompile Include="UIMiniMenu.cpp" />
+    <ClCompile Include="UINoticeMsgWind.cpp" />
+    <ClCompile Include="UIPieceChange.cpp" />
+    <ClCompile Include="UIPMHook.cpp" />
+    <ClCompile Include="UISchedular.cpp" />
+    <ClCompile Include="UIScoreBoard.cpp" />
+    <ClCompile Include="UISeedHelper.cpp" />
+    <ClCompile Include="UIState.cpp" />
+    <ClCompile Include="UITargetBar.cpp" />
+    <ClCompile Include="UITaskbarMain.cpp" />
+    <ClCompile Include="UITaskbarSub.cpp" />
+    <ClCompile Include="UITooltip.cpp" />
+    <ClCompile Include="UITradeInventory.cpp" />
+    <ClCompile Include="UITradeItemDisplay.cpp" />
+    <ClCompile Include="UITradeItemDisplaySpecial.cpp" />
+    <ClCompile Include="UITradePrice.cpp" />
+    <ClCompile Include="WaveFile.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="BanSystem.h" />
+    <ClInclude Include="ByteBuffer.h" />
+    <ClInclude Include="CastleSiegeWar.h" />
+    <ClInclude Include="CharacterToolTip.h" />
+    <ClInclude Include="Cindirella.h" />
+    <ClInclude Include="CItem.h" />
+    <ClInclude Include="CollectionRace.h" />
+    <ClInclude Include="crc32.h" />
+    <ClInclude Include="CSpell.h" />
+    <ClInclude Include="CTagChange.h" />
+    <ClInclude Include="CustomStringList.h" />
+    <ClInclude Include="discord-rpc-master\src\backoff.h" />
+    <ClInclude Include="discord-rpc-master\src\rpc_connection.h" />
+    <ClInclude Include="Discord.h" />
+    <ClInclude Include="DropResult.h" />
+    <ClInclude Include="FunctionGuard.h" />
+    <ClInclude Include="hAccountRegister.h" />
+    <ClInclude Include="HDRReader.h" />
+    <ClInclude Include="HookSkillPage.h" />
+    <ClInclude Include="hEventShowList.h" />
+    <ClInclude Include="hLotteryEvent.h" />
+    <ClInclude Include="hMerchantList.h" />
+    <ClInclude Include="hPowerUpStore.h" />
+    <ClInclude Include="hWhellOfFun.h" />
+    <ClInclude Include="hSearchMonsterDrop.h" />
+    <ClInclude Include="JuraidMountain.h" />
+    <ClInclude Include="MerchantEye.h" />
+    <ClInclude Include="PerkMenu.h" />
+    <ClInclude Include="QuestComplated.h" />
+    <ClInclude Include="RightClickExchange.h" />
+    <ClInclude Include="RightCorner.h" />
+    <ClInclude Include="Support.h" />
+    <ClInclude Include="UIHpBarMenu.h" />
+    <ClInclude Include="UIPartyBBS.h" />
+    <ClInclude Include="ItemOrg.h" />
+    <ClInclude Include="LocalInput.h" />
+    <ClInclude Include="md5.h" />
+    <ClInclude Include="MerchantManager.h" />
+    <ClInclude Include="MessageBoxUIF.h" />
+    <ClInclude Include="Models\MerchantInvSlot.h" />
+    <ClInclude Include="Models\MerchantSlot.h" />
+    <ClInclude Include="My_3DStruct.h" />
+    <ClInclude Include="N3BASE\DFont.h" />
+    <ClInclude Include="N3BASE\GameDef.h" />
+    <ClInclude Include="N3BASE\LogWriter.h" />
+    <ClInclude Include="N3BASE\N3AlphaPrimitiveManager.h" />
+    <ClInclude Include="N3BASE\N3AnimatedTexures.h" />
+    <ClInclude Include="N3BASE\N3AnimKey.h" />
+    <ClInclude Include="N3BASE\N3Base.h" />
+    <ClInclude Include="N3BASE\N3BaseFileAccess.h" />
+    <ClInclude Include="N3BASE\N3Mng.h" />
+    <ClInclude Include="N3BASE\N3TableBase.h" />
+    <ClInclude Include="N3BASE\N3Texture.h" />
+    <ClInclude Include="N3BASE\N3Transform.h" />
+    <ClInclude Include="N3BASE\N3UIArea.h" />
+    <ClInclude Include="N3BASE\N3UIBase.h" />
+    <ClInclude Include="N3BASE\N3UIButton.h" />
+    <ClInclude Include="N3BASE\N3UIDef.h" />
+    <ClInclude Include="N3BASE\N3UIEdit.h" />
+    <ClInclude Include="N3BASE\N3UIIcon.h" />
+    <ClInclude Include="N3BASE\N3UIImage.h" />
+    <ClInclude Include="N3BASE\N3UIList.h" />
+    <ClInclude Include="N3BASE\N3UIManager.h" />
+    <ClInclude Include="N3BASE\N3UIProgress.h" />
+    <ClInclude Include="N3BASE\N3UIScrollBar.h" />
+    <ClInclude Include="N3BASE\N3UIStatic.h" />
+    <ClInclude Include="N3BASE\N3UIString.h" />
+    <ClInclude Include="N3BASE\N3UITooltip.h" />
+    <ClInclude Include="N3BASE\N3UITrackBar.h" />
+    <ClInclude Include="Packet.h" />
+    <ClInclude Include="PearlGui.h" />
+    <ClInclude Include="PlayerBase.h" />
+    <ClInclude Include="PlayerRank.h" />
+    <ClInclude Include="RC5\RC5.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="SettingsManager.h" />
+    <ClInclude Include="sha1.hpp" />
+    <ClInclude Include="splash.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="STLMap.h" />
+    <ClInclude Include="StringHelper.h" />
+    <ClInclude Include="TableManager.h" />
+    <ClInclude Include="Texts.h" />
+    <ClInclude Include="Timer.h" />
+    <ClInclude Include="TopRightReWarIcon.h" />
+    <ClInclude Include="types.h" />
+    <ClInclude Include="UIChatBar.h" />
+    <ClInclude Include="UIClanWindow.h" />
+    <ClInclude Include="UIDailyQuests.h" />
+    <ClInclude Include="UIGenieMain.h" />
+    <ClInclude Include="UIGenieSub.h" />
+    <ClInclude Include="UIHPBar.h" />
+    <ClInclude Include="UIInformationWind.h" />
+    <ClInclude Include="UIInventory.h" />
+    <ClInclude Include="UILogin.h" />
+    <ClInclude Include="UIManager.h" />
+    <ClInclude Include="UIMinimap.h" />
+    <ClInclude Include="UIMiniMenu.h" />
+    <ClInclude Include="UINoticeMsgWind.h" />
+    <ClInclude Include="UIPieceChange.h" />
+    <ClInclude Include="UIPMHook.h" />
+    <ClInclude Include="UISchedular.h" />
+    <ClInclude Include="UIScoreBoard.h" />
+    <ClInclude Include="UISeedHelper.h" />
+    <ClInclude Include="UIState.h" />
+    <ClInclude Include="UITargetBar.h" />
+    <ClInclude Include="UITaskbarMain.h" />
+    <ClInclude Include="UITaskbarSub.h" />
+    <ClInclude Include="UITooltip.h" />
+    <ClInclude Include="UITradeInventory.h" />
+    <ClInclude Include="UITradeItemDisplay.h" />
+    <ClInclude Include="UITradeItemDisplaySpecial.h" />
+    <ClInclude Include="UITradePrice.h" />
+    <ClInclude Include="va_g729a.h" />
+    <ClInclude Include="WaveFile.h" />
+    <ClInclude Include="xorstr.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Pearl Guard.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="ko.ico" />
+    <Image Include="mouse.ico" />
+    <Image Include="splash.bmp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

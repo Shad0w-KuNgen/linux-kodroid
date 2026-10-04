@@ -1,0 +1,31 @@
+﻿C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppBuild.targets(499,5): warning MSB8004: Output dizini sonda bir eğik çizgiyle bitmiyor. Output dizininin düzgün değerlendirilmesi için bu eğik çizgi gerekli olduğundan bu oluşturma örneği eğik çizgiyi ekleyecek.
+  MerchantInvSlot.cpp
+  MerchantSlot.cpp
+  DFont.cpp
+  LogWriter.cpp
+  N3AlphaPrimitiveManager.cpp
+  N3AnimKey.cpp
+  N3Base.cpp
+  N3BaseFileAccess.cpp
+  N3Texture.cpp
+  N3Transform.cpp
+  N3UIArea.cpp
+  N3UIBase.cpp
+  N3UIButton.cpp
+  N3UIEdit.cpp
+  N3UIImage.cpp
+  N3UIList.cpp
+  N3UIProgress.cpp
+  N3UIScrollBar.cpp
+  N3UIStatic.cpp
+  N3UIString.cpp
+  N3UITooltip.cpp
+  N3UITrackBar.cpp
+  RC5.cpp
+  RightCorner.cpp
+  connection_win.cpp
+  discord_register_win.cpp
+  discord_rpc.cpp
+  rpc_connection.cpp
+  serialization.cpp
+  Pearl Guard.vcxproj -> C:\KiraSoftWare 2369\KiraGuard.xem

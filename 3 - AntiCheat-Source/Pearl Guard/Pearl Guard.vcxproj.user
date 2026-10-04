@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LocalDebuggerCommand>C:\SkyRusheR\KnightOnLine.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>
+    </LocalDebuggerCommandArguments>
+    <LocalDebuggerDebuggerType>NativeOnly</LocalDebuggerDebuggerType>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>..\..\SkyRusheR</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerAttach>true</LocalDebuggerAttach>
+    <RemoteDebuggerDebuggerType>NativeOnly</RemoteDebuggerDebuggerType>
+    <RemoteDebuggerAttach>true</RemoteDebuggerAttach>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerDebuggerType>NativeOnly</LocalDebuggerDebuggerType>
+    <LocalDebuggerAttach>false</LocalDebuggerAttach>
+    <RemoteDebuggerCommand>C:\Users\home\Desktop\client98\Client\KnightOnLine.exe</RemoteDebuggerCommand>
+    <RemoteDebuggerCommandArguments>"1860"</RemoteDebuggerCommandArguments>
+    <RemoteDebuggerWorkingDirectory>C:\Users\home\Desktop\client98\Client</RemoteDebuggerWorkingDirectory>
+    <RemoteDebuggerDebuggerType>Mixed</RemoteDebuggerDebuggerType>
+    <RemoteDebuggerAttach>true</RemoteDebuggerAttach>
+    <RemoteDebuggerServerName>HOME-PC:4024</RemoteDebuggerServerName>
+    <RemoteDebuggerConnection>RemoteWithoutAuthentication</RemoteDebuggerConnection>
+    <DeploymentDirectory>
+    </DeploymentDirectory>
+    <LocalDebuggerCommand>C:\SkyRusheR\KnightOnLine.exe</LocalDebuggerCommand>
+    <LocalDebuggerWorkingDirectory>C:\SkyRusheR</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerEnvironment>
+    </LocalDebuggerEnvironment>
+    <LocalDebuggerMergeEnvironment>true</LocalDebuggerMergeEnvironment>
+    <LocalDebuggerCommandArguments>E03ED890-8E94-4B42-B1C5-3CDA401AA9C2</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ShowAllFiles>false</ShowAllFiles>
+  </PropertyGroup>
+</Project>
