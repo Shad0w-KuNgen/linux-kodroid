@@ -24,7 +24,14 @@ if(ANDROID)
   set(BUILD_LIBOUT123 OFF CACHE BOOL "" FORCE)
   set(BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(mpg123)
-  add_library(ko::mpg123 ALIAS libmpg123)
+  # Port'un hedefi mpg123.h'yi (src/include) dışa açmıyor; OpenKO gibi sarmalayıcı ile ekle
+  add_library(ko_mpg123_iface INTERFACE)
+  target_link_libraries(ko_mpg123_iface INTERFACE libmpg123)
+  target_include_directories(ko_mpg123_iface INTERFACE
+    ${mpg123_SOURCE_DIR}/src/include
+    ${mpg123_BINARY_DIR}/src/libmpg123
+    $<TARGET_PROPERTY:libmpg123,INTERFACE_INCLUDE_DIRECTORIES>)
+  add_library(ko::mpg123 ALIAS ko_mpg123_iface)
 
   # openal-soft (Android: OpenSL backend)
   FetchContent_Declare(openalsoft GIT_REPOSITORY https://github.com/Open-KO/openal-soft.git GIT_TAG 1.25.0-32f75f GIT_SHALLOW ON)

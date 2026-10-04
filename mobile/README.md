@@ -17,10 +17,14 @@ yalnızca Windows'a özgü katmanlar (DirectX 9, Win32, DirectInput, Winsock, GD
 | `platform/` SDL2 kabuğu | WinMain/WndProc yerine SDL olay döngüsü; klavye (DIK eşlemesi), fare, dokunmatik (tek parmak = sol tık, iki parmak = sağ tık), tekerlek, odak, soket olayları. |
 | Linux (x86_64) derleme ve çalıştırma | **Login ekranı çiziliyor** (yukarıdaki görüntü, 1.298 istemci verileriyle, başsız Mesa üzerinde). Sunucuya bağlanma kodu değişmedi; OpenKO sunucusu ile test edilmedi. |
 | `android/` Gradle projesi | Yazıldı, **henüz derlenmedi** (bu ortamda Android SDK/NDK yok). İlk Android derlemesinde CMake/bağımlılık ayarı gerekebilir. |
-| Dokunmatik oyun arayüzü (sanal joystick, beceri çubuğu, yakınlaştırma) | Yapılmadı. Şimdilik dokunma fare gibi davranır. |
+| Dokunmatik oyun arayüzü (`platform/KoTouchOverlay`) | Yazıldı (KO Mobile düzeni): yüzen joystick, SALDIR + 8 beceri yuvası + HEDEF, kamera kümesi, alt menü çubuğu, dokunuş = sol tık, sürükleme = kamera, iki parmak = yakınlaştırma. Cihazda henüz denenmedi. |
+| Ekran ölçekleme | Telefonlarda oyun 1366x768 (16:9) veya 1024x768 (4:3) mantıksal çözünürlükte çizilir, ekrana en-boy oranı korunarak yerleştirilir (yanlarda bant). `[Mobile] LogicalHeight`, `D3D9GLES_STRETCH=1`. |
+| GitHub Actions (`.github/workflows/build.yml`) | Linux derleme + testler geçiyor; Android APK işi üzerinde çalışılıyor (artifact olarak APK üretir). |
 | Ses (OpenAL) | Derleniyor; cihazda test edilmedi. |
 | BMP/JPG/TGA doku yükleme (`D3DXCreateTextureFromFileEx`) | Yapılmadı (oyun dokuları `.DXT`, nadiren gerekir). |
 | Korece metin (CP949) | Linux'ta iconv ile; Android'de yalnızca ASCII (1.298 US verileri İngilizce). |
+
+![Simüle 20:9 telefon ekranı, dokunmatik kaplama](docs/phone-20x9-touch-overlay.png)
 
 ## Dizin yapısı
 
@@ -74,7 +78,15 @@ KO_CLIENT_DIR=/yol/assets KO_MAX_FRAMES=20 KO_SCREENSHOT=/tmp/shot.ppm ./build/K
 ```
 
 Ortam değişkenleri: `KO_CLIENT_DIR` (veri dizini), `KO_FONT_PATH` (TTF; yoksa `<veri>/fonts/default.ttf`
-veya sistem yazı tipi), `KO_MAX_FRAMES`, `KO_SCREENSHOT`, `D3D9GLES_NO_S3TC=1` (DXT CPU çözücüyü zorla).
+veya sistem yazı tipi), `KO_MAX_FRAMES`, `KO_SCREENSHOT` (mantıksal), `KO_SCREENSHOT_PHYSICAL` (bantlar dahil),
+`KO_TOUCH=1` (masaüstünde dokunmatik kaplama), `KO_TOUCH_DEBUG=1` (kaplamayı login'de de çiz),
+`KO_LOGICAL_HEIGHT=768` (telefon ölçeklemesini masaüstünde dene), `D3D9GLES_NO_S3TC=1`, `D3D9GLES_STRETCH=1`.
+
+`Option.ini` içinde `[Mobile]` bölümü: `LogicalHeight=768` (0 = ölçekleme yok), `TouchControls=1`.
+
+Not: Oyunun arayüzü 1024x768, 1280x1024, 1366x768, 1600x1200 ve 1920x1080 için tasarlanmış;
+başka çözünürlüklerde login arka planı eksik/bozuk çıkar. Bu yüzden mobilde mantıksal çözünürlük
+bu listeden seçilir ve ekrana ölçeklenir.
 
 ## Android
 
