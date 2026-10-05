@@ -2,6 +2,7 @@
 #include "N3TableBaseImpl.h"
 #include "KoTableCrypt.h"
 
+#include <cstdio>
 #include <vector>
 
 #include <FileIO/FileReader.h>
@@ -19,10 +20,41 @@ CN3TableBaseImpl::~CN3TableBaseImpl()
 {
 }
 
+void CN3TableBaseImpl::LogTable(const std::string& szMsg)
+{
+#ifdef _N3GAME
+	CLogWriter::Write("{}", szMsg);
+#else
+	printf("%s\n", szMsg.c_str());
+#endif
+}
+
+bool CN3TableBaseImpl::SkipData(File& file, DATA_TYPE DataType)
+{
+	if (DataType == DT_STRING)
+	{
+		int iStrLen = 0;
+		file.Read(&iStrLen, sizeof(iStrLen));
+		if (iStrLen > 0)
+		{
+			std::string sz(iStrLen, ' ');
+			file.Read(&sz[0], iStrLen);
+		}
+		return true;
+	}
+	int n = SizeOf(DataType);
+	if (n <= 0)
+		return false;
+	uint8_t tmp[8];
+	file.Read(tmp, n);
+	return true;
+}
+
 bool CN3TableBaseImpl::LoadFromFile(const std::string& szFN)
 {
 	if (szFN.empty())
 		return false;
+	m_szFileName = szFN;
 
 	FileReader encryptedFile;
 	if (!encryptedFile.OpenExisting(szFN))

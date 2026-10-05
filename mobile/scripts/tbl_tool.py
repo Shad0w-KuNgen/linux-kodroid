@@ -5,6 +5,7 @@ Kullanım:
   tbl_tool.py info  <dosya.tbl|dizin>     # XOR katmanını çöz, başlığı ve 2. katman belirtilerini yaz
   tbl_tool.py dump  <dosya.tbl> [N]       # çözülen tabloyu CSV benzeri yazdır (ilk N satır)
   tbl_tool.py xor   <giriş> <çıkış>       # yalnız XOR katmanını çöz (ham baytlar)
+  tbl_tool.py schema <dizin>              # tablo başına sütun türleri (harf: C B S W I D T F R) + ilk satır
 
 Katman 1 (tüm KO istemcileri): akış XOR'u, key_r=0x0816, c1=0x6081, c2=0x1608 (N3TableBaseImpl.cpp).
 Katman 2 (2xxx istemcileri, 2369/ISTIRAP dahil): ham dosya = [16 bayt sabit başlık][uint32 BE uzunluk]
@@ -99,6 +100,23 @@ def cmd_info(path):
     print('özet:', counts)
 
 
+LETTERS = {1: 'C', 2: 'B', 3: 'S', 4: 'W', 5: 'I', 6: 'D', 7: 'T', 8: 'F', 9: 'R'}
+
+
+def cmd_schema(path):
+    files = sorted(os.path.join(path, f) for f in os.listdir(path) if f.lower().endswith('.tbl'))
+    for f in files:
+        d, kind, why = decode(open(f, 'rb').read())
+        if d is None:
+            print(f'{os.path.basename(f)}: ??? {kind} {why}')
+            continue
+        n = struct.unpack_from('<I', d, 0)[0]
+        types = struct.unpack_from('<%dI' % n, d, 4)
+        rows = struct.unpack_from('<I', d, 4 + 4 * n)[0]
+        first = next(iter(rows_of(d)), [])
+        print(f'{os.path.basename(f)}: {"".join(LETTERS.get(t, "?") for t in types)} rows={rows} first={first[:12]}')
+
+
 def cmd_dump(path, n):
     d, kind, why = decode(open(path, 'rb').read())
     if d is None:
@@ -123,6 +141,8 @@ def main(argv):
         return cmd_dump(argv[2], int(argv[3]) if len(argv) > 3 else 20)
     elif cmd == 'xor':
         open(argv[3], 'wb').write(xor_layer(open(argv[2], 'rb').read()))
+    elif cmd == 'schema':
+        cmd_schema(argv[2])
     else:
         print(__doc__)
         return 2

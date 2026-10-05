@@ -5,3 +5,4 @@ mobile/build*/
 # oyun/test çalıştırmalarının bıraktığı günlük
 Log.txt
 mobile/**/Log.txt
+__pycache__/

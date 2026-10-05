@@ -1,9 +1,11 @@
-﻿#ifndef CLIENT_N3BASE_N3TABLEBASEIMPL_H
+#ifndef CLIENT_N3BASE_N3TABLEBASEIMPL_H
 #define CLIENT_N3BASE_N3TABLEBASEIMPL_H
 
 #pragma once
 
 #include <FileIO/File.h>
+
+#include <string>
 
 // NOLINTNEXTLINE(performance-enum-size): used for the file format, size must match
 enum TBL_DATA_TYPE : uint32_t
@@ -34,7 +36,11 @@ public:
 
 protected:
 	bool ReadData(File& file, DATA_TYPE DataType, void* pData);
+	bool SkipData(File& file, DATA_TYPE DataType); // sütunu okuyup atar (2xxx verisindeki fazladan sütunlar)
 	int SizeOf(DATA_TYPE DataType) const;
+	static void LogTable(const std::string& szMsg); // _N3GAME: Log.txt, değilse stdout
+
+	std::string m_szFileName; // LoadFromFile'da verilen ad (şema hizalaması için)
 };
 
 #endif // CLIENT_N3BASE_N3TABLEBASEIMPL_H

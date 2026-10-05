@@ -175,6 +175,16 @@ seçer (klasik XOR / DES). `ko_tbl_test` 2195 ve 1886 örnek tablolarıyla (plat
 baştan sona doğrular. PC'de: `scripts/tbl_tool.py info <Data>` (sınıflandırma) ve `dump <tbl>` (CSV).
 Temel tablolar (Texts/UIs/Zones) yine de okunamazsa oyun siyah ekran yerine hata kutusu gösterip kapanır.
 
+**2xxx tablo şemaları:** 2369 tablolarında sütunlar eklenmiş (Zones 27, Item_Ext 56, skill_magic_main 37…).
+`CN3TableBase::Load` dosya düzeni struct'a uymazsa dosya sütunlarını 1.298 şemasına
+(`KoTableSchemas.cpp`, 1.298 verisinden üretildi) hizalar: bilinen tablolar için elle eşleme
+(Zones: HDR gökyüzü, .mob, .NaviMesh sütunları atlanır), diğerleri için sırayı koruyan en uzun ortak
+alt dizi; fazlalıklar okunup atılır, eşlenmeyen struct alanları varsayılan kalır. Her hizalama Log.txt'ye
+"2xxx şeması hizalandı: … atlanan dosya sütunları […]" biçiminde yazılır; yanlış eşlenen bir tablo için
+`MANUAL_MAPS`'e satır eklenir. Olmayan tablolar (Quest_Content, Help) yumuşak atlanır; `UI_US` ↔ `UI`
+klasörü `KoResolvePath` ile karşılıklı yedeklenir. PC'de `scripts/tbl_tool.py schema <Data>` tüm tabloların
+tür dizgisini ve ilk satırını listeler (eşleme doğrulama için).
+
 `ko_proto_test` (CTest) sunucu kaynağındaki `Packet <<` sırasını taklit eden paketlerle bu ayrıştırıcıları
 ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya/yükseltme, klan/kral/PUS,
 2369 arayüzü, 2369 veri uyumluluğu (bölge numaraları, `UI` klasörü, NPC ad tablosu).

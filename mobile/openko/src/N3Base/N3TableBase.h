@@ -1,4 +1,4 @@
-﻿// N3TableBase.h: interface for the CN3TableBase class.
+// N3TableBase.h: interface for the CN3TableBase class.
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -9,9 +9,11 @@
 
 #include <vector>
 #include <map>
+#include <string>
 
 #include "My_3DStruct.h" // _ASSERT
 #include "N3TableBaseImpl.h"
+#include "KoTableSchemas.h"
 
 template <typename Type>
 class CN3TableBase : public CN3TableBaseImpl
@@ -115,45 +117,62 @@ bool CN3TableBase<Type>::Load(File& file)
 	// data(column) 의 구조가 어떻게 되어 있는지 읽기
 	int iDataTypeCount = 0;
 	file.Read(&iDataTypeCount, 4); // (엑셀에서 column 수)
+	__ASSERT(iDataTypeCount > 0, "Data Type 이 0 이하입니다.");
+	if (iDataTypeCount <= 0 || iDataTypeCount > 1024)
+		return false;
+
+	std::vector<DATA_TYPE> fileTypes(iDataTypeCount, DT_NONE);
+	file.Read(&fileTypes[0], sizeof(DATA_TYPE) * iDataTypeCount); // 각각의 column에 해당하는 data type
+
+	// Dosya sütunu -> struct sütunu eşlemesi. 1.298 verisinde birebir; 2xxx verisinde (sütun eklenmiş)
+	// dosya sütunları 1.298 şemasına hizalanır (KoTableSchemas), fazlalıklar atlanır.
+	std::vector<int> colMap(iDataTypeCount);
+	for (int i = 0; i < iDataTypeCount; i++)
+		colMap[i] = i;
+	m_DataTypes = fileTypes;
 
 	std::vector<int> offsets;
-	__ASSERT(iDataTypeCount > 0, "Data Type 이 0 이하입니다.");
-	if (iDataTypeCount > 0)
+	bool bDirect = MakeOffsetTable(offsets) && offsets[iDataTypeCount] == (int) sizeof(Type) && DT_DWORD == m_DataTypes[0];
+	if (!bDirect)
 	{
-		m_DataTypes.insert(m_DataTypes.begin(), iDataTypeCount, DT_NONE);
-
-		// 각각의 column에 해당하는 data type
-		file.Read(&m_DataTypes[0], sizeof(DATA_TYPE) * iDataTypeCount);
-
-		if (!MakeOffsetTable(offsets))
+		std::vector<uint32_t> ft(fileTypes.begin(), fileTypes.end()), et;
+		std::string report;
+		if (!KoTableAlignSchema(m_szFileName, ft, et, colMap, report))
 		{
-			__ASSERT(0, "can't make offset table");
-			return FALSE; // structure변수에 대한 offset table 만들어주기
-		}
-
-		// MakeOffstTable 함수에서 리턴되는 값중 m_iDataTypeCount번째에 이 함수의 실제 사이즈가 들어있다.
-		int iSize = offsets[iDataTypeCount];
-		// 전체 type의 크기와 실제 구조체의 크기와 다르거나
-		// 맨 처음의 데이타가 DT_DWORD형이 아닐때(맨처음은 고유한 ID이므로)
-		if (sizeof(Type) != iSize || DT_DWORD != m_DataTypes[0])
-		{
+			LogTable("N3TableBase - sütun düzeni struct'a uymuyor ve hizalanamadı: " + report);
 			m_DataTypes.clear();
-			__ASSERT(0, "DataType is mismatch or DataSize is incorrect!!");
 			return false;
 		}
+		m_DataTypes.clear();
+		for (uint32_t t : et)
+			m_DataTypes.push_back((DATA_TYPE) t);
+		offsets.clear();
+		if (!MakeOffsetTable(offsets) || offsets[(int) m_DataTypes.size()] != (int) sizeof(Type) || DT_DWORD != m_DataTypes[0])
+		{
+			LogTable("N3TableBase - 1.298 şeması struct boyutuyla uyuşmuyor: " + report);
+			m_DataTypes.clear();
+			return false;
+		}
+		LogTable("N3TableBase - 2xxx şeması hizalandı: " + report);
 	}
 
 	// row 가 몇줄인지 읽기
 	int iRC = 0;
 	file.Read(&iRC, sizeof(iRC));
+	if (iRC < 0 || iRC > 5000000)
+		return false;
 
 	Type Data {};
 	for (int i = 0; i < iRC; i++)
 	{
 		for (int j = 0; j < iDataTypeCount; j++)
 		{
-			// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-			ReadData(file, m_DataTypes[j], reinterpret_cast<char*>(&Data) + offsets[j]);
+			int k = colMap[j];
+			if (k >= 0)
+				// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+				ReadData(file, fileTypes[j], reinterpret_cast<char*>(&Data) + offsets[k]);
+			else
+				SkipData(file, fileTypes[j]);
 		}
 
 		uint32_t dwKey           = *((uint32_t*) (&Data));
@@ -161,6 +180,10 @@ bool CN3TableBase<Type>::Load(File& file)
 
 		__ASSERT(pt.second, "CN3TableBase<Type> : Key 중복 경고.");
 	}
+
+	if (!bDirect || m_Datas.empty())
+		LogTable("N3TableBase - " + m_szFileName + ": " + std::to_string(iDataTypeCount) + " sütun, "
+			+ std::to_string(m_Datas.size()) + " satır" + (m_Datas.empty() ? "" : ", ilk anahtar " + std::to_string(m_Datas.begin()->first)));
 
 	return true;
 }

@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 
 #include <map>
+#include <cstring>
 #include <mutex>
 #include <unordered_set>
 #include <string>
@@ -85,7 +86,7 @@ void KoPathCacheReset()
 	g_dirCache.clear();
 }
 
-std::string KoResolvePath(const std::string& input)
+static std::string ResolveOnce(const std::string& input)
 {
 	if (input.empty())
 		return input;
@@ -146,6 +147,34 @@ std::string KoResolvePath(const std::string& input)
 			resolved += "/";
 	}
 	return resolved;
+}
+
+// 2xxx istemci verisinde arayüz klasörü "UI", 1.298'de "UI_US": biri yoksa diğerini dene
+std::string KoResolvePath(const std::string& input)
+{
+	std::string r = ResolveOnce(input);
+	if (Exists(r))
+		return r;
+	std::string low = Lower(input);
+	for (char& c : low)
+		if (c == '\\')
+			c = '/';
+	auto swapDir = [&](const char* from, const char* to) -> std::string {
+		size_t pos = low.find(from);
+		if (pos == std::string::npos || (pos > 0 && low[pos - 1] != '/'))
+			return std::string();
+		std::string alt = input;
+		for (char& c : alt)
+			if (c == '\\')
+				c = '/';
+		alt.replace(pos, strlen(from), to);
+		std::string ra = ResolveOnce(alt);
+		return Exists(ra) ? ra : std::string();
+	};
+	std::string alt = swapDir("ui_us/", "ui/");
+	if (alt.empty())
+		alt = swapDir("ui/", "ui_us/");
+	return alt.empty() ? r : alt;
 }
 
 FILE* ko_fopen(const char* path, const char* mode)
