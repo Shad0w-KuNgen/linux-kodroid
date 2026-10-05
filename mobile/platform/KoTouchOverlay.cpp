@@ -9,6 +9,11 @@
 #include "GameProcedure.h"
 #include "GameProcMain.h"
 #include "GameProcLogIn_1298.h"
+#include "GameProcCharacterCreate.h"
+#include "GameProcCharacterSelect.h"
+#include "UICharacterCreate.h"
+#include "PlayerMySelf.h"
+#include <N3Base/LogWriter.h>
 #include "GameEng.h"
 #include "GameDef.h"
 
@@ -73,6 +78,127 @@ bool KoTouchOverlay::IsServerSelect() const
 {
 	return CGameProcedure::s_pProcLogIn != nullptr && CGameProcedure::s_pProcActive == CGameProcedure::s_pProcLogIn
 		   && CGameProcedure::s_pProcLogIn->IsServerListOpen();
+}
+
+bool KoTouchOverlay::IsCharacterCreate() const
+{
+	return CGameProcedure::s_pProcCharacterCreate != nullptr
+		   && CGameProcedure::s_pProcActive == (CGameProcedure*) CGameProcedure::s_pProcCharacterCreate
+		   && CGameProcedure::s_pProcCharacterCreate->m_pUICharacterCreate != nullptr;
+}
+
+bool KoTouchOverlay::IsCharacterSelect() const
+{
+	return CGameProcedure::s_pProcCharacterSelect != nullptr
+		   && CGameProcedure::s_pProcActive == (CGameProcedure*) CGameProcedure::s_pProcCharacterSelect;
+}
+
+// Yazı tipi dizinleri sabit: DrawLabel metni ilk çizimde önbelleğe alır, her etiketin kendi dizini olmalı
+namespace
+{
+constexpr int PRE_FONT_BASE = 100;
+enum PreLabel { PL_EL_BA = 0, PL_EL_MAN, PL_EL_WOMAN, PL_KA_AT, PL_KA_TU, PL_KA_WT, PL_KA_PT, PL_WARRIOR, PL_ROGUE, PL_MAGE,
+	PL_PRIEST, PL_AUTO, PL_CREATE, PL_CANCEL, PL_START, PL_NEW, PL_COUNT };
+const char* PRE_TEXT[PL_COUNT] = { "Barbar", "Erkek", "Kadin", "Arktuarek", "Tuarek", "Kirisik Tuarek", "Puri Tuarek", "Savasci", "Hirsiz",
+	"Buyucu", "Rahip", "OTO PUAN", "OLUSTUR", "GERI", "BASLA", "YENI KARAKTER" };
+} // namespace
+
+void KoTouchOverlay::LayoutPreButtons()
+{
+	m_preButtons.clear();
+	float u        = m_u;
+	auto add       = [&](PreAction a, int arg, int lbl, float x, float y, float w, float h, bool sel) {
+        m_preButtons.push_back({ a, arg, PRE_TEXT[lbl], PRE_FONT_BASE + lbl, x, y, w, h, sel });
+	};
+	if (IsCharacterCreate())
+	{
+		CUICharacterCreate* pUI = CGameProcedure::s_pProcCharacterCreate->m_pUICharacterCreate;
+		e_Nation eNation        = CGameProcedure::s_pPlayer ? CGameProcedure::s_pPlayer->m_InfoBase.eNation : NATION_ELMORAD;
+		int iRace               = pUI->SelectedRaceIndex();
+		int iClass              = pUI->SelectedClassIndex();
+		float bw = 190.0f * u, bh = 56.0f * u, gap = 12.0f * u;
+		// Sol sütun: ırklar
+		int raceLbls[4];
+		int nRaces = 0;
+		if (eNation == NATION_KARUS)
+		{
+			raceLbls[0] = PL_KA_AT; raceLbls[1] = PL_KA_TU; raceLbls[2] = PL_KA_WT; raceLbls[3] = PL_KA_PT; nRaces = 4;
+		}
+		else
+		{
+			raceLbls[0] = PL_EL_BA; raceLbls[1] = PL_EL_MAN; raceLbls[2] = PL_EL_WOMAN; nRaces = 3;
+		}
+		float y0 = 120.0f * u;
+		for (int i = 0; i < nRaces; i++)
+			add(PreAction::Race, i, raceLbls[i], 24.0f * u, y0 + i * (bh + gap), bw, bh, iRace == i);
+		// Sağ sütun: sınıflar
+		int classLbls[4] = { PL_WARRIOR, PL_ROGUE, PL_MAGE, PL_PRIEST };
+		for (int i = 0; i < 4; i++)
+			add(PreAction::Class, i, classLbls[i], m_w - bw - 24.0f * u, y0 + i * (bh + gap), bw, bh, iClass == i);
+		// Alt satır: oto puan, oluştur, geri
+		float by = m_h - bh - 20.0f * u;
+		add(PreAction::AutoBonus, 0, PL_AUTO, 24.0f * u, by, bw, bh, false);
+		add(PreAction::Create, 0, PL_CREATE, m_w / 2.0f - bw - gap / 2, by, bw, bh, false);
+		add(PreAction::Cancel, 0, PL_CANCEL, m_w / 2.0f + gap / 2, by, bw, bh, false);
+	}
+	else if (IsCharacterSelect())
+	{
+		float bw = 260.0f * u, bh = 64.0f * u, gap = 16.0f * u;
+		float by = m_h - bh - 20.0f * u;
+		add(PreAction::SelStart, 0, PL_START, m_w / 2.0f - bw - gap / 2, by, bw, bh, false);
+		add(PreAction::SelNew, 0, PL_NEW, m_w / 2.0f + gap / 2, by, bw, bh, false);
+	}
+}
+
+void KoTouchOverlay::DoPreAction(const PreButton& b)
+{
+	CUIManager* mgr = CGameProcedure::s_pUIMgr;
+	if (mgr != nullptr && !mgr->EnableOperation())
+	{
+		CLogWriter::Write("Dokunmatik: '{}' yok sayıldı (sunucu yanıtı bekleniyor)", b.label);
+		return;
+	}
+	if (IsCharacterCreate())
+	{
+		CUICharacterCreate* pUI = CGameProcedure::s_pProcCharacterCreate->m_pUICharacterCreate;
+		switch (b.action)
+		{
+			case PreAction::Race: pUI->SelectRaceByIndex(b.arg); break;
+			case PreAction::Class:
+				if (!pUI->SelectClassByIndex(b.arg))
+					CLogWriter::Write("Dokunmatik: önce ırk seçilmeli");
+				break;
+			case PreAction::AutoBonus: pUI->AutoAssignBonus(); break;
+			case PreAction::Create:
+				CLogWriter::Write("Dokunmatik OLUSTUR");
+				pUI->RequestCreate();
+				break;
+			case PreAction::Cancel: pUI->Cancel(); break;
+			default: break;
+		}
+	}
+	else if (IsCharacterSelect())
+	{
+		CGameProcCharacterSelect* pSel = CGameProcedure::s_pProcCharacterSelect;
+		int iSlot = -1;
+		for (int i = 0; i < MAX_AVAILABLE_CHARACTER; i++)
+		{
+			bool bHas = pSel->m_pChrs[i] != nullptr;
+			if ((b.action == PreAction::SelStart && bHas) || (b.action == PreAction::SelNew && !bHas))
+			{
+				iSlot = i;
+				break;
+			}
+		}
+		if (iSlot < 0)
+		{
+			CLogWriter::Write("Dokunmatik {}: uygun yuva yok", b.label);
+			return;
+		}
+		CGameProcedure::s_iChrSelectIndex = iSlot;
+		CLogWriter::Write("Dokunmatik {}: yuva {} ({})", b.label, iSlot, pSel->m_InfoChrs[iSlot].szID);
+		pSel->CharacterSelectOrCreate();
+	}
 }
 
 void KoTouchOverlay::Layout(int w, int h)
@@ -276,6 +402,20 @@ void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
 		f.role               = Role::Done;
 		m_fingers.push_back(f);
 		return;
+	}
+	if (IsCharacterCreate() || IsCharacterSelect())
+	{
+		LayoutPreButtons();
+		for (const PreButton& b : m_preButtons)
+		{
+			if (x >= b.x - 6 && x <= b.x + b.w + 6 && y >= b.y - 6 && y <= b.y + b.h + 6)
+			{
+				DoPreAction(b);
+				f.role = Role::Done;
+				m_fingers.push_back(f);
+				return;
+			}
+		}
 	}
 	if (IsServerSelect() && std::fabs(x - m_connCx) <= m_connW / 2 + 8 && std::fabs(y - m_connCy) <= m_connH / 2 + 8)
 	{
@@ -711,7 +851,8 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 	RenderFps(dev);
 	if (!dev)
 		return;
-	if (!IsServerSelect() && (!m_enabled || (!IsInGame() && !m_forceVisible)))
+	bool bPreGame = IsServerSelect() || IsCharacterCreate() || IsCharacterSelect();
+	if (!bPreGame && (!m_enabled || (!IsInGame() && !m_forceVisible)))
 		return;
 
 	KoRenderStateGuard guard(dev);
@@ -733,6 +874,21 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 		dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
 		dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
 	};
+	if (IsCharacterCreate() || IsCharacterSelect())
+	{
+		LayoutPreButtons();
+		setup();
+		for (const PreButton& b : m_preButtons)
+		{
+			DrawRect(dev, b.x, b.y, b.w, b.h, b.selected ? 0xE0C09040 : 0xC0503820);
+			DrawRect(dev, b.x, b.y, b.w, 2.5f * m_u, COL_SLOT_RING);
+			DrawRect(dev, b.x, b.y + b.h - 2.5f * m_u, b.w, 2.5f * m_u, COL_SLOT_RING);
+			DrawLabel(dev, b.fontIdx, b.label, b.x + b.w / 2, b.y + b.h / 2, 0xFFFFFFFF, (int) (20.0f * m_u));
+			setup();
+		}
+		return;
+	}
+
 	if (IsServerSelect())
 	{
 		// Sunucu seçme ekranı: yalnızca BAĞLAN düğmesi (kaplama ayarından bağımsız)

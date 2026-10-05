@@ -235,6 +235,128 @@ bool CUICharacterCreate::Load(File& file)
 	return true;
 }
 
+static e_Race RaceByIndex(e_Nation eNation, int i)
+{
+	if (eNation == NATION_KARUS)
+	{
+		static const e_Race ka[4] = { RACE_KA_ARKTUAREK, RACE_KA_TUAREK, RACE_KA_WRINKLETUAREK, RACE_KA_PURITUAREK };
+		return (i >= 0 && i < 4) ? ka[i] : RACE_UNKNOWN;
+	}
+	static const e_Race el[3] = { RACE_EL_BABARIAN, RACE_EL_MAN, RACE_EL_WOMEN };
+	return (i >= 0 && i < 3) ? el[i] : RACE_UNKNOWN;
+}
+
+static e_Class ClassByIndex(e_Nation eNation, int i)
+{
+	static const e_Class ka[4] = { CLASS_KA_WARRIOR, CLASS_KA_ROGUE, CLASS_KA_WIZARD, CLASS_KA_PRIEST };
+	static const e_Class el[4] = { CLASS_EL_WARRIOR, CLASS_EL_ROGUE, CLASS_EL_WIZARD, CLASS_EL_PRIEST };
+	if (i < 0 || i >= 4)
+		return CLASS_UNKNOWN;
+	return eNation == NATION_KARUS ? ka[i] : el[i];
+}
+
+int CUICharacterCreate::SelectedRaceIndex() const
+{
+	__InfoPlayerBase* pInfoBase = &CGameBase::s_pPlayer->m_InfoBase;
+	for (int i = 0; i < 4; i++)
+		if (RaceByIndex(pInfoBase->eNation, i) == pInfoBase->eRace && pInfoBase->eRace != RACE_UNKNOWN)
+			return i;
+	return -1;
+}
+
+int CUICharacterCreate::SelectedClassIndex() const
+{
+	__InfoPlayerBase* pInfoBase = &CGameBase::s_pPlayer->m_InfoBase;
+	for (int i = 0; i < 4; i++)
+		if (ClassByIndex(pInfoBase->eNation, i) == pInfoBase->eClass && pInfoBase->eClass != CLASS_UNKNOWN)
+			return i;
+	return -1;
+}
+
+bool CUICharacterCreate::SelectRaceByIndex(int iIndex)
+{
+	__InfoPlayerBase* pInfoBase = &CGameBase::s_pPlayer->m_InfoBase;
+	e_Race eRace                = RaceByIndex(pInfoBase->eNation, iIndex);
+	if (eRace == RACE_UNKNOWN)
+		return false;
+	e_Race ePrev     = pInfoBase->eRace;
+	pInfoBase->eRace = eRace;
+	// Irk değişince sınıf seçimi sıfırlanır (tablo ırk*10000+sınıf)
+	if (ePrev != eRace)
+	{
+		pInfoBase->eClass = CLASS_UNKNOWN;
+		CGameProcedure::s_pProcCharacterCreate->SetChr();
+	}
+	UpdateRaceAndClassButtons(eRace);
+	CLogWriter::Write("Karakter oluşturma: ırk seçildi {} (indeks {})", (int) eRace, iIndex);
+	return true;
+}
+
+bool CUICharacterCreate::SelectClassByIndex(int iIndex)
+{
+	__InfoPlayerBase* pInfoBase = &CGameBase::s_pPlayer->m_InfoBase;
+	if (pInfoBase->eRace == RACE_UNKNOWN)
+		return false;
+	e_Class eClass = ClassByIndex(pInfoBase->eNation, iIndex);
+	if (eClass == CLASS_UNKNOWN)
+		return false;
+	pInfoBase->eClass = eClass;
+	UpdateClassButtons(eClass); // SetStats: tablo değerleri + bonus
+	CLogWriter::Write("Karakter oluşturma: sınıf seçildi {} (indeks {}), bonus {}", (int) eClass, iIndex, m_iBonusPoint);
+	return true;
+}
+
+void CUICharacterCreate::AutoAssignBonus()
+{
+	__InfoPlayerBase* pInfoBase  = &CGameBase::s_pPlayer->m_InfoBase;
+	__InfoPlayerMySelf* pInfoExt = &CGameBase::s_pPlayer->m_InfoExt;
+	if (m_iBonusPoint <= 0)
+		return;
+	int* pPrimary   = &pInfoExt->iStrength;
+	int* pSecondary = &pInfoExt->iStamina;
+	switch (pInfoBase->eClass)
+	{
+		case CLASS_KA_ROGUE:
+		case CLASS_EL_ROGUE:
+			pPrimary   = &pInfoExt->iDexterity;
+			pSecondary = &pInfoExt->iStamina;
+			break;
+		case CLASS_KA_WIZARD:
+		case CLASS_EL_WIZARD:
+			pPrimary   = &pInfoExt->iIntelligence;
+			pSecondary = &pInfoExt->iMagicAttak;
+			break;
+		case CLASS_KA_PRIEST:
+		case CLASS_EL_PRIEST:
+			pPrimary   = &pInfoExt->iMagicAttak;
+			pSecondary = &pInfoExt->iIntelligence;
+			break;
+		default:
+			break;
+	}
+	int iToPrimary = (m_iBonusPoint * 2 + 2) / 3; // ~2/3 ana stat, kalanı ikincil
+	*pPrimary += iToPrimary;
+	*pSecondary += m_iBonusPoint - iToPrimary;
+	m_iBonusPoint = 0;
+	UpdateStats();
+	if (m_pStr_Bonus)
+		m_pStr_Bonus->SetStringAsInt(m_iBonusPoint);
+}
+
+bool CUICharacterCreate::RequestCreate()
+{
+	if (m_pEdit_Name == nullptr)
+		return false;
+	CGameBase::s_pPlayer->IDSet(0, m_pEdit_Name->GetString(), 0);
+	AutoAssignBonus();
+	return CGameProcedure::s_pProcCharacterCreate->MsgSendCharacterCreate();
+}
+
+void CUICharacterCreate::Cancel()
+{
+	CGameProcedure::ProcActiveSet((CGameProcedure*) CGameProcedure::s_pProcCharacterSelect);
+}
+
 bool CUICharacterCreate::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 {
 	if (dwMsg == UIMSG_BUTTON_CLICK)
@@ -306,8 +428,7 @@ bool CUICharacterCreate::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 		}
 		else if ((IDEquals(pSender, "btn_create") || IDEquals(pSender, "btn_ok")) && m_pEdit_Name)
 		{
-			CGameBase::s_pPlayer->IDSet(0, m_pEdit_Name->GetString(), 0);            // 이름을 넣어주고...
-			return CGameProcedure::s_pProcCharacterCreate->MsgSendCharacterCreate(); // 캐릭터 만들기 메시지 보내기...
+			return RequestCreate(); // ad + bonus dağıtımı + WIZ_NEW_CHAR
 		}
 		else if (pSender == m_pBtn_Face_Left)                                        // 얼굴
 		{

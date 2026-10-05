@@ -584,39 +584,49 @@ void CN3UIBase::DestroyTooltip()
 	s_pTooltipCtrl = nullptr;
 }
 
+// 2xxx (2369) arayüz dosyaları denetimleri alt gruplara (Group_*) koyuyor; doğrudan çocuk araması tutmazsa
+// alt ağaçta derinlemesine ara (1.298 dosyalarında doğrudan arama her zaman tutar, davranış değişmez)
+template <typename Pred>
+static CN3UIBase* FindChildDeep(const CN3UIBase* parent, const std::string_view szID, Pred typeOk, bool bDirectOnly)
+{
+	for (CN3UIBase* pChild : parent->GetChildren())
+	{
+		if (pChild == nullptr || !typeOk(pChild))
+			continue;
+		const std::string& childID = pChild->GetID();
+		if (szID.length() == childID.length() && _strnicmp(szID.data(), childID.data(), szID.length()) == 0)
+			return pChild;
+	}
+	if (bDirectOnly)
+		return nullptr;
+	for (CN3UIBase* pChild : parent->GetChildren())
+	{
+		if (pChild == nullptr)
+			continue;
+		if (CN3UIBase* p = FindChildDeep(pChild, szID, typeOk, false))
+			return p;
+	}
+	return nullptr;
+}
+
 CN3UIBase* CN3UIBase::GetChildByID(const std::string_view szID) const
 {
 	if (szID.empty())
 		return nullptr;
-
-	for (CN3UIBase* pChild : m_Children)
-	{
-		const std::string& childID = pChild->GetID();
-		if (szID.length() == childID.length()
-			&& _strnicmp(szID.data(), childID.data(), szID.length()) == 0)
-			return pChild;
-	}
-
-	return nullptr;
+	auto any = [](const CN3UIBase*) { return true; };
+	if (CN3UIBase* p = FindChildDeep(this, szID, any, true))
+		return p;
+	return FindChildDeep(this, szID, any, false);
 }
 
 CN3UIBase* CN3UIBase::GetChildByID(const std::string_view szID, eUI_TYPE eUIType) const
 {
 	if (szID.empty())
 		return nullptr;
-
-	for (CN3UIBase* pChild : m_Children)
-	{
-		if (eUIType != pChild->UIType())
-			continue;
-
-		const std::string& childID = pChild->GetID();
-		if (szID.length() == childID.length()
-			&& _strnicmp(szID.data(), childID.data(), szID.length()) == 0)
-			return pChild;
-	}
-
-	return nullptr;
+	auto typeOk = [eUIType](const CN3UIBase* p) { return p->UIType() == eUIType; };
+	if (CN3UIBase* p = FindChildDeep(this, szID, typeOk, true))
+		return p;
+	return FindChildDeep(this, szID, typeOk, false);
 }
 
 template <eUI_TYPE... UITypes>
@@ -624,20 +634,11 @@ static CN3UIBase* GetChildByIDImpl(const CN3UIBase* parent, const std::string_vi
 {
 	if (szID.empty())
 		return nullptr;
-
-	for (CN3UIBase* pChild : parent->GetChildren())
-	{
-		// Use a fold expression here to include all of the supported types.
-		if (((pChild->UIType() != UITypes) && ...))
-			continue;
-
-		const std::string& childID = pChild->GetID();
-		if (szID.length() == childID.length()
-			&& _strnicmp(szID.data(), childID.data(), szID.length()) == 0)
-			return pChild;
-	}
-
-	return nullptr;
+	// Use a fold expression here to include all of the supported types.
+	auto typeOk = [](const CN3UIBase* p) { return !((p->UIType() != UITypes) && ...); };
+	if (CN3UIBase* p = FindChildDeep(parent, szID, typeOk, true))
+		return p;
+	return FindChildDeep(parent, szID, typeOk, false);
 }
 
 #define IMPL_GETCHILDBYID(Class, MainUIType, ...)                                            \

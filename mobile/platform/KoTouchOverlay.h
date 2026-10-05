@@ -61,6 +61,9 @@ public:
 	bool IsInGame() const;
 	/// Giriş: sunucu seçme ekranı açık mı? (büyük BAĞLAN düğmesi çizilir; Enter yerine geçer)
 	bool IsServerSelect() const;
+	/// Karakter oluşturma / karakter seçme ekranları (ırk-sınıf-oluştur ve BAŞLA-YENİ düğmeleri)
+	bool IsCharacterCreate() const;
+	bool IsCharacterSelect() const;
 
 	/// Test: düğme sayısı ve i. düğmenin sınır kutusu (üst üste binme denetimi)
 	size_t ButtonCount() const { return m_buttons.size(); }
@@ -118,6 +121,20 @@ private:
 	// Sunucu seçme ekranındaki BAĞLAN düğmesi (alt orta)
 	float m_connCx = 0, m_connCy = 0, m_connW = 0, m_connH = 0;
 	bool m_connDown = false;
+	// Oyun öncesi ekran düğmeleri (karakter oluşturma / seçme); her kare yeniden yerleştirilir
+	enum class PreAction { Race, Class, AutoBonus, Create, Cancel, SelStart, SelNew };
+	struct PreButton
+	{
+		PreAction action;
+		int arg;
+		std::string label;
+		int fontIdx;
+		float x, y, w, h;
+		bool selected;
+	};
+	std::vector<PreButton> m_preButtons;
+	void LayoutPreButtons();
+	void DoPreAction(const PreButton& b);
 	float m_u = 1.0f; // 768p'ye göre ölçek
 	float m_barH = 0.0f; // alt çubuk yüksekliği (Layout belirler)
 	// Joystick (yüzen)

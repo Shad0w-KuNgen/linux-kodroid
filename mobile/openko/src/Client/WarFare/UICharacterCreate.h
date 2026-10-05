@@ -44,6 +44,15 @@ public:
 	CN3UIEdit* m_pEdit_Name;
 
 public:
+	// Mobil dokunmatik katman için program arayüzü (2369 arayüzünde ırk/sınıf düğmeleri görünmüyor)
+	bool SelectRaceByIndex(int iIndex);  // ulusa göre 0..3 (El Morad: Barbar, Erkek, Kadın; Karus: Arktuarek, Tuarek, Kırışık, Puri)
+	bool SelectClassByIndex(int iIndex); // 0 savaşçı, 1 hırsız, 2 büyücü, 3 rahip
+	void AutoAssignBonus();              // kalan bonus puanı sınıfın ana statlarına dağıt
+	bool RequestCreate();                // adı al, bonusu dağıt, WIZ_NEW_CHAR gönder
+	void Cancel();
+	int SelectedRaceIndex() const;
+	int SelectedClassIndex() const;
+
 	void Reset();
 	void UpdateStats();
 	void UpdateRaceAndClassButtons(e_Race eRace);
