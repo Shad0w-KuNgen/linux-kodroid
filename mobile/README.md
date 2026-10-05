@@ -156,6 +156,19 @@ adb shell run-as online.knight.mobile sh -c 'mkdir -p files && cd files && unzip
 
 Yazı tipi için `<veri>/fonts/default.ttf` koyun (yoksa `/system/fonts/` denenir).
 
+### Tanılama ve performans seçenekleri
+
+- Launcher'da **Hata raporu gönder**: `Log.txt`, `gpu.txt` (GL_VENDOR/RENDERER/VERSION, S3TC, sınırlar,
+  GL_EXTENSIONS), `Server.ini`, `Option.ini`, son logcat (yalnız uygulamanın kayıtları) ve cihaz
+  bilgisi tek zip'te, Android paylaşım menüsüyle.
+- `Log.txt`'ye düşenler: `[gpu] ...` aygıt bilgisi, `[d3d9gles] ...` (GL hataları `glGetError` ile doku
+  yüklemede ve her kare sonunda; desteklenmeyen doku formatı; FBO/ölçek), `[dosya yok] <yol>`
+  (okunamayan her dosya, yol başına bir kez).
+- `Option.ini [Mobile]`: `ShowFps=1` (sol üstte FPS/çözünürlük/ölçek), `RenderScale=50|75|100`
+  (3D sahne mantıksal çözünürlüğün yüzdesi kadar FBO'ya çizilir, UI keskinliği değişmez),
+  `[Shadow] Use`, `[Texture] LOD_*` (düşük doku kalitesi). Hepsi launcher Ayarlar'da.
+  Ortam: `KO_SHOW_FPS`, `KO_RENDER_SCALE`.
+
 ### Ekran klavyesi
 
 SDL 2.30 metin girişini açılışta "aktif" bırakır (klavye göstermeden); bu yüzden `SDL_IsTextInputActive()`

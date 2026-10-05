@@ -10,6 +10,7 @@
 
 #include <map>
 #include <mutex>
+#include <unordered_set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -48,6 +49,35 @@ bool Exists(const std::string& p)
 	return stat(p.c_str(), &sb) == 0;
 }
 } // namespace
+
+namespace
+{
+void (*g_missingFn)(const char*, void*) = nullptr;
+void* g_missingUser                      = nullptr;
+std::unordered_set<std::string> g_missingSeen;
+std::mutex g_missingMutex;
+} // namespace
+
+void KoSetMissingFileCallback(void (*fn)(const char* path, void* user), void* user)
+{
+	g_missingFn   = fn;
+	g_missingUser = user;
+}
+
+void KoLogMissingFile(const char* path)
+{
+	if (!path || !*path)
+		return;
+	{
+		std::lock_guard<std::mutex> lock(g_missingMutex);
+		if (g_missingSeen.size() > 2000 || !g_missingSeen.insert(path).second)
+			return;
+	}
+	if (g_missingFn)
+		g_missingFn(path, g_missingUser);
+	else
+		std::fprintf(stderr, "[ko] dosya bulunamadı: %s\n", path);
+}
 
 void KoPathCacheReset()
 {
@@ -138,5 +168,7 @@ FILE* ko_fopen(const char* path, const char* mode)
 			f               = ::fopen((dir + p.substr(slash)).c_str(), mode);
 		}
 	}
+	if (!f && (!mode || mode[0] == 'r'))
+		KoLogMissingFile(path);
 	return f;
 }

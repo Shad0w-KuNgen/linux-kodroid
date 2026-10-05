@@ -44,9 +44,37 @@ void ComputePresentRect(int bw, int bh, int dw, int dh, int* x, int* y, int* w, 
 	*y = (dh - *h) / 2;
 }
 
+static void (*g_logFn)(const char*, void*) = nullptr;
+static void* g_logUser                     = nullptr;
+static std::string g_deviceInfo;
+static float g_renderScale = 1.0f;
+
+void SetLogCallback(void (*fn)(const char* msg, void* user), void* user)
+{
+	g_logFn   = fn;
+	g_logUser = user;
+}
+
+std::string GetDeviceInfo()
+{
+	return g_deviceInfo;
+}
+
+void SetRenderScale(float scale)
+{
+	if (scale < 0.25f) scale = 0.25f;
+	if (scale > 1.0f) scale = 1.0f;
+	g_renderScale = scale;
+}
+
+float GetRenderScale()
+{
+	return g_renderScale;
+}
+
 void Log(const char* fmt, ...)
 {
-	char buf[1024];
+	char buf[2048];
 	va_list ap;
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, ap);
@@ -56,6 +84,28 @@ void Log(const char* fmt, ...)
 #else
 	fprintf(stderr, "%s\n", buf);
 #endif
+	if (g_logFn)
+		g_logFn(buf, g_logUser);
+}
+
+bool CheckGLError(const char* where)
+{
+	static int reported = 0;
+	bool any            = false;
+	for (GLenum e = glGetError(); e != GL_NO_ERROR; e = glGetError())
+	{
+		any = true;
+		if (reported < 40)
+		{
+			++reported;
+			const char* name = e == GL_INVALID_ENUM ? "INVALID_ENUM" : e == GL_INVALID_VALUE ? "INVALID_VALUE"
+				: e == GL_INVALID_OPERATION ? "INVALID_OPERATION" : e == GL_OUT_OF_MEMORY ? "OUT_OF_MEMORY"
+				: e == GL_INVALID_FRAMEBUFFER_OPERATION ? "INVALID_FRAMEBUFFER_OPERATION" : "?";
+			Log("d3d9gles: GL hatası 0x%X (%s) @ %s%s", (unsigned) e, name, where ? where : "?",
+				reported == 40 ? " (bundan sonra susturuldu)" : "");
+		}
+	}
+	return any;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +264,9 @@ void DeviceImpl::EnsureRenderTarget()
 	int dw, dh;
 	GetDrawableSize(&dw, &dh);
 	int bw = (int) pp.BackBufferWidth, bh = (int) pp.BackBufferHeight;
-	bool want = bw > 0 && bh > 0 && (bw != dw || bh != dh);
+	// Çizim ölçeği: FBO = mantıksal × ölçek (3D maliyetini düşürür; ekrana blit ile büyütülür)
+	int tw = std::max(1, (int) std::lround(bw * g_renderScale)), th = std::max(1, (int) std::lround(bh * g_renderScale));
+	bool want = bw > 0 && bh > 0 && (bw != dw || bh != dh || g_renderScale != 1.0f);
 	if (!want)
 	{
 		if (fbo) glDeleteFramebuffers(1, &fbo);
@@ -225,7 +277,7 @@ void DeviceImpl::EnsureRenderTarget()
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		return;
 	}
-	if (useFbo && fboW == bw && fboH == bh)
+	if (useFbo && fboW == tw && fboH == th)
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		return;
@@ -234,12 +286,12 @@ void DeviceImpl::EnsureRenderTarget()
 	if (!fboColor) glGenTextures(1, &fboColor);
 	if (!fboDepth) glGenRenderbuffers(1, &fboDepth);
 	glBindTexture(GL_TEXTURE_2D, fboColor);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, bw, bh, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tw, th, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 	glBindRenderbuffer(GL_RENDERBUFFER, fboDepth);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, bw, bh);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, tw, th);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboColor, 0);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fboDepth);
@@ -250,16 +302,42 @@ void DeviceImpl::EnsureRenderTarget()
 		useFbo = false;
 		return;
 	}
-	fboW   = bw;
-	fboH   = bh;
+	fboW   = tw;
+	fboH   = th;
 	useFbo = true;
-	Log("d3d9gles: mantıksal %dx%d → fiziksel %dx%d ölçekleme etkin", bw, bh, dw, dh);
+	Log("d3d9gles: mantıksal %dx%d → FBO %dx%d (ölçek %.2f) → fiziksel %dx%d", bw, bh, tw, th, g_renderScale, dw, dh);
+	CheckGLError("EnsureRenderTarget");
 }
 
 void DeviceImpl::InitGL()
 {
 	const char* ext = (const char*) glGetString(GL_EXTENSIONS);
 	s3tc            = ext && std::strstr(ext, "GL_EXT_texture_compression_s3tc") != nullptr;
+	{
+		GLint maxTex = 0, maxVary = 0, maxVsUni = 0, maxFsUni = 0, maxTexUnits = 0, depthBits = 0;
+		glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTex);
+		glGetIntegerv(GL_MAX_VARYING_VECTORS, &maxVary);
+		glGetIntegerv(GL_MAX_VERTEX_UNIFORM_VECTORS, &maxVsUni);
+		glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS, &maxFsUni);
+		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &maxTexUnits);
+		glGetIntegerv(GL_DEPTH_BITS, &depthBits);
+		char head[1024];
+		snprintf(head, sizeof(head),
+			"GL_VENDOR: %s\nGL_RENDERER: %s\nGL_VERSION: %s\nGLSL: %s\nS3TC(DXT donanım): %s\n"
+			"GL_MAX_TEXTURE_SIZE: %d\nGL_MAX_VARYING_VECTORS: %d\nGL_MAX_VERTEX_UNIFORM_VECTORS: %d\n"
+			"GL_MAX_FRAGMENT_UNIFORM_VECTORS: %d\nGL_MAX_TEXTURE_IMAGE_UNITS: %d\nGL_DEPTH_BITS: %d\nGL_EXTENSIONS:\n",
+			(const char*) glGetString(GL_VENDOR), (const char*) glGetString(GL_RENDERER),
+			(const char*) glGetString(GL_VERSION), (const char*) glGetString(GL_SHADING_LANGUAGE_VERSION),
+			s3tc ? "evet" : "HAYIR (DXT CPU'da RGBA8'e açılır)", (int) maxTex, (int) maxVary, (int) maxVsUni,
+			(int) maxFsUni, (int) maxTexUnits, (int) depthBits);
+		g_deviceInfo = head;
+		std::string e = ext ? ext : "";
+		for (char& c : e)
+			if (c == ' ')
+				c = '\n';
+		g_deviceInfo += e;
+		g_deviceInfo += "\n";
+	}
 	if (std::getenv("D3D9GLES_NO_S3TC"))
 		s3tc = false;
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
@@ -619,9 +697,15 @@ void DeviceImpl::ApplyGLState(const FvfLayout&)
 {
 	int dw, dh;
 	RenderTargetSize(&dw, &dh);
+	// Çizim ölçeği (FBO mantıksal çözünürlükten küçükse): mantıksal → FBO pikseli
+	const float sx = useFbo ? (float) fboW / (float) std::max<UINT>(1, pp.BackBufferWidth) : 1.0f;
+	const float sy = useFbo ? (float) fboH / (float) std::max<UINT>(1, pp.BackBufferHeight) : 1.0f;
+	auto SX = [&](float v) { return (int) std::lround(v * sx); };
+	auto SY = [&](float v) { return (int) std::lround(v * sy); };
 
 	// Görünüm alanı (D3D: y yukarıdan; GL: y aşağıdan)
-	glViewport((GLint) viewport.X, (GLint) (dh - (int) (viewport.Y + viewport.Height)), (GLsizei) viewport.Width, (GLsizei) viewport.Height);
+	glViewport((GLint) SX((float) viewport.X), (GLint) (dh - SY((float) (viewport.Y + viewport.Height))),
+		(GLsizei) std::max(1, SX((float) viewport.Width)), (GLsizei) std::max(1, SY((float) viewport.Height)));
 	glDepthRangef(viewport.MinZ, viewport.MaxZ);
 
 	// Derinlik
@@ -676,7 +760,8 @@ void DeviceImpl::ApplyGLState(const FvfLayout&)
 	if (rs[D3DRS_SCISSORTESTENABLE])
 	{
 		glEnable(GL_SCISSOR_TEST);
-		glScissor(scissor.left, dh - scissor.bottom, std::max(0, (int) (scissor.right - scissor.left)), std::max(0, (int) (scissor.bottom - scissor.top)));
+		glScissor(SX((float) scissor.left), dh - SY((float) scissor.bottom), std::max(0, SX((float) (scissor.right - scissor.left))),
+			std::max(0, SY((float) (scissor.bottom - scissor.top))));
 	}
 	else
 		glDisable(GL_SCISSOR_TEST);
@@ -1109,6 +1194,7 @@ HRESULT IDirect3DDevice9::Present(const RECT*, const RECT*, HWND, const RGNDATA*
 	}
 	if (g_hooks.present)
 		g_hooks.present(g_hooks.user);
+	CheckGLError("Present (kare sonu)");
 	d.drawCalls = 0;
 	d.EnsureRenderTarget(); // çizim alanı değiştiyse yeniden boyutlandır, FBO'yu geri bağla
 	return D3D_OK;
@@ -1127,6 +1213,24 @@ HRESULT IDirect3DDevice9::GetFrontBufferData(UINT, IDirect3DSurface9* dst)
 	std::vector<uint8_t> flipped(rgba.size());
 	for (int y = 0; y < h; ++y)
 		std::memcpy(flipped.data() + (size_t) y * w * 4, rgba.data() + (size_t) (h - 1 - y) * w * 4, (size_t) w * 4);
+	// Çizim ölçeği etkinse (FBO < mantıksal) en yakın komşu ile hedef boyuta büyüt
+	if (m_impl->useFbo && ((int) m_impl->pp.BackBufferWidth != w || (int) m_impl->pp.BackBufferHeight != h))
+	{
+		int lw = (int) m_impl->pp.BackBufferWidth, lh = (int) m_impl->pp.BackBufferHeight;
+		std::vector<uint8_t> up((size_t) lw * lh * 4);
+		for (int y = 0; y < lh; ++y)
+		{
+			int syy = std::min(h - 1, (int) ((long long) y * h / lh));
+			for (int x = 0; x < lw; ++x)
+			{
+				int sxx = std::min(w - 1, (int) ((long long) x * w / lw));
+				std::memcpy(up.data() + ((size_t) y * lw + x) * 4, flipped.data() + ((size_t) syy * w + sxx) * 4, 4);
+			}
+		}
+		flipped.swap(up);
+		w = lw;
+		h = lh;
+	}
 	D3DLOCKED_RECT lr;
 	dst->LockRect(&lr, nullptr, 0);
 	UINT cw = std::min<UINT>((UINT) w, dd.Width), ch = std::min<UINT>((UINT) h, dd.Height);
@@ -1277,9 +1381,11 @@ HRESULT IDirect3DDevice9::Clear(DWORD count, const D3DRECT* rects, DWORD flags, 
 	RECT vp = {(LONG) d.viewport.X, (LONG) d.viewport.Y, (LONG) (d.viewport.X + d.viewport.Width), (LONG) (d.viewport.Y + d.viewport.Height)};
 	if (d.rs[D3DRS_SCISSORTESTENABLE])
 		IntersectRect(&vp, &vp, &d.scissor);
+	const float csx = d.useFbo ? (float) d.fboW / (float) std::max<UINT>(1, d.pp.BackBufferWidth) : 1.0f;
+	const float csy = d.useFbo ? (float) d.fboH / (float) std::max<UINT>(1, d.pp.BackBufferHeight) : 1.0f;
 	auto clearRect = [&](const RECT& r) {
-		int w = std::max(0, (int) (r.right - r.left)), h = std::max(0, (int) (r.bottom - r.top));
-		glScissor(r.left, dh - r.bottom, w, h);
+		int w = std::max(0, (int) std::lround((r.right - r.left) * csx)), h = std::max(0, (int) std::lround((r.bottom - r.top) * csy));
+		glScissor((int) std::lround(r.left * csx), dh - (int) std::lround(r.bottom * csy), w, h);
 		glClear(mask);
 	};
 	if (count == 0 || rects == nullptr)

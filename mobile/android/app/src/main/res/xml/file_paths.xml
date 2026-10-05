@@ -2,4 +2,5 @@
 <!-- APK güncelleyici: indirilen APK önbellekten paket yükleyicisine FileProvider ile verilir -->
 <paths>
     <cache-path name="apk" path="apk/" />
+    <cache-path name="reports" path="reports/" />
 </paths>

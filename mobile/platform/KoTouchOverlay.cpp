@@ -1,6 +1,7 @@
 // KoTouchOverlay.cpp — dokunmatik kontrol kaplaması (bkz. KoTouchOverlay.h).
 #include "StdAfx.h"
 #include "KoTouchOverlay.h"
+#include <cstdio>
 #include "KoPlatformInput.h"
 
 #include "GameProcedure.h"
@@ -410,8 +411,55 @@ void KoTouchOverlay::DrawLabel(IDirect3DDevice9* dev, int index, const std::stri
 	f->DrawText(x - sz.cx / 2.0f, y - sz.cy / 2.0f, color, 0);
 }
 
+void KoTouchOverlay::RenderFps(IDirect3DDevice9* dev)
+{
+	if (!m_showFps || !dev)
+		return;
+	uint32_t now = timeGetTime();
+	++m_fpsFrames;
+	if (m_fpsLastTick == 0)
+		m_fpsLastTick = now;
+	if (now - m_fpsLastTick >= 500)
+	{
+		m_fpsValue    = m_fpsFrames * 1000.0f / (float) (now - m_fpsLastTick);
+		m_fpsFrames   = 0;
+		m_fpsLastTick = now;
+		char buf[96];
+		std::snprintf(buf, sizeof(buf), "FPS %.1f  %dx%d  olcek %.0f%%", m_fpsValue, m_w, m_h, d3d9gles::GetRenderScale() * 100.0f);
+		m_fpsText = buf;
+	}
+	if (m_fpsText.empty())
+		return;
+	dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	dev->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+	dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+	dev->SetRenderState(D3DRS_FOGENABLE, FALSE);
+	dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+	dev->SetTexture(0, nullptr);
+	dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+	dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+	dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+	dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+	float u = m_u > 0 ? m_u : 1.0f;
+	DrawRect(dev, 4.0f * u, 4.0f * u, 230.0f * u, 18.0f * u, 0x99000000);
+	if (!m_fpsFont)
+	{
+		m_fpsFont = new CDFont("Arial", (uint32_t) (11 * u), D3DFONT_BOLD);
+		m_fpsFont->InitDeviceObjects(dev);
+		m_fpsFont->RestoreDeviceObjects();
+	}
+	m_fpsFont->SetText(m_fpsText);
+	m_fpsFont->DrawText(8.0f * u, 6.0f * u, m_fpsValue < 20.0f ? 0xFFFF6060 : 0xFFB0FFB0, 0);
+}
+
 void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 {
+	RenderFps(dev);
 	if (!m_enabled || !dev)
 		return;
 	if (!IsInGame() && !m_forceVisible)

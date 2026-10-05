@@ -26,7 +26,10 @@ bool FileReader::OpenExisting(const std::filesystem::path& path)
 	std::string resolved = KoResolvePath(path.string());
 	int fd               = ::open(resolved.c_str(), O_RDONLY);
 	if (fd < 0)
+	{
+		KoLogMissingFile(path.string().c_str());
 		return false;
+	}
 	struct stat sb {};
 	if (fstat(fd, &sb) != 0 || !S_ISREG(sb.st_mode))
 	{

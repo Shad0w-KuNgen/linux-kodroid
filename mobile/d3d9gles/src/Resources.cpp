@@ -1,3 +1,4 @@
+#include <cstdio>
 // Resources.cpp — doku, yüzey, köşe/indeks tamponları ve piksel formatı dönüşümleri.
 #include "Internal.h"
 
@@ -610,6 +611,12 @@ void IDirect3DTexture9::UploadLevel(UINT level)
 		glCompressedTexImage2D(GL_TEXTURE_2D, (GLint) level, internal, (GLsizei) lv.width, (GLsizei) lv.height, 0, (GLsizei) glData.size(), glData.data());
 	else
 		glTexImage2D(GL_TEXTURE_2D, (GLint) level, (GLint) internal, (GLsizei) lv.width, (GLsizei) lv.height, 0, format, type, glData.data());
+	{
+		char where[96];
+		snprintf(where, sizeof(where), "%s %ux%u seviye %u fmt 0x%X", compressed ? "glCompressedTexImage2D" : "glTexImage2D",
+			(unsigned) lv.width, (unsigned) lv.height, (unsigned) level, (unsigned) m_format);
+		d3d9gles::CheckGLError(where);
+	}
 	lv.dirty = false;
 }
 

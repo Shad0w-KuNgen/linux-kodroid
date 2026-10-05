@@ -62,7 +62,7 @@ public class LauncherActivity extends Activity {
     private TextView versionLabel, newsText, newsTitle, serverTitle, statusText, stageText;
     private LinearLayout serverList;
     private ProgressBar bar;
-    private Button btnStart, btnSettings, btnRepair, btnCancel;
+    private Button btnStart, btnSettings, btnRepair, btnCancel, btnReport;
 
     // İş durumu
     private volatile boolean cancelRequested;
@@ -218,6 +218,12 @@ public class LauncherActivity extends Activity {
         LinearLayout.LayoutParams rlp = matchWrap();
         rlp.topMargin = dp(6);
         right.addView(row, rlp);
+
+        btnReport = smallButton("Hata raporu gönder (Log + logcat + GPU)");
+        btnReport.setOnClickListener(v -> sendBugReport());
+        LinearLayout.LayoutParams brlp = matchWrap();
+        brlp.topMargin = dp(6);
+        right.addView(btnReport, brlp);
 
         // Alt: aşama + ilerleme çubuğu + durum + iptal
         stageText = new TextView(this);
@@ -544,6 +550,36 @@ public class LauncherActivity extends Activity {
                 .show();
     }
 
+    // ---- Hata raporu -----------------------------------------------------------------------
+    private void sendBugReport() {
+        btnReport.setEnabled(false);
+        stageText.setText("Hata raporu hazırlanıyor...");
+        new Thread(() -> {
+            File zip = null;
+            String err = null;
+            try {
+                zip = BugReport.build(this, dataDir);
+            } catch (Exception e) {
+                err = e.getMessage();
+            }
+            final File fz = zip;
+            final String ferr = err;
+            runOnUiThread(() -> {
+                btnReport.setEnabled(true);
+                if (fz == null) {
+                    stageText.setText("Hata raporu oluşturulamadı: " + ferr);
+                    return;
+                }
+                stageText.setText("Hata raporu hazır: " + fz.getName() + " (" + GameData.humanBytes(fz.length()) + ")");
+                try {
+                    startActivity(BugReport.shareIntent(this, fz));
+                } catch (Exception e) {
+                    stageText.setText("Paylaşım açılamadı: " + e.getMessage());
+                }
+            });
+        }, "ko-report").start();
+    }
+
     // ---- Ayarlar ---------------------------------------------------------------------------
     private void showSettings() {
         final File serverIni = GameData.findServerIni(dataDir);
@@ -569,6 +605,38 @@ public class LauncherActivity extends Activity {
         dbg.setText("Girdi hata ayıklama kaydı (logcat [ko-input])");
         dbg.setChecked("1".equals(GameData.getIniValue(optionIni, "Mobile", "InputDebug", "0")));
         box.addView(dbg);
+        final CheckBox fps = new CheckBox(this);
+        fps.setText("FPS sayacı göster");
+        fps.setChecked("1".equals(GameData.getIniValue(optionIni, "Mobile", "ShowFps", "0")));
+        box.addView(fps);
+        final CheckBox shadow = new CheckBox(this);
+        shadow.setText("Gölgeler");
+        shadow.setChecked(!"0".equals(GameData.getIniValue(optionIni, "Shadow", "Use", "1")));
+        box.addView(shadow);
+        final CheckBox lowTex = new CheckBox(this);
+        lowTex.setText("Düşük doku kalitesi (daha az bellek, hızlı)");
+        lowTex.setChecked("1".equals(GameData.getIniValue(optionIni, "Texture", "LOD_Chr", "0")));
+        box.addView(lowTex);
+        TextView rsLabel = new TextView(this);
+        rsLabel.setText("Çözünürlük ölçeği (3D sahne)");
+        rsLabel.setTextSize(12);
+        rsLabel.setPadding(0, dp(8), 0, 0);
+        box.addView(rsLabel);
+        final android.widget.RadioGroup rs = new android.widget.RadioGroup(this);
+        rs.setOrientation(LinearLayout.HORIZONTAL);
+        int cur = parseIntOr(GameData.getIniValue(optionIni, "Mobile", "RenderScale", "100"), 100);
+        int[] scales = { 50, 75, 100 };
+        for (int sc : scales) {
+            android.widget.RadioButton rb = new android.widget.RadioButton(this);
+            rb.setText("%" + sc);
+            rb.setId(1000 + sc);
+            rs.addView(rb);
+            if (sc == cur)
+                rb.setChecked(true);
+        }
+        if (rs.getCheckedRadioButtonId() == -1)
+            rs.check(1100);
+        box.addView(rs);
 
         ScrollView sv = new ScrollView(this);
         sv.addView(box);
@@ -590,6 +658,13 @@ public class LauncherActivity extends Activity {
                     GameData.setIniValue(oIni, "Mobile", "LogicalHeight", logical.getText().toString().trim());
                     GameData.setIniValue(oIni, "Mobile", "TouchControls", touch.isChecked() ? "1" : "0");
                     GameData.setIniValue(oIni, "Mobile", "InputDebug", dbg.isChecked() ? "1" : "0");
+                    GameData.setIniValue(oIni, "Mobile", "ShowFps", fps.isChecked() ? "1" : "0");
+                    GameData.setIniValue(oIni, "Mobile", "RenderScale", String.valueOf(rs.getCheckedRadioButtonId() - 1000));
+                    GameData.setIniValue(oIni, "Shadow", "Use", shadow.isChecked() ? "1" : "0");
+                    String lod = lowTex.isChecked() ? "1" : "0";
+                    GameData.setIniValue(oIni, "Texture", "LOD_Chr", lod);
+                    GameData.setIniValue(oIni, "Texture", "LOD_Shape", lod);
+                    GameData.setIniValue(oIni, "Texture", "LOD_Terrain", lod);
                     refreshState();
                     fetchServerInfo();
                 })

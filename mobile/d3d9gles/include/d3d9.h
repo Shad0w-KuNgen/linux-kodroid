@@ -11,6 +11,7 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -60,8 +61,22 @@ const PlatformHooks& GetPlatformHooks();
 /// dokunma koordinatlarını mantıksal çözünürlüğe çevirmek için aynı dikdörtgeni kullanır.
 void ComputePresentRect(int bw, int bh, int dw, int dh, int* x, int* y, int* w, int* h);
 
-/// Hata/uyarı günlüğü (varsayılan: stderr; Android'de logcat).
+/// Hata/uyarı günlüğü (varsayılan: stderr; Android'de logcat). Geri çağrı verilirse ona da iletilir
+/// (platform katmanı Log.txt'ye yazar).
 void Log(const char* fmt, ...);
+void SetLogCallback(void (*fn)(const char* msg, void* user), void* user);
+
+/// Aygıt bilgisi (GL_VENDOR/RENDERER/VERSION/GLSL, S3TC, azami doku, uzantılar); aygıt
+/// oluşturulduktan sonra dolu. Hata raporu ve gpu.txt için.
+std::string GetDeviceInfo();
+
+/// Çizim ölçeği: 3D sahne mantıksal çözünürlüğün bu katı kadar bir FBO'ya çizilir, ekrana
+/// büyütülür (0.25..1.0). Görünüm alanı/makas/temizleme dikdörtgenleri otomatik ölçeklenir.
+void SetRenderScale(float scale);
+float GetRenderScale();
+
+/// glGetError denetimi; hata varsa yerini loglar (hız sınırlı). true = hata vardı.
+bool CheckGLError(const char* where);
 } // namespace d3d9gles
 
 // ---------------------------------------------------------------------------

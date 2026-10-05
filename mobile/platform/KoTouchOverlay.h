@@ -29,6 +29,8 @@ public:
 	bool Enabled() const { return m_enabled; }
 	/// Oyun içi olmasa da çiz (test/ekran görüntüsü için)
 	void SetForceVisible(bool on) { m_forceVisible = on; }
+	/// Sol üstte FPS / çizim çağrısı sayacı (Ayarlar: ShowFps)
+	void SetShowFps(bool on) { m_showFps = on; }
 
 	/// Mantıksal (oyun) çözünürlüğüne göre düzeni kur
 	void Layout(int logicalW, int logicalH);
@@ -78,8 +80,15 @@ private:
 	void DrawRing(IDirect3DDevice9* dev, float cx, float cy, float r, float thickness, uint32_t color, int segs = 40);
 	void DrawRect(IDirect3DDevice9* dev, float x, float y, float w, float h, uint32_t color);
 	void DrawLabel(IDirect3DDevice9* dev, int index, const std::string& text, float x, float y, uint32_t color, int height);
+	void RenderFps(IDirect3DDevice9* dev);
 
 	bool m_enabled      = false;
+	bool m_showFps      = false;
+	uint32_t m_fpsLastTick = 0;
+	int m_fpsFrames        = 0;
+	float m_fpsValue       = 0.0f;
+	std::string m_fpsText;
+	CDFont* m_fpsFont      = nullptr;
 	bool m_forceVisible = false;
 	int m_w = 1024, m_h = 768;
 	float m_u = 1.0f; // 768p'ye göre ölçek

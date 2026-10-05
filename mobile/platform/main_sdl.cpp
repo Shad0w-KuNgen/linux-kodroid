@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "KoPlatformInput.h"
+#include <ko_fopen.h>
 #include "KoTouchOverlay.h"
 
 #include <cstdio>
@@ -47,6 +48,9 @@ int g_presentX = 0, g_presentY = 0, g_presentW = 1, g_presentH = 1; // mantıksa
 int g_mobileLogicalHeight = 0;           // [Mobile] LogicalHeight (0 = ölçekleme yok)
 bool g_touchControls = false;
 bool g_inputDebug    = false; // KO_INPUT_DEBUG: dokunma/metin olaylarını stderr'e yaz
+bool g_showFps       = false; // [Mobile] ShowFps
+int g_renderScalePct = 100;   // [Mobile] RenderScale (25..100)
+std::string g_clientDir;
 bool g_physicalShotPending = false;
 std::string g_physicalShotPath;
 
@@ -106,6 +110,10 @@ void LoadOptions(const std::string& iniPath)
 	if (const char* lh = std::getenv("KO_LOGICAL_HEIGHT"))
 		g_mobileLogicalHeight = std::atoi(lh);
 	g_inputDebug = std::getenv("KO_INPUT_DEBUG") != nullptr || ini.GetBool("Mobile", "InputDebug", false);
+	g_showFps    = std::getenv("KO_SHOW_FPS") != nullptr || ini.GetBool("Mobile", "ShowFps", false);
+	g_renderScalePct = std::clamp(ini.GetInt("Mobile", "RenderScale", 100), 25, 100);
+	if (const char* rs = std::getenv("KO_RENDER_SCALE"))
+		g_renderScalePct = std::clamp(std::atoi(rs), 25, 100);
 }
 
 std::string ResolveClientDir(int argc, char** argv)
@@ -438,6 +446,7 @@ void PumpEvents()
 int main(int argc, char** argv)
 {
 	std::string clientDir = ResolveClientDir(argc, argv);
+	g_clientDir = clientDir;
 	if (!clientDir.empty() && clientDir.back() != '/' && clientDir.back() != '\\')
 		clientDir += '/';
 	CN3Base::PathSet(clientDir);
@@ -497,6 +506,10 @@ int main(int argc, char** argv)
 	gl.present         = HookPresent;
 	gl.getDrawableSize = HookDrawableSize;
 	d3d9gles::SetPlatformHooks(gl);
+	d3d9gles::SetRenderScale(g_renderScalePct / 100.0f);
+	d3d9gles::SetLogCallback([](const char* msg, void*) { CLogWriter::Write("[d3d9gles] {}", msg); }, nullptr);
+	KoSetMissingFileCallback([](const char* path, void*) { CLogWriter::Write("[dosya yok] {}", path); }, nullptr);
+	KoTouch().SetShowFps(g_showFps);
 
 	KoWin32Hooks& w32 = KoWin32GetHooks();
 	w32.getClientSize = HookClientSize;
@@ -522,6 +535,23 @@ int main(int argc, char** argv)
 	const char* shotPath = std::getenv("KO_SCREENSHOT");
 	const char* physShot = std::getenv("KO_SCREENSHOT_PHYSICAL");
 	long frame = 0;
+	// Aygıt bilgisi: Log.txt'ye ve <veri>/gpu.txt'ye (hata raporu için)
+	{
+		std::string info = d3d9gles::GetDeviceInfo();
+		if (!info.empty())
+		{
+			std::string firstLines = info.substr(0, info.find("GL_EXTENSIONS:"));
+			CLogWriter::Write("[gpu] {}", firstLines);
+			std::string gpuPath = g_clientDir + "/gpu.txt";
+			if (FILE* f = std::fopen(gpuPath.c_str(), "wb"))
+			{
+				std::fwrite(info.data(), 1, info.size(), f);
+				std::fprintf(f, "\nmantıksal %dx%d, çizim ölçeği %d%%, dokunmatik %d\n", g_logicalW, g_logicalH, g_renderScalePct, (int) g_touchControls);
+				std::fclose(f);
+			}
+		}
+	}
+
 	while (!g_quit)
 	{
 		PumpEvents();
