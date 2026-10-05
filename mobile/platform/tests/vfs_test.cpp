@@ -47,34 +47,35 @@ static void Write(const fs::path& p, const std::vector<uint8_t>& d)
 	f.write((const char*) d.data(), (std::streamsize) d.size());
 }
 
-static void TestPack(bool sizeIncludesHeader)
+static void TestPack()
 {
-	std::printf("[test] UI paketi (boyut %s)\n", sizeIncludesHeader ? "kayit" : "veri");
-	fs::path tmp = fs::temp_directory_path() / (sizeIncludesHeader ? "ko_vfs_test_a" : "ko_vfs_test_b");
+	std::printf("[test] UI paketi (ui.hdr/ui.src)\n");
+	fs::path tmp = fs::temp_directory_path() / "ko_vfs_test_a";
 	fs::remove_all(tmp);
 	fs::create_directories(tmp / "UI");
 	std::string base = tmp.string() + "/";
 
-	// ui.src: iki kayıt
+	// ui.src: dosyalar ham ve ardışık. UIF: N3 ad uzunluğu 0 ile başlar; DXT: kendi adı + NTF
 	std::vector<uint8_t> src;
-	std::vector<uint8_t> dataA = { 'N', 'T', 'F', 3, 1, 2, 3, 4, 5 }, dataB(300, 0xAB);
-	std::string pathA = "E:\\ui\\icon.dxt", pathB = "E:\\ui\\co_login.uif";
+	std::vector<uint8_t> dataA;
+	PutStr(dataA, "E:\\ui\\icon.dxt");
+	const uint8_t ntf[] = { 'N', 'T', 'F', 3, 1, 2, 3, 4, 5 };
+	dataA.insert(dataA.end(), ntf, ntf + sizeof(ntf));
+	std::vector<uint8_t> dataB = { 0, 0, 0, 0, 9, 0, 1, 0, 4, 0, 0, 0 };
+	dataB.resize(300, 0xAB);
 	uint32_t offA = (uint32_t) src.size();
-	PutStr(src, pathA);
 	src.insert(src.end(), dataA.begin(), dataA.end());
 	uint32_t offB = (uint32_t) src.size();
-	PutStr(src, pathB);
 	src.insert(src.end(), dataB.begin(), dataB.end());
-	uint32_t recA = (uint32_t) (4 + pathA.size() + dataA.size()), recB = (uint32_t) (4 + pathB.size() + dataB.size());
 
 	std::vector<uint8_t> hdr;
 	Put32(hdr, 2);
 	PutStr(hdr, "co_login.uif");
 	Put32(hdr, offB);
-	Put32(hdr, sizeIncludesHeader ? recB : (uint32_t) dataB.size());
+	Put32(hdr, (uint32_t) dataB.size());
 	PutStr(hdr, "ICON.dxt");
 	Put32(hdr, offA);
-	Put32(hdr, sizeIncludesHeader ? recA : (uint32_t) dataA.size());
+	Put32(hdr, (uint32_t) dataA.size());
 	Write(tmp / "UI" / "ui.hdr", hdr);
 	Write(tmp / "UI" / "ui.src", src);
 	KoVfsReset();
@@ -107,9 +108,9 @@ static void TestIstirap()
 
 	for (int parity = 0; parity < 2; parity++)
 	{
-		// Sentetik UIF: 4 bayt sürüm + 100/101 bayt içerik; şifreleme = çözme (RC4 simetrik, aynı blok kuralı)
-		std::vector<uint8_t> plain;
-		for (int i = 0; i < 104 + parity; i++)
+		// Sentetik UIF: 4 bayt N3 ad uzunluğu (0, düz kalır) + 100/101 bayt içerik; şifreleme = çözme (RC4 simetrik)
+		std::vector<uint8_t> plain = { 0, 0, 0, 0 };
+		for (int i = 0; i < 100 + parity; i++)
 			plain.push_back((uint8_t) (i * 7 + 3));
 		std::vector<uint8_t> enc = plain;
 		KoIstirapDecrypt(enc);
@@ -127,8 +128,7 @@ static void TestIstirap()
 
 int main()
 {
-	TestPack(true);
-	TestPack(false);
+	TestPack();
 	TestIstirap();
 	if (g_fail)
 	{

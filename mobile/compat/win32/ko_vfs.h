@@ -1,12 +1,13 @@
 // ko_vfs.h — 2xxx istemci verisi için sanal dosya katmanı.
 //
 // 1) UI paketi: 2369 istemcisinde "UI\" klasöründe tek tek .uif/.dxt yok; ui.hdr (şifresiz dizin:
-//    u32 kayıt sayısı, her kayıt u32 adUzunluk | ad | u32 ofset | u32 boyut) + ui.src (her kayıt:
-//    u32 yolUzunluk | özgün yol | dosya baytları). "ui\<ad>" ya da "ui_us\<ad>" istendiğinde kayıt
-//    ui_cache/<ad> altına çıkarılır ve o yol döndürülür (bir kez; boyut tutuyorsa yeniden kullanılır).
+//    u32 kayıt sayısı, her kayıt u32 adUzunluk | ad | u32 ofset | u32 boyut) + ui.src (dosyalar ham,
+//    ardışık; UIF'in ilk u32'si N3 ad uzunluğu = 0, DXT'nin ilk alanı kendi adı). "ui\<ad>" ya da
+//    "ui_us\<ad>" istendiğinde kayıt ui_cache/<ad> altına çıkarılır ve o yol döndürülür (bir kez).
 // 2) .istirap: ISTIRAP sunucusunun şifreli UIF'leri (Pearl Guard dcpUIF): ilk 4 bayt düz; sonra
 //    dosya boyutu çiftse 32, tekse 31 baytlık bloklar, her blok anahtar akışının başından RC4
-//    (CryptDecrypt Final=TRUE). Anahtar = SHA1(parola[:29]) ilk 16 bayt. ui_cache/istirap/<ad>.uif.
+//    (CryptDecrypt Final=TRUE). Anahtar = SHA1(parola[:29]) ilk 16 bayt. Çözülen içerik UIF'in kendisidir
+//    (düz bırakılan 4 bayt = N3 ad uzunluğu 0). ui_cache/istirap/<ad>.uif.
 #pragma once
 
 #include <cstddef>

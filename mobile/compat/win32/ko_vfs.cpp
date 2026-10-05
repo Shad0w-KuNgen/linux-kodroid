@@ -193,7 +193,6 @@ struct PackEntry
 struct UiPack
 {
 	bool loaded = false, valid = false;
-	bool sizeIncludesHeader = true; // kayıt boyutu (yol başlığı dahil) mı, veri boyutu mu
 	std::string srcPath, cacheDir;
 	std::unordered_map<std::string, PackEntry> entries; // küçük harf ad → kayıt
 };
@@ -227,7 +226,6 @@ UiPack& LoadPack(const std::string& base)
 	auto u32 = [&](size_t pos) { uint32_t v; memcpy(&v, h.data() + pos, 4); return v; };
 	uint32_t count = u32(0);
 	size_t pos     = 4;
-	std::vector<std::pair<uint32_t, uint32_t>> sorted; // ofset, boyut
 	for (uint32_t i = 0; i < count; i++)
 	{
 		if (pos + 4 > h.size())
@@ -243,29 +241,8 @@ UiPack& LoadPack(const std::string& base)
 		e.size   = u32(pos + 4);
 		pos += 8;
 		pack.entries[Lower(name)] = e;
-		sorted.emplace_back(e.offset, e.size);
 	}
 	pack.valid = !pack.entries.empty();
-	// Boyut anlamı: ardışık iki kayıttan çıkar (ikinci ofset = birinci ofset + boyut → boyut başlığı içerir)
-	std::sort(sorted.begin(), sorted.end());
-	if (sorted.size() >= 2)
-	{
-		FILE* f = ::fopen(pack.srcPath.c_str(), "rb");
-		if (f)
-		{
-			uint32_t pathLen = 0;
-			fseek(f, (long) sorted[0].first, SEEK_SET);
-			if (fread(&pathLen, 1, 4, f) == 4)
-			{
-				uint64_t next = sorted[1].first;
-				if (next == (uint64_t) sorted[0].first + sorted[0].second)
-					pack.sizeIncludesHeader = true;
-				else if (next == (uint64_t) sorted[0].first + 4 + pathLen + sorted[0].second)
-					pack.sizeIncludesHeader = false;
-			}
-			fclose(f);
-		}
-	}
 	LogVfs("[ko-vfs] UI paketi: %s (%s kayit)", pack.srcPath, std::to_string(pack.entries.size()));
 	return pack;
 }
@@ -276,34 +253,18 @@ std::string ExtractFromPack(UiPack& pack, const std::string& nameLower)
 	if (it == pack.entries.end())
 		return std::string();
 	const PackEntry& e = it->second;
-	FILE* f            = ::fopen(pack.srcPath.c_str(), "rb");
-	if (!f)
-		return std::string();
-	uint32_t pathLen = 0;
-	fseeko(f, (off_t) e.offset, SEEK_SET);
-	if (fread(&pathLen, 1, 4, f) != 4 || pathLen > 4096)
-	{
-		fclose(f);
-		return std::string();
-	}
-	std::string origPath(pathLen, '\0');
-	if (pathLen && fread(&origPath[0], 1, pathLen, f) != pathLen)
-	{
-		fclose(f);
-		return std::string();
-	}
-	uint64_t dataLen = pack.sizeIncludesHeader ? (e.size > 4 + pathLen ? e.size - 4 - pathLen : 0) : e.size;
 	// Önbellek: aynı boyutta varsa yeniden kullan
 	MkDirs(pack.cacheDir);
 	std::string out = pack.cacheDir + nameLower;
 	uint64_t have   = 0;
-	if (Exists(out, &have) && have == dataLen)
-	{
-		fclose(f);
+	if (Exists(out, &have) && have == e.size)
 		return out;
-	}
-	std::vector<uint8_t> data((size_t) dataLen);
-	bool ok = dataLen == 0 || fread(data.data(), 1, data.size(), f) == data.size();
+	FILE* f = ::fopen(pack.srcPath.c_str(), "rb");
+	if (!f)
+		return std::string();
+	std::vector<uint8_t> data(e.size);
+	fseeko(f, (off_t) e.offset, SEEK_SET);
+	bool ok = e.size == 0 || fread(data.data(), 1, data.size(), f) == data.size();
 	fclose(f);
 	if (!ok || !WriteAll(out, data.data(), data.size()))
 		return std::string();
