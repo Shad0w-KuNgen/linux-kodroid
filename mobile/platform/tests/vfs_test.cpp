@@ -91,6 +91,50 @@ static void TestPack()
 	fs::remove_all(tmp);
 }
 
+// 2369: Item klasörü de paketlenmiş olabilir (item/item.hdr + item.src); tablo adları "\\item\\x.n3cpart" (başı ayraçlı)
+static void TestItemPack()
+{
+	std::printf("[test] klasor paketi (item/item.hdr, bas ayracli ad, alt yol)\n");
+	fs::path tmp = fs::temp_directory_path() / "ko_vfs_test_b";
+	fs::remove_all(tmp);
+	fs::create_directories(tmp / "Item");
+	std::string base = tmp.string() + "/";
+
+	std::vector<uint8_t> src, dataA(64, 0x11), dataB(80, 0x22), dataC(16, 0x33);
+	uint32_t offA = 0, offB = (uint32_t) dataA.size(), offC = offB + (uint32_t) dataB.size();
+	src.insert(src.end(), dataA.begin(), dataA.end());
+	src.insert(src.end(), dataB.begin(), dataB.end());
+	src.insert(src.end(), dataC.begin(), dataC.end());
+	std::vector<uint8_t> hdr;
+	Put32(hdr, 3);
+	PutStr(hdr, "upc_el_rm_upper.n3cpart");
+	Put32(hdr, offA);
+	Put32(hdr, (uint32_t) dataA.size());
+	PutStr(hdr, "Item\\UPC_EL_RM_LOWER.n3cpart"); // alt yollu kayıt
+	Put32(hdr, offB);
+	Put32(hdr, (uint32_t) dataB.size());
+	PutStr(hdr, "0_0001_00_0.n3cpart");
+	Put32(hdr, offC);
+	Put32(hdr, (uint32_t) dataC.size());
+	Write(tmp / "Item" / "item.hdr", hdr);
+	Write(tmp / "Item" / "item.src", src);
+	KoVfsReset();
+
+	std::string r1 = KoResolvePath(base + "\\item\\upc_el_rm_upper.n3cpart"); // UPC_DefaultLooks 2369 biçimi
+	CHECK(fs::exists(r1) && Read(r1) == dataA, "bas ayracli item yolu paketten cikmadi: %s", r1.c_str());
+	std::string r2 = KoResolvePath(base + "Item\\upc_el_rm_lower.n3cpart");
+	CHECK(fs::exists(r2) && Read(r2) == dataB, "alt yollu kayit (yalin ad) cikmadi: %s", r2.c_str());
+	std::string r3 = KoResolvePath(base + "item/0_0001_00_0.n3cpart");
+	CHECK(fs::exists(r3) && Read(r3) == dataC, "item/ad cikmadi: %s", r3.c_str());
+	CHECK(!fs::exists(KoResolvePath(base + "item\\yok.n3cpart")), "olmayan item var sanildi");
+	// Diskte gerçek dosya varsa paket değil o kullanılır
+	fs::create_directories(tmp / "Chr");
+	Write(tmp / "Chr" / "x.n3joint", dataC);
+	std::string r4 = KoResolvePath(base + "chr\\X.N3JOINT");
+	CHECK(fs::exists(r4) && r4.find("_cache") == std::string::npos, "diskteki dosya yerine paket arandi: %s", r4.c_str());
+	fs::remove_all(tmp);
+}
+
 static void TestIstirap()
 {
 	std::printf("[test] .istirap cozumu\n");
@@ -129,6 +173,7 @@ static void TestIstirap()
 int main()
 {
 	TestPack();
+	TestItemPack();
 	TestIstirap();
 	if (g_fail)
 	{

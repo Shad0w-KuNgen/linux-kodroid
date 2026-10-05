@@ -67,6 +67,15 @@ void CGameProcCharacterCreate::Init()
 	m_pUICharacterCreate->Init(s_pUIMgr);
 	if (pTblUI)
 		m_pUICharacterCreate->LoadFromFile(pTblUI->szCharacterCreate);
+
+	// 2369 arayüzünde "area_character" yok: 3D önizlemeyi orta panel ile sağ (sınıf) sütunu arasına koy
+	if (m_rcChr.right <= m_rcChr.left || m_rcChr.bottom <= m_rcChr.top)
+	{
+		int iW = (int) s_CameraData.vp.Width, iH = (int) s_CameraData.vp.Height;
+		SetRect(&m_rcChr, iW * 62 / 100, iH * 12 / 100, iW * 80 / 100, iH * 86 / 100);
+		CLogWriter::Write("Karakter oluşturma: area_character yok, önizleme alanı varsayılan ({},{})-({},{})", m_rcChr.left,
+			m_rcChr.top, m_rcChr.right, m_rcChr.bottom);
+	}
 }
 
 void CGameProcCharacterCreate::Render()

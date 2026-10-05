@@ -206,6 +206,26 @@ yoksa `CGameProcLogIn_1298` paketteki `el_login_intro_us.uif` / `ka_login_intro_
 Mesaj kutusu arayüzü (`re_messagebox.uif`) yüklenemezse `CUIMessageBoxManager` çökmek yerine sistem
 mesaj kutusunu gösterir.
 
+**Eksik arayüz bileşenleri (yer tutucu):** 2369 UIF'lerinde 1.298'in beklediği çocuk ID'lerinin bir kısmı
+yok ya da gruplar içinde (`CGameProcMain::InitUI` → `CUIKnights::Load` SIGSEGV v144). `GetChildByID` önce
+doğrudan, sonra özyinelemeli (harf duyarsız) arar; yine bulunamazsa `N3_VERIFY_UI_COMPONENT` görünmez,
+ebeveynsiz bir yer tutucu denetim üretir ve Log.txt'ye `UI eksik bileşen (yer tutucu): <uif> -> <ifade>`
+yazar. Böylece arayüz yüklemeleri çökmez; kalıcı çözüm için bu satırlardan 2369 ID takma adları eklenir.
+Oyun öncesi süreçlerde (karakter seçimi) sunucunun gönderdiği oyun içi paketler (`WIZ_QUEST` 0x64,
+`WIZ_WEIGHT_CHANGE` 0x54) "yutuldu" diye günlüklenir; bilgiler `WIZ_MYINFO` ile yeniden gelir.
+
+**3D karakter önizlemesi / Item klasörü:** 2369 `UPC_DefaultLooks.tbl` parça adları `\item\upc_el_rm_face00.n3cpart`
+biçiminde (başı `\`, `face00`/`hair00`); temel yola eklenince oluşan `//` `KoResolvePath`/`KoVfsResolve`'da
+sadeleştirilir. Item klasörü de UI gibi paketliyse (`item/item.hdr` + `item.src`, ya da `item.hdr` kökte,
+ya da klasördeki herhangi bir `*.hdr/*.src` çifti) VFS aynı dizin biçimiyle açar ve `item_cache/` altına
+çıkarır (`ko_vfs_test` sentetik item paketi). `re_charactercreate.uif`'te `area_character` olmadığından
+önizleme dikdörtgeni varsayılan olarak orta panel ile sınıf sütunu arasına (%62–80 × %12–86) konur.
+
+**Ses:** istemciyle gelen `Option.ini` `[Sound] Bgm=0 Effect=0` olduğundan `s_SndMgr.Init()` hiç çağrılmıyor,
+OpenAL bağlamı olmadan `alListener*` her kare A004 (`AL_INVALID_OPERATION`) üretiyordu. Dinleyici çağrıları
+ses kapalıyken atlanır; telefonda ilk açılışta (`[Mobile] SoundInit` yoksa) ses açılıp Option.ini'ye yazılır,
+sonrasında oyun içi seçenek geçerlidir. Başlangıçta `Seçenekler: ses bgm=… efekt=…` günlüklenir.
+
 `ko_proto_test` (CTest) sunucu kaynağındaki `Packet <<` sırasını taklit eden paketlerle bu ayrıştırıcıları
 ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya/yükseltme, klan/kral/PUS,
 2369 arayüzü, 2369 veri uyumluluğu (bölge numaraları, `UI` klasörü, NPC ad tablosu).

@@ -13,11 +13,25 @@
 #include <set>
 #include <string>
 
+class CN3UIBase;
+
+// Eksik arayüz bileşeni: 2xxx UIF'lerinde 1.298'in beklediği kimi çocuk ID'leri yok ya da farklı. Çökmemek için
+// görünmez, ebeveynsiz bir yer tutucu denetim oluşturulur (Log.txt'ye dosya + ifade yazılır). Yer tutucu hiçbir
+// ağaçta değildir; çizilmez, tıklanmaz. Kalıcı çözüm: ilgili CUI*::Load'da 2369 ID'sine takma ad eklemek.
+void N3UIPlaceholderRegister(CN3UIBase* pPlaceholder, const char* szExpr);
+template <class T> T* N3UIPlaceholderMake(T*, const char* szExpr)
+{
+	T* p = new T();
+	N3UIPlaceholderRegister(p, szExpr);
+	return p;
+}
+
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-#define N3_VERIFY_UI_COMPONENT(varName, lookupResult)           \
-	{                                                           \
-		(varName) = (lookupResult);                             \
-		__ASSERT((varName) != nullptr, "NULL UI Component!!!"); \
+#define N3_VERIFY_UI_COMPONENT(varName, lookupResult)                                 \
+	{                                                                                 \
+		(varName) = (lookupResult);                                                   \
+		if ((varName) == nullptr)                                                     \
+			(varName) = N3UIPlaceholderMake((varName), #lookupResult);                \
 	}
 
 class CN3UIBase;

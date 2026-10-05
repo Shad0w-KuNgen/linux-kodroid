@@ -110,7 +110,20 @@ void LoadOptions(const std::string& iniPath)
 	o.iEffectSndDist  = std::clamp(ini.GetInt("Sound", "Distance", 48), 20, 48);
 	o.bSndBgmEnable   = ini.GetBool("Sound", "Bgm", true);
 	o.bSndEffectEnable = ini.GetBool("Sound", "Effect", true);
+#if defined(__ANDROID__) || defined(__IPHONEOS__)
+	// İstemciyle gelen Option.ini'de ses kapalı (Bgm=0, Effect=0) gelir; telefonda ilk açılışta sesi aç,
+	// sonrasında oyun içi seçenekler (Option.ini'ye yazılan) geçerli kalsın.
+	if (!ini.GetBool("Mobile", "SoundInit", false))
+	{
+		o.bSndBgmEnable = o.bSndEffectEnable = true;
+		ini.SetInt("Sound", "Bgm", 1);
+		ini.SetInt("Sound", "Effect", 1);
+		ini.SetInt("Mobile", "SoundInit", 1);
+		ini.Save();
+	}
+#endif
 	o.bSndEnable      = o.bSndBgmEnable || o.bSndEffectEnable;
+	CLogWriter::Write("Seçenekler: ses bgm={} efekt={} ({})", o.bSndBgmEnable, o.bSndEffectEnable, iniPath);
 	o.bWindowCursor   = ini.GetBool("Cursor", "WindowCursor", true);
 	o.bWindowMode     = ini.GetBool("Screen", "WindowMode", true);
 	o.bVSyncEnabled   = ini.GetBool("Screen", "VSyncEnabled", true);

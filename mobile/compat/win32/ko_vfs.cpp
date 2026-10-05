@@ -185,7 +185,10 @@ bool WriteAll(const std::string& path, const uint8_t* data, size_t n)
 	return ::rename(tmp.c_str(), path.c_str()) == 0;
 }
 
-// --- UI paketi ---
+// --- Paketler (ui.hdr/ui.src, item.hdr/item.src, ...) ---
+// 2369 istemcisi klasörleri "<ad>.hdr" (dizin) + "<ad>.src" (ham ardışık veri) olarak paketleyebilir.
+// Dizin: u32 kayıt sayısı; her kayıt u32 adUzunluk | ad | u32 ofset | u32 boyut. Kayıt adı alt yol
+// içerebilir ("item\\x.n3cpart"); hem tam ad hem yalın dosya adı ile aranır.
 struct PackEntry
 {
 	uint32_t offset = 0, size = 0;
@@ -197,7 +200,7 @@ struct UiPack
 	std::unordered_map<std::string, PackEntry> entries; // küçük harf ad → kayıt
 };
 std::mutex g_mutex;
-std::unordered_map<std::string, UiPack> g_packs; // base dizin → paket
+std::unordered_map<std::string, UiPack> g_packs; // "<base>|<klasör>" → paket (geçersiz de olsa bir kez bakılır)
 
 void LogVfs(const char* fmt, const std::string& a, const std::string& b = std::string())
 {
@@ -205,24 +208,19 @@ void LogVfs(const char* fmt, const std::string& a, const std::string& b = std::s
 	fputc('\n', stderr);
 }
 
-UiPack& LoadPack(const std::string& base)
+std::string ToSlash(std::string s)
 {
-	UiPack& pack = g_packs[base];
-	if (pack.loaded)
-		return pack;
-	pack.loaded = true;
-	std::string uiDir = FindEntry(base, "ui");
-	if (uiDir.empty())
-		return pack;
-	std::string dir = base + uiDir + "/";
-	std::string hdr = FindEntry(dir, "ui.hdr"), src = FindEntry(dir, "ui.src");
-	if (hdr.empty() || src.empty())
-		return pack;
-	pack.srcPath  = dir + src;
-	pack.cacheDir = base + "ui_cache/";
+	for (char& c : s)
+		if (c == '\\')
+			c = '/';
+	return s;
+}
+
+bool ParsePackIndex(const std::string& hdrPath, UiPack& pack)
+{
 	std::vector<uint8_t> h;
-	if (!ReadAll(dir + hdr, h) || h.size() < 4)
-		return pack;
+	if (!ReadAll(hdrPath, h) || h.size() < 4)
+		return false;
 	auto u32 = [&](size_t pos) { uint32_t v; memcpy(&v, h.data() + pos, 4); return v; };
 	uint32_t count = u32(0);
 	size_t pos     = 4;
@@ -240,10 +238,70 @@ UiPack& LoadPack(const std::string& base)
 		e.offset = u32(pos);
 		e.size   = u32(pos + 4);
 		pos += 8;
-		pack.entries[Lower(name)] = e;
+		std::string key = Lower(ToSlash(name));
+		while (!key.empty() && key[0] == '/')
+			key.erase(0, 1);
+		pack.entries[key] = e;
+		size_t slash = key.find_last_of('/');
+		if (slash != std::string::npos)
+			pack.entries.emplace(key.substr(slash + 1), e); // yalın ad (ilk kayıt kazanır)
 	}
-	pack.valid = !pack.entries.empty();
-	LogVfs("[ko-vfs] UI paketi: %s (%s kayit)", pack.srcPath, std::to_string(pack.entries.size()));
+	return !pack.entries.empty();
+}
+
+// "<base><klasör>/" için paket: <klasör>/<klasör>.hdr, <base>/<klasör>.hdr ya da klasördeki ilk *.hdr (+ eş .src)
+UiPack& LoadPack(const std::string& base, const std::string& dirLower)
+{
+	UiPack& pack = g_packs[base + "|" + dirLower];
+	if (pack.loaded)
+		return pack;
+	pack.loaded      = true;
+	std::string dirE = FindEntry(base, dirLower);
+	std::string hdr, src;
+	if (!dirE.empty())
+	{
+		std::string dir = base + dirE + "/";
+		std::string h   = FindEntry(dir, dirLower + ".hdr"), s = FindEntry(dir, dirLower + ".src");
+		if (!h.empty() && !s.empty())
+		{
+			hdr = dir + h;
+			src = dir + s;
+		}
+		else if (DIR* d = opendir(dir.c_str()))
+		{
+			// Klasördeki herhangi bir <x>.hdr + <x>.src çifti
+			while (dirent* e = readdir(d))
+			{
+				std::string n = e->d_name, nl = Lower(n);
+				if (nl.size() > 4 && nl.compare(nl.size() - 4, 4, ".hdr") == 0)
+				{
+					std::string s2 = FindEntry(dir, nl.substr(0, nl.size() - 4) + ".src");
+					if (!s2.empty())
+					{
+						hdr = dir + n;
+						src = dir + s2;
+						break;
+					}
+				}
+			}
+			closedir(d);
+		}
+	}
+	if (hdr.empty())
+	{
+		std::string h = FindEntry(base, dirLower + ".hdr"), s = FindEntry(base, dirLower + ".src");
+		if (!h.empty() && !s.empty())
+		{
+			hdr = base + h;
+			src = base + s;
+		}
+	}
+	if (hdr.empty())
+		return pack;
+	pack.srcPath  = src;
+	pack.cacheDir = base + dirLower + "_cache/";
+	pack.valid    = ParsePackIndex(hdr, pack);
+	LogVfs("[ko-vfs] paket: %s (%s kayit)", hdr, std::to_string(pack.entries.size()));
 	return pack;
 }
 
@@ -254,8 +312,12 @@ std::string ExtractFromPack(UiPack& pack, const std::string& nameLower)
 		return std::string();
 	const PackEntry& e = it->second;
 	// Önbellek: aynı boyutta varsa yeniden kullan
+	std::string flat = nameLower;
+	for (char& c : flat)
+		if (c == '/')
+			c = '_';
 	MkDirs(pack.cacheDir);
-	std::string out = pack.cacheDir + nameLower;
+	std::string out = pack.cacheDir + flat;
 	uint64_t have   = 0;
 	if (Exists(out, &have) && have == e.size)
 		return out;
@@ -349,36 +411,46 @@ std::string KoIstirapDecryptToCache(const std::string& existingPath)
 
 std::string KoVfsResolve(const std::string& normalizedPath)
 {
-	std::string low = Lower(normalizedPath);
+	// "//" → "/" (2369 tablolarında "\\item\\x" gibi başı ayraçlı adlar temel yola eklenince oluşur)
+	std::string path;
+	path.reserve(normalizedPath.size());
+	for (char c : normalizedPath)
+		if (c != '/' || path.empty() || path.back() != '/')
+			path.push_back(c);
+	std::string low = Lower(path);
 	if (low.size() > 8 && low.compare(low.size() - 8, 8, ".istirap") == 0)
-		return KoIstirapDecryptToCache(normalizedPath);
-	// "…/ui/<ad>" ya da "…/ui_us/<ad>" (ad içinde '/' yok)
+		return KoIstirapDecryptToCache(path);
+	// "<base>/<klasör>/<ad>": klasör paketi (ui, ui_us→ui, item, chr, ...)
 	size_t slash = low.find_last_of('/');
-	if (slash == std::string::npos)
+	if (slash == std::string::npos || slash == 0)
 		return std::string();
-	std::string name = low.substr(slash + 1);
+	std::string name    = low.substr(slash + 1);
 	std::string dirPart = low.substr(0, slash); // "…/ui" ya da "ui"
-	std::string base;
-	const char* tails[] = { "ui_us", "ui" };
-	bool match = false;
-	for (const char* t : tails)
-	{
-		size_t tl = strlen(t);
-		if (dirPart.size() >= tl && dirPart.compare(dirPart.size() - tl, tl, t) == 0
-			&& (dirPart.size() == tl || dirPart[dirPart.size() - tl - 1] == '/'))
-		{
-			base  = normalizedPath.substr(0, dirPart.size() - tl); // "" ya da "…/"
-			match = true;
-			break;
-		}
-	}
-	if (!match || name.empty())
+	if (name.empty())
 		return std::string();
+	size_t slash2       = dirPart.find_last_of('/');
+	std::string dirName = slash2 == std::string::npos ? dirPart : dirPart.substr(slash2 + 1);
+	std::string base    = slash2 == std::string::npos ? std::string() : path.substr(0, slash2 + 1); // "" ya da "…/"
+	if (dirName.empty())
+		return std::string();
+	std::vector<std::string> dirs { dirName };
+	if (dirName == "ui_us")
+		dirs.push_back("ui");
+	else if (dirName == "ui")
+		dirs.push_back("ui_us");
 	std::lock_guard<std::mutex> lock(g_mutex);
-	UiPack& pack = LoadPack(base);
-	if (!pack.valid)
-		return std::string();
-	return ExtractFromPack(pack, name);
+	for (const std::string& d : dirs)
+	{
+		UiPack& pack = LoadPack(base, d);
+		if (!pack.valid)
+			continue;
+		std::string r = ExtractFromPack(pack, name);
+		if (r.empty())
+			r = ExtractFromPack(pack, d + "/" + name);
+		if (!r.empty())
+			return r;
+	}
+	return std::string();
 }
 
 void KoVfsReset()

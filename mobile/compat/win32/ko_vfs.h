@@ -1,9 +1,11 @@
 // ko_vfs.h — 2xxx istemci verisi için sanal dosya katmanı.
 //
-// 1) UI paketi: 2369 istemcisinde "UI\" klasöründe tek tek .uif/.dxt yok; ui.hdr (şifresiz dizin:
+// 1) Klasör paketleri: 2369 istemcisinde "UI\" klasöründe tek tek .uif/.dxt yok; ui.hdr (şifresiz dizin:
 //    u32 kayıt sayısı, her kayıt u32 adUzunluk | ad | u32 ofset | u32 boyut) + ui.src (dosyalar ham,
-//    ardışık; UIF'in ilk u32'si N3 ad uzunluğu = 0, DXT'nin ilk alanı kendi adı). "ui\<ad>" ya da
-//    "ui_us\<ad>" istendiğinde kayıt ui_cache/<ad> altına çıkarılır ve o yol döndürülür (bir kez).
+//    ardışık; UIF'in ilk u32'si N3 ad uzunluğu = 0, DXT'nin ilk alanı kendi adı). Aynı düzen başka
+//    klasörler için de denenir: "<klasör>\<ad>" diskte yoksa <klasör>/<klasör>.hdr+.src, <klasör>.hdr+.src
+//    ya da klasördeki ilk *.hdr/*.src çifti (ör. item/item.hdr) okunur; kayıt <klasör>_cache/<ad> altına
+//    çıkarılır ve o yol döndürülür (bir kez). "ui_us\<ad>" için "ui" paketi de denenir.
 // 2) .istirap: ISTIRAP sunucusunun şifreli UIF'leri (Pearl Guard dcpUIF): ilk 4 bayt düz; sonra
 //    dosya boyutu çiftse 32, tekse 31 baytlık bloklar, her blok anahtar akışının başından RC4
 //    (CryptDecrypt Final=TRUE). Anahtar = SHA1(parola[:29]) ilk 16 bayt. Çözülen içerik UIF'in kendisidir
@@ -16,7 +18,7 @@
 #include <vector>
 
 // Normalleştirilmiş ('/' ayraçlı) yol için paket/istirap karşılığı; yoksa boş dizge.
-// Diskte bulunamayan "…/ui/<ad>" ve "…/ui_us/<ad>" yolları ile var olan "….istirap" yolları için çağrılır.
+// Diskte bulunamayan "…/<klasör>/<ad>" yolları ile var olan "….istirap" yolları için çağrılır.
 std::string KoVfsResolve(const std::string& normalizedPath);
 
 // .istirap içeriğini çözer (bellek içi; test ve araçlar için)

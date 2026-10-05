@@ -98,6 +98,12 @@ public:
 		m_bSndEnable = enable;
 	}
 
+	/// Ses sistemi açık mı (OpenAL bağlamı var mı)?
+	bool IsEnabled() const
+	{
+		return m_bSndEnable;
+	}
+
 	/// \brief Releases a managed sound object.
 	///
 	/// Frees the sound object and removes it from internal management.

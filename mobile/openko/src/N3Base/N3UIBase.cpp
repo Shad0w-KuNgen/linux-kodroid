@@ -241,8 +241,28 @@ void CN3UIBase::ShowWindow(int iID, CN3UIBase* pParent)
 	SetVisible(true);
 }
 
+namespace
+{
+std::string s_szUILoadingFile; // yer tutucu günlüğü için: şu an yüklenen UIF
+std::vector<CN3UIBase*> s_PlaceholderUIs;
+} // namespace
+
+void N3UIPlaceholderRegister(CN3UIBase* pPlaceholder, const char* szExpr)
+{
+	if (pPlaceholder == nullptr)
+		return;
+	pPlaceholder->m_szID = fmt::format("__eksik_{}", s_PlaceholderUIs.size());
+	pPlaceholder->SetVisible(false);
+	s_PlaceholderUIs.push_back(pPlaceholder);
+#ifdef _N3GAME
+	CLogWriter::Write("UI eksik bileşen (yer tutucu): {} -> {}", s_szUILoadingFile, szExpr ? szExpr : "");
+#endif
+}
+
 bool CN3UIBase::LoadSupportedVersions(File& file)
 {
+	if (!m_szFileName.empty())
+		s_szUILoadingFile = m_szFileName;
 	// Release will unset the filename.
 	// We should preserve and restore it.
 	std::string szFNBackup;

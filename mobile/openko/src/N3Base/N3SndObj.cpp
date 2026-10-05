@@ -449,12 +449,16 @@ void CN3SndObj::Looping(bool loop)
 
 void CN3SndObj::SetListenerPos(const __Vector3& vPos)
 {
+	if (!CN3Base::s_SndMgr.IsEnabled()) // ses kapalıyken OpenAL bağlamı yok: her kare A004 (AL_INVALID_OPERATION) üretirdi
+		return;
 	alListener3f(AL_POSITION, vPos.x, vPos.y, vPos.z);
 	AL_CHECK_ERROR();
 }
 
 void CN3SndObj::SetListenerOrientation(const __Vector3& vAt, const __Vector3& vUp)
 {
+	if (!CN3Base::s_SndMgr.IsEnabled())
+		return;
 	ALfloat fv[6] = { vAt.x, vAt.y, vAt.z, vUp.x, vUp.y, vUp.z };
 
 	alListenerfv(AL_ORIENTATION, fv);

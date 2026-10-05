@@ -802,21 +802,26 @@ void CUISkillTreeDlg::Render()
 void CUISkillTreeDlg::CheckButtonTooltipRenderEnable()
 {
 	RECT rect[MAX_SKILL_KIND_OF] = {};
+	// 2xxx UIF'lerinde bu düğmeler olmayabilir: boş dikdörtgen (çökme yok)
+	auto clickRect = [this](const char* szID) -> RECT {
+		CN3UIButton* pBtn = GetChildByID<CN3UIButton>(szID);
+		return pBtn ? pBtn->GetClickRect() : RECT {};
+	};
 
 	switch (CGameBase::s_pPlayer->m_InfoBase.eNation)
 	{
 		case NATION_ELMORAD:
-			rect[SKILL_DEF_SPECIAL0] = GetChildByID<CN3UIButton>("btn_blade0")->GetClickRect();
-			rect[SKILL_DEF_SPECIAL1] = GetChildByID<CN3UIButton>("btn_blade1")->GetClickRect();
-			rect[SKILL_DEF_SPECIAL2] = GetChildByID<CN3UIButton>("btn_blade2")->GetClickRect();
-			rect[SKILL_DEF_SPECIAL3] = GetChildByID<CN3UIButton>("btn_master")->GetClickRect();
+			rect[SKILL_DEF_SPECIAL0] = clickRect("btn_blade0");
+			rect[SKILL_DEF_SPECIAL1] = clickRect("btn_blade1");
+			rect[SKILL_DEF_SPECIAL2] = clickRect("btn_blade2");
+			rect[SKILL_DEF_SPECIAL3] = clickRect("btn_master");
 			break;
 
 		case NATION_KARUS:
-			rect[SKILL_DEF_SPECIAL0] = GetChildByID<CN3UIButton>("btn_berserker0")->GetClickRect();
-			rect[SKILL_DEF_SPECIAL1] = GetChildByID<CN3UIButton>("btn_berserker1")->GetClickRect();
-			rect[SKILL_DEF_SPECIAL2] = GetChildByID<CN3UIButton>("btn_berserker2")->GetClickRect();
-			rect[SKILL_DEF_SPECIAL3] = GetChildByID<CN3UIButton>("btn_master")->GetClickRect();
+			rect[SKILL_DEF_SPECIAL0] = clickRect("btn_berserker0");
+			rect[SKILL_DEF_SPECIAL1] = clickRect("btn_berserker1");
+			rect[SKILL_DEF_SPECIAL2] = clickRect("btn_berserker2");
+			rect[SKILL_DEF_SPECIAL3] = clickRect("btn_master");
 			break;
 
 		default:

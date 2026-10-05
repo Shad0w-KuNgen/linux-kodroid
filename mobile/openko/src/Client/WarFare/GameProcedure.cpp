@@ -416,7 +416,14 @@ void CGameProcedure::Tick()
 			CLogWriter::Write("Recv: opcode 0x{:02x} ({} bayt) {}{}", pkt->GetOpcode(), pkt->size(), szHex, pkt->size() > 24 ? "..." : "");
 		}
 		if (!ProcessPacket(*pkt))
-			CLogWriter::Write("Invalid Packet... ({})", pkt->GetOpcode());
+		{
+			if (s_pProcActive != (CGameProcedure*) s_pProcMain)
+				// 2369 sunucusu karakter seçiminde WIZ_QUEST (0x64), WIZ_WEIGHT_CHANGE (0x54) gibi oyun içi paketler
+				// gönderir; oyun öncesi süreçte karşılığı yok, yutulur (bilgiler WIZ_MYINFO ile yeniden gelir)
+				CLogWriter::Write("Oyun öncesi: opcode 0x{:02x} bu süreçte işlenmiyor, yutuldu", pkt->GetOpcode());
+			else
+				CLogWriter::Write("Invalid Packet... ({})", pkt->GetOpcode());
+		}
 
 		delete pkt;
 		s_pSocket->m_qRecvPkt.pop();
