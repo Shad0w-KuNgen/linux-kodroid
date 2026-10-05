@@ -1,5 +1,6 @@
 // ini.cpp — GetPrivateProfileString/Int ve WritePrivateProfileString (basit INI okuyucu).
 #include <windows.h>
+#include <ko_fopen.h> // KoResolvePath
 
 #include <fstream>
 #include <map>
@@ -21,10 +22,17 @@ std::string Lower(std::string s)
 }
 using Ini = std::map<std::string, std::vector<std::pair<std::string, std::string>>>;
 
+// Oyun yolları "...\\files\\\\Server.Ini" gibi '\\' ve farklı büyük/küçük harfle gelir; KoResolvePath
+// bunu gerçek dosyaya çözer. (Önceden ifstream ham yolu açıyordu → dosya bulunamıyor → Count=0.)
+std::string Resolve(const char* file)
+{
+	return KoResolvePath(file ? file : "");
+}
+
 Ini Read(const char* file)
 {
 	Ini ini;
-	std::ifstream in(file ? file : "");
+	std::ifstream in(Resolve(file));
 	std::string line, section;
 	while (std::getline(in, line))
 	{
@@ -92,7 +100,7 @@ BOOL WritePrivateProfileString(LPCSTR section, LPCSTR key, LPCSTR value, LPCSTR 
 		}
 	if (!found && key)
 		entries.emplace_back(key, value ? value : "");
-	std::ofstream outf(file ? file : "", std::ios::trunc);
+	std::ofstream outf(Resolve(file), std::ios::trunc);
 	for (const auto& [s, kvs] : ini)
 	{
 		outf << '[' << s << "]\n";

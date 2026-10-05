@@ -67,12 +67,10 @@ public class SetupActivity extends Activity {
         dataDir = GameData.dataDir(this);
 
         boolean forceSetup = getIntent().getBooleanExtra("setup", false);
-        if (!forceSetup && GameData.hasGameData(dataDir)) {
-            startGame();
-            return;
-        }
         buildUi();
         refreshState();
+        if (!forceSetup && GameData.hasGameData(dataDir))
+            startGame();            // sürüm denetimi + yama, sonra oyun
     }
 
     // ---- Arayüz --------------------------------------------------------------------------
@@ -369,12 +367,148 @@ public class SetupActivity extends Activity {
         status.setText(sb.toString());
     }
 
+    /** Sürüm denetimi ve gerekiyorsa yama; sonra oyunu açar. */
     private void startGame() {
         GameData.ensureServerIni(dataDir);
+        runPatchCheck();
+    }
+
+    private void launchGameNow() {
         Intent i = new Intent(this, KnightOnlineActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(i);
         finish();
+    }
+
+    // ---- Yama sistemi (orijinal Launcher protokolü, VersionManager:15100) -------------------
+    private static final int PATCH_TIMEOUT_MS = 10000;
+
+    private void runPatchCheck() {
+        final File ini = GameData.findServerIni(dataDir);
+        final String host = GameData.getIniValue(ini, "Server", "IP0", GameData.DEFAULT_SERVER_IP);
+        final int clientVersion = parseIntOr(GameData.getIniValue(ini, "Version", "Files", "0"), 0);
+
+        cancelRequested = false;
+        progDone = 0;
+        progTotal = -1;
+        progEntry = "";
+        progNote = "";
+        progReconnects = 0;
+        currentVerb = "Yama";
+        setBusy(true);
+        btnCancel.setText("Yamayı atla, oyunu aç");
+        status.setText("Sürüm denetleniyor (" + host + ":" + PatchClient.DEFAULT_PORT + ", istemci "
+                + clientVersion + ")...");
+
+        worker = new Thread(() -> {
+            String error = null;
+            boolean serverUnreachable = false;
+            int latest = clientVersion;
+            try {
+                PatchClient.DownloadInfo info;
+                try (PatchClient pc = new PatchClient(host, PatchClient.DEFAULT_PORT, PATCH_TIMEOUT_MS)) {
+                    latest = pc.queryLatestVersion();
+                    if (latest <= clientVersion) {
+                        runOnUiThread(() -> status.setText("İstemci güncel (sürüm " + clientVersion + ")."));
+                        info = null;
+                    } else {
+                        info = pc.queryDownloadInfo(clientVersion);
+                    }
+                } catch (IOException e) {
+                    serverUnreachable = true;
+                    throw e;
+                }
+                if (info != null) {
+                    int n = info.files.size();
+                    for (int k = 0; k < n && !cancelRequested; k++) {
+                        final String name = info.files.get(k);
+                        final String url = info.fileUrl(name);
+                        final int idx = k + 1;
+                        progDone = 0;
+                        progTotal = -1;
+                        progEntry = "";
+                        currentVerb = "Yama " + idx + "/" + n + " (" + name + ")";
+                        runOnUiThread(() -> status.setText(currentVerb + " indiriliyor...\n" + url));
+                        ResumingHttpStream rin = new ResumingHttpStream(url, new ResumingHttpStream.Listener() {
+                            @Override
+                            public void onReconnect(int attempt, int maxAttempts, String reason) {
+                                progReconnects = attempt;
+                                progNote = "Bağlantı koptu (" + reason + "), yeniden bağlanıyor... "
+                                        + attempt + "/" + maxAttempts;
+                            }
+
+                            @Override
+                            public boolean isCancelled() {
+                                return cancelRequested;
+                            }
+                        }).open();
+                        progTotal = rin.total();
+                        try (InputStream in = rin) {
+                            if (name.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+                                GameData.extractZip(in, rin.total(), dataDir, (done, total, entry) -> {
+                                    if (done > progDone)
+                                        progNote = "";
+                                    progDone = done;
+                                    if (total > 0)
+                                        progTotal = total;
+                                    progEntry = entry;
+                                    return !cancelRequested;
+                                });
+                            } else {
+                                GameData.copyToFile(in, new File(dataDir, name.replace('\\', '/')), (done, total, entry) -> {
+                                    if (done > progDone)
+                                        progNote = "";
+                                    progDone = done;
+                                    return !cancelRequested;
+                                });
+                            }
+                        }
+                    }
+                    if (!cancelRequested) {
+                        File target = ini != null ? ini : new File(dataDir, "Server.ini");
+                        GameData.setIniValue(target, "Version", "Files", String.valueOf(latest));
+                    }
+                }
+            } catch (Exception e) {
+                error = e.getMessage();
+            }
+            final String err = error;
+            final boolean unreachable = serverUnreachable;
+            final int latestF = latest;
+            runOnUiThread(() -> {
+                uiHandler.removeCallbacks(uiTick);
+                setBusy(false);
+                btnCancel.setText("İptal");
+                refreshState();
+                if (cancelRequested || err == null) {
+                    launchGameNow();
+                    return;
+                }
+                String msg = unreachable
+                        ? "Sürüm sunucusuna ulaşılamadı (" + host + ":" + PatchClient.DEFAULT_PORT + "): " + err
+                        : "Yama indirilemedi (" + clientVersion + " → " + latestF + "): " + err
+                                + "\n" + GameData.humanBytes(progDone) + " alınmıştı.";
+                status.setText(msg);
+                new AlertDialog.Builder(SetupActivity.this)
+                        .setTitle(unreachable ? "Bağlantı hatası" : "Yama hatası")
+                        .setMessage(msg)
+                        .setPositiveButton("Tekrar dene", (d, w) -> runPatchCheck())
+                        .setNegativeButton("Yamasız başlat", (d, w) -> launchGameNow())
+                        .setNeutralButton("Kurulum ekranı", null)
+                        .setCancelable(false)
+                        .show();
+            });
+        }, "ko-patch");
+        worker.start();
+        uiHandler.postDelayed(uiTick, 400);
+    }
+
+    private static int parseIntOr(String s, int def) {
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (Exception e) {
+            return def;
+        }
     }
 
     // ---- Yardımcılar ---------------------------------------------------------------------

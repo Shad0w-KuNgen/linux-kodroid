@@ -212,6 +212,77 @@ public final class GameData {
         }
     }
 
+    /** INI'den değer okur (bölüm/anahtar harf duyarsız); yoksa def. */
+    public static String getIniValue(File ini, String section, String key, String def) {
+        if (ini == null || !ini.isFile())
+            return def;
+        try {
+            boolean in = false;
+            for (String raw : readLines(ini)) {
+                String t = raw.trim();
+                if (t.startsWith("[")) {
+                    in = t.equalsIgnoreCase("[" + section + "]");
+                    continue;
+                }
+                if (!in || t.isEmpty() || t.startsWith(";"))
+                    continue;
+                int eq = t.indexOf('=');
+                if (eq > 0 && t.substring(0, eq).trim().equalsIgnoreCase(key))
+                    return t.substring(eq + 1).trim();
+            }
+        } catch (IOException ignored) {
+        }
+        return def;
+    }
+
+    /** INI'de değer yazar; bölüm/anahtar yoksa ekler. Diğer satırlar korunur. */
+    public static boolean setIniValue(File ini, String section, String key, String value) {
+        try {
+            java.util.List<String> lines = ini.isFile() ? readLines(ini) : new java.util.ArrayList<>();
+            boolean in = false, done = false;
+            int sectionEnd = -1;   // bölümün son satırından sonraki konum
+            for (int i = 0; i < lines.size() && !done; i++) {
+                String t = lines.get(i).trim();
+                if (t.startsWith("[")) {
+                    if (in) {
+                        sectionEnd = i;
+                        break;
+                    }
+                    in = t.equalsIgnoreCase("[" + section + "]");
+                    continue;
+                }
+                if (!in || t.isEmpty() || t.startsWith(";"))
+                    continue;
+                int eq = t.indexOf('=');
+                if (eq > 0 && t.substring(0, eq).trim().equalsIgnoreCase(key)) {
+                    lines.set(i, key + "=" + value);
+                    done = true;
+                }
+            }
+            if (!done) {
+                if (in) {
+                    int at = sectionEnd >= 0 ? sectionEnd : lines.size();
+                    // bölüm sonundaki boş satırların önüne ekle
+                    while (at > 0 && lines.get(at - 1).trim().isEmpty())
+                        at--;
+                    lines.add(at, key + "=" + value);
+                } else {
+                    if (!lines.isEmpty() && !lines.get(lines.size() - 1).trim().isEmpty())
+                        lines.add("");
+                    lines.add("[" + section + "]");
+                    lines.add(key + "=" + value);
+                }
+            }
+            StringBuilder sb = new StringBuilder();
+            for (String l : lines)
+                sb.append(l).append("\r\n");
+            writeText(ini, sb.toString());
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     private static java.util.List<String> readLines(File f) throws IOException {
         java.util.List<String> out = new java.util.ArrayList<>();
         try (java.io.BufferedReader r = new java.io.BufferedReader(
@@ -227,6 +298,29 @@ public final class GameData {
         try (java.io.FileOutputStream fos = new java.io.FileOutputStream(f)) {
             fos.write(text.getBytes("ISO-8859-1"));
         }
+    }
+
+    /** Akışı dosyaya yazar (zip olmayan yama dosyaları için). */
+    public static void copyToFile(InputStream in, File out, Progress progress) throws IOException {
+        File parent = out.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs())
+            throw new IOException("Dizin oluşturulamadı: " + parent);
+        File tmp = new File(out.getPath() + ".part");
+        byte[] buf = new byte[256 * 1024];
+        long done = 0;
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp)) {
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                fos.write(buf, 0, n);
+                done += n;
+                if (progress != null && !progress.onProgress(done, -1, out.getName()))
+                    throw new IOException("İptal edildi");
+            }
+        }
+        if (out.exists())
+            out.delete();
+        if (!tmp.renameTo(out))
+            throw new IOException("Dosya yerine konamadı: " + out);
     }
 
     /**

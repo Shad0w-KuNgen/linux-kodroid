@@ -2,6 +2,7 @@
 // Oyun yalnızca HKEY_CURRENT_USER altında ikili (REG_BINARY) ayarlar saklıyor
 // (pencere konumları vb.). Değerler "<dizin>/ko_registry.ini" içinde hex olarak tutulur.
 #include <windows.h>
+#include <ko_fopen.h> // KoResolvePath
 
 #include <cstdio>
 #include <fstream>
@@ -19,7 +20,7 @@ std::string g_dir = ".";
 std::map<std::string, std::map<std::string, std::pair<DWORD, std::vector<uint8_t>>>> g_store;
 bool g_loaded = false;
 
-std::string FilePath() { return g_dir + "/ko_registry.ini"; }
+std::string FilePath() { return KoResolvePath(g_dir + "/ko_registry.ini"); }
 
 void Load()
 {
