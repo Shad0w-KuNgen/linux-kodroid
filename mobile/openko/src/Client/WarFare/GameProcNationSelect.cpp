@@ -45,7 +45,16 @@ void CGameProcNationSelect::Init()
 
 	m_pUINationSelectDlg = new CUINationSelectDlg();
 	m_pUINationSelectDlg->Init(s_pUIMgr);
-	m_pUINationSelectDlg->LoadFromFile(szTemp);
+	bool bLoaded = m_pUINationSelectDlg->LoadFromFile(szTemp);
+	CLogWriter::Write("NationSelect: arayüz {} {}", szTemp, bLoaded ? "yüklendi" : "YÜKLENEMEDİ");
+	if (!bLoaded && pTbl != nullptr && !pTbl->szNationSelect.empty() && pTbl->szNationSelect != szTemp)
+	{
+		delete m_pUINationSelectDlg;
+		m_pUINationSelectDlg = new CUINationSelectDlg();
+		m_pUINationSelectDlg->Init(s_pUIMgr);
+		bLoaded = m_pUINationSelectDlg->LoadFromFile(pTbl->szNationSelect);
+		CLogWriter::Write("NationSelect: yedek arayüz {} {}", pTbl->szNationSelect, bLoaded ? "yüklendi" : "YÜKLENEMEDİ");
+	}
 	m_pUINationSelectDlg->m_pProcNationSelectRef = this;               // 참조 포인터 넣기..
 
 	s_pPlayer->m_InfoBase.eNation                = NATION_NOTSELECTED; // 아직 국가를 선택하지 않았다..

@@ -406,6 +406,15 @@ void CGameProcedure::Tick()
 	while (!s_pSocket->m_qRecvPkt.empty())
 	{
 		auto pkt = s_pSocket->m_qRecvPkt.front();
+		if (s_pProcActive != (CGameProcedure*) s_pProcMain)
+		{
+			// Oyun öncesi (giriş/ulus/karakter seçimi): gelen her paket Log.txt'ye (opcode, boyut, ilk 24 bayt)
+			std::string szHex;
+			const uint8_t* p = pkt->contents();
+			for (size_t i = 0; i < pkt->size() && i < 24; i++)
+				szHex += fmt::format("{:02x} ", p[i]);
+			CLogWriter::Write("Recv: opcode 0x{:02x} ({} bayt) {}{}", pkt->GetOpcode(), pkt->size(), szHex, pkt->size() > 24 ? "..." : "");
+		}
 		if (!ProcessPacket(*pkt))
 			CLogWriter::Write("Invalid Packet... ({})", pkt->GetOpcode());
 
@@ -502,6 +511,16 @@ void CGameProcedure::ProcActiveSet(CGameProcedure* pProc)
 {
 	if (pProc == nullptr || s_pProcActive == pProc)
 		return;
+
+	auto procName = [](const CGameProcedure* p) -> const char* {
+		if (p == (CGameProcedure*) s_pProcLogIn) return "LogIn";
+		if (p == (CGameProcedure*) s_pProcNationSelect) return "NationSelect";
+		if (p == (CGameProcedure*) s_pProcCharacterSelect) return "CharacterSelect";
+		if (p == (CGameProcedure*) s_pProcCharacterCreate) return "CharacterCreate";
+		if (p == (CGameProcedure*) s_pProcMain) return "Main";
+		return p ? "?" : "null";
+	};
+	CLogWriter::Write("ProcActiveSet: {} -> {}", procName(s_pProcActive), procName(pProc));
 
 	if (s_pUIMgr != nullptr)
 		s_pUIMgr->EnableOperationSet(true); // UI를 조작할수 있게 한다..
@@ -747,6 +766,10 @@ bool CGameProcedure::ProcessPacket(Packet& pkt)
 
 		case WIZ_SEL_CHAR:
 			MsgRecv_CharacterSelect(pkt); // virtual
+			return true;
+
+		case WIZ_CAPTCHA: // ISTIRAP 2369 captcha/XSafe bildirimi: istemci tarafında karşılığı yok, yut
+			CLogWriter::Write("WIZ_CAPTCHA (0xC0) alındı, yutuldu ({} bayt)", pkt.size());
 			return true;
 
 		default:

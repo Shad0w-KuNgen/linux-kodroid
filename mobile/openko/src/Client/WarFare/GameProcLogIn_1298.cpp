@@ -466,6 +466,9 @@ int CGameProcLogIn_1298::MsgRecv_VersionCheck(Packet& pkt) // virtual
 int CGameProcLogIn_1298::MsgRecv_GameServerLogIn(Packet& pkt)   // virtual - 국가번호를 리턴한다.
 {
 	int iNation = CGameProcedure::MsgRecv_GameServerLogIn(pkt); // 국가 - 0 없음 0xff - 실패..
+	// 2369 (GameServer DatabaseThread WIZ_LOGIN): int8 sonuç (-1 hata, 0 ulus seçilmemiş, 1 Karus, 2 El Morad) + uint32 0
+	CLogWriter::Write("MsgRecv_GameServerLogIn: sonuç {} ({})", iNation,
+		iNation == 0xff ? "HATA" : iNation == 0 ? "ulus seçilmemiş -> ulus seçimi" : iNation == 1 ? "Karus -> karakter seçimi" : iNation == 2 ? "El Morad -> karakter seçimi" : "bilinmiyor");
 
 	if (0xff == iNation)
 	{

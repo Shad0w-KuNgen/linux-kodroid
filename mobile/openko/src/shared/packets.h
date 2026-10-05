@@ -50,6 +50,7 @@ enum e_GameOpcode : uint8_t
 	WIZ_STATE_CHANGE        = 0x29, // User Sitdown or Stand
 	WIZ_LOYALTY_CHANGE      = 0x2A, // Nation Contribution
 	WIZ_VERSION_CHECK       = 0x2B, // Client version check
+	WIZ_CAPTCHA             = 0xC0, // ISTIRAP 2369: captcha / XSafe (sunucu girişten sonra 01 02 01 gönderir; yutulur)
 	WIZ_CRYPTION            = 0x2C, // Cryption
 	WIZ_USERLOOK_CHANGE     = 0x2D, // User Slot Item Resource Change
 	WIZ_NOTICE              = 0x2E, // Update Notice Alarm
