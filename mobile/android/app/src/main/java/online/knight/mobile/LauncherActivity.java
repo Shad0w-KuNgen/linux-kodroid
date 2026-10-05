@@ -638,6 +638,38 @@ public class LauncherActivity extends Activity {
             rs.check(1100);
         box.addView(rs);
 
+        TextView uiLabel = new TextView(this);
+        uiLabel.setText("Oyun içi arayüz ölçeği (düğme/pencere boyutu)");
+        uiLabel.setTextSize(12);
+        uiLabel.setPadding(0, dp(8), 0, 0);
+        box.addView(uiLabel);
+        final android.widget.RadioGroup ui = new android.widget.RadioGroup(this);
+        ui.setOrientation(LinearLayout.HORIZONTAL);
+        int curUi = parseIntOr(GameData.getIniValue(optionIni, "Mobile", "UiScale", "100"), 100);
+        int[] uiScales = { 100, 125, 150 };
+        for (int sc : uiScales) {
+            android.widget.RadioButton rb = new android.widget.RadioButton(this);
+            rb.setText("%" + sc);
+            rb.setId(2000 + sc);
+            ui.addView(rb);
+            if (sc == curUi)
+                rb.setChecked(true);
+        }
+        if (ui.getCheckedRadioButtonId() == -1)
+            ui.check(2100);
+        box.addView(ui);
+
+        final EditText camSens = settingField(box, "Kamera sürükleme hızı (%, 25-400)",
+                GameData.getIniValue(optionIni, "Mobile", "CameraSens", "100"));
+        final EditText joyDead = settingField(box, "Joystick ölü bölgesi (%, 5-60)",
+                GameData.getIniValue(optionIni, "Mobile", "JoyDeadZone", "22"));
+        final EditText longPress = settingField(box, "Uzun basış süresi, ms (sağ tık: konuş / al)",
+                GameData.getIniValue(optionIni, "Mobile", "LongPressMs", "450"));
+        final EditText hpSlot = settingField(box, "HP pot düğmesi → kısayol yuvası (1-8)",
+                GameData.getIniValue(optionIni, "Mobile", "PotHpSlot", "7"));
+        final EditText mpSlot = settingField(box, "MP pot düğmesi → kısayol yuvası (1-8)",
+                GameData.getIniValue(optionIni, "Mobile", "PotMpSlot", "8"));
+
         ScrollView sv = new ScrollView(this);
         sv.addView(box);
         new AlertDialog.Builder(this)
@@ -660,6 +692,12 @@ public class LauncherActivity extends Activity {
                     GameData.setIniValue(oIni, "Mobile", "InputDebug", dbg.isChecked() ? "1" : "0");
                     GameData.setIniValue(oIni, "Mobile", "ShowFps", fps.isChecked() ? "1" : "0");
                     GameData.setIniValue(oIni, "Mobile", "RenderScale", String.valueOf(rs.getCheckedRadioButtonId() - 1000));
+                    GameData.setIniValue(oIni, "Mobile", "UiScale", String.valueOf(ui.getCheckedRadioButtonId() - 2000));
+                    GameData.setIniValue(oIni, "Mobile", "CameraSens", String.valueOf(parseIntOr(camSens.getText().toString(), 100)));
+                    GameData.setIniValue(oIni, "Mobile", "JoyDeadZone", String.valueOf(parseIntOr(joyDead.getText().toString(), 22)));
+                    GameData.setIniValue(oIni, "Mobile", "LongPressMs", String.valueOf(parseIntOr(longPress.getText().toString(), 450)));
+                    GameData.setIniValue(oIni, "Mobile", "PotHpSlot", String.valueOf(parseIntOr(hpSlot.getText().toString(), 7)));
+                    GameData.setIniValue(oIni, "Mobile", "PotMpSlot", String.valueOf(parseIntOr(mpSlot.getText().toString(), 8)));
                     GameData.setIniValue(oIni, "Shadow", "Use", shadow.isChecked() ? "1" : "0");
                     String lod = lowTex.isChecked() ? "1" : "0";
                     GameData.setIniValue(oIni, "Texture", "LOD_Chr", lod);

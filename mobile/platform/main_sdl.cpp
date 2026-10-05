@@ -50,6 +50,9 @@ bool g_touchControls = false;
 bool g_inputDebug    = false; // KO_INPUT_DEBUG: dokunma/metin olaylarını stderr'e yaz
 bool g_showFps       = false; // [Mobile] ShowFps
 int g_renderScalePct = 100;   // [Mobile] RenderScale (25..100)
+int g_uiScalePct     = 100;   // [Mobile] UiScale (100|125|150): oyun içinde mantıksal yükseklik 768/ölçek
+int g_logicalHeightOverride = 0; // oyun içi arayüz ölçeği etkinken geçerli mantıksal yükseklik
+KoTouchOverlay::Tuning g_touchTuning;
 std::string g_clientDir;
 bool g_physicalShotPending = false;
 std::string g_physicalShotPath;
@@ -62,7 +65,15 @@ void UpdateLogicalSize()
 {
 	int dw = 1, dh = 1;
 	SDL_GL_GetDrawableSize(g_window, &dw, &dh);
-	if (g_mobileLogicalHeight > 0)
+	if (g_logicalHeightOverride > 0)
+	{
+		// Oyun içi arayüz ölçeği: daha düşük mantıksal yükseklik = daha büyük arayüz. Genişlik
+		// ekranın en-boy oranından (bant yok); oyun içi arayüz kenarlara göre konumlanır.
+		double aspect = (double) dw / (double) dh;
+		g_logicalH    = g_logicalHeightOverride;
+		g_logicalW    = std::max(1024, (int) (g_logicalH * aspect + 0.5));
+	}
+	else if (g_mobileLogicalHeight > 0)
 	{
 		// Oyunun arayüzü belirli çözünürlükler için tasarlanmış: 16:9 ve daha geniş ekranlarda
 		// 1366x768, daha dar (tablet 4:3 vb.) ekranlarda 1024x768. En-boy oranı korunur.
@@ -111,6 +122,12 @@ void LoadOptions(const std::string& iniPath)
 		g_mobileLogicalHeight = std::atoi(lh);
 	g_inputDebug = std::getenv("KO_INPUT_DEBUG") != nullptr || ini.GetBool("Mobile", "InputDebug", false);
 	g_showFps    = std::getenv("KO_SHOW_FPS") != nullptr || ini.GetBool("Mobile", "ShowFps", false);
+	g_uiScalePct = std::clamp(ini.GetInt("Mobile", "UiScale", 100), 100, 200);
+	g_touchTuning.camSens     = std::clamp(ini.GetInt("Mobile", "CameraSens", 100), 25, 400) / 100.0f;
+	g_touchTuning.joyDeadZone = std::clamp(ini.GetInt("Mobile", "JoyDeadZone", 22), 5, 60) / 100.0f;
+	g_touchTuning.longPressMs = (uint32_t) std::clamp(ini.GetInt("Mobile", "LongPressMs", 450), 200, 1500);
+	g_touchTuning.hpSlot      = std::clamp(ini.GetInt("Mobile", "PotHpSlot", 7), 1, 8);
+	g_touchTuning.mpSlot      = std::clamp(ini.GetInt("Mobile", "PotMpSlot", 8), 1, 8);
 	g_renderScalePct = std::clamp(ini.GetInt("Mobile", "RenderScale", 100), 25, 100);
 	if (const char* rs = std::getenv("KO_RENDER_SCALE"))
 		g_renderScalePct = std::clamp(std::atoi(rs), 25, 100);
@@ -507,6 +524,17 @@ int main(int argc, char** argv)
 	gl.getDrawableSize = HookDrawableSize;
 	d3d9gles::SetPlatformHooks(gl);
 	d3d9gles::SetRenderScale(g_renderScalePct / 100.0f);
+	{
+		// Dokunma hedefi en az ~48dp: fiziksel DPI → mantıksal piksel
+		float ddpi = 0.0f;
+		if (SDL_GetDisplayDPI(0, &ddpi, nullptr, nullptr) == 0 && ddpi > 0.0f)
+		{
+			float physPerLogical     = (float) g_presentH / (float) std::max(1, g_logicalH);
+			g_touchTuning.minTouchPx = (48.0f * ddpi / 160.0f) / std::max(0.01f, physPerLogical);
+			CLogWriter::Write("[touch] dpi {:.0f}, fiziksel/mantıksal {:.2f}, en az dokunma {:.0f} px", ddpi, physPerLogical, g_touchTuning.minTouchPx);
+		}
+		KoTouch().SetTuning(g_touchTuning);
+	}
 	d3d9gles::SetLogCallback([](const char* msg, void*) { CLogWriter::Write("[d3d9gles] {}", msg); }, nullptr);
 	KoSetMissingFileCallback([](const char* path, void*) { CLogWriter::Write("[dosya yok] {}", path); }, nullptr);
 	KoTouch().SetShowFps(g_showFps);
@@ -557,6 +585,25 @@ int main(int argc, char** argv)
 		PumpEvents();
 		KoTouch().Update();
 		KoWinsockPoll(OnSocketEvent);
+		// Oyun içi arayüz ölçeği (UiScale>100): ana sahneye geçerken mantıksal çözünürlüğü düşür,
+		// çıkarken geri al. Sahne değişimi anında (Init henüz çağrılmadan) yapılır ki arayüz yeni
+		// boyuta göre kurulsun.
+		if (g_uiScalePct > 100 && CGameProcedure::s_pProcActive != CGameProcedure::s_pProcPrev)
+		{
+			bool wantScaled = CGameProcedure::s_pProcActive == (CGameProcedure*) CGameProcedure::s_pProcMain;
+			int want        = wantScaled ? std::max(480, g_mobileLogicalHeight * 100 / g_uiScalePct) : 0;
+			if (want != g_logicalHeightOverride && g_mobileLogicalHeight > 0)
+			{
+				g_logicalHeightOverride = want;
+				UpdateLogicalSize();
+				CN3Base::s_Options.iViewWidth  = g_logicalW;
+				CN3Base::s_Options.iViewHeight = g_logicalH;
+				if (CGameProcedure::s_pEng)
+					CGameProcedure::s_pEng->Reset(CN3Base::s_Options.bWindowMode, (uint32_t) g_logicalW, (uint32_t) g_logicalH, 32);
+				KoTouch().Layout(g_logicalW, g_logicalH);
+				CLogWriter::Write("[ui] arayüz ölçeği %{}: mantıksal {}x{}", wantScaled ? g_uiScalePct : 100, g_logicalW, g_logicalH);
+			}
+		}
 		if (CGameProcedure::s_bReconnectLogInRequested)
 		{
 			// "Disconnected" kutusunda OK: giriş sahnesini kapat ve yeniden başlat (Init yeniden bağlanır)

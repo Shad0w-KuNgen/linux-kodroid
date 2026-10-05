@@ -139,6 +139,26 @@ void KoTouchOverlay::Layout(int w, int h)
 	for (int i = 0; i < n; ++i)
 		rect(bar[i].dik, bar[i].label, x0 + i * (bw + gap), y0, bw, bh);
 
+	// --- HP / MP pot düğmeleri (kısayol yuvası ayarlanabilir) ---
+	const int slotKeys[8] = {KM_HOTKEY1, KM_HOTKEY2, KM_HOTKEY3, KM_HOTKEY4, KM_HOTKEY5, KM_HOTKEY6, KM_HOTKEY7, KM_HOTKEY8};
+	int hp = std::clamp(m_tuning.hpSlot, 1, 8) - 1, mp = std::clamp(m_tuning.mpSlot, 1, 8) - 1;
+	circle(Action::Key, slotKeys[hp], "HP", w - 300.0f * u, h - 150.0f * u, 24.0f * u, 0x90A02828);
+	circle(Action::Key, slotKeys[mp], "MP", w - 300.0f * u, h - 92.0f * u, 24.0f * u, 0x902848A0);
+
+	// --- En az dokunma boyutu (~48dp): küçük düğmeleri büyüt ---
+	if (m_tuning.minTouchPx > 0.0f)
+	{
+		float minR = m_tuning.minTouchPx / 2.0f;
+		for (Button& b : m_buttons)
+		{
+			if (b.shape == Shape::Rect)
+				b.h = std::max(b.h, m_tuning.minTouchPx);
+			else
+				b.r = std::max(b.r, minR);
+		}
+		m_joyR = std::max(m_joyR, m_tuning.minTouchPx * 1.4f);
+	}
+
 	for (CDFont* f : m_fonts)
 		delete f;
 	m_fonts.clear();
@@ -235,6 +255,11 @@ void KoTouchOverlay::OnFingerMotion(int64_t id, int x, int y)
 			}
 			break;
 		case Role::Camera:
+			// Kamera hassasiyeti: parmağın başlangıca göre kaymasını çarpanla ilet (oyun kare
+			// farkını kullanır, mutlak ölçekleme aynı sonucu verir)
+			in.mouseX = f->startX + (int) std::lround((x - f->startX) * m_tuning.camSens);
+			in.mouseY = f->startY + (int) std::lround((y - f->startY) * m_tuning.camSens);
+			break;
 		case Role::LeftDrag:
 			in.mouseX = x;
 			in.mouseY = y;
@@ -291,6 +316,22 @@ void KoTouchOverlay::Update()
 {
 	KoInputState& in = KoInput();
 	std::memset(in.virtualKeysDIK, 0, sizeof(in.virtualKeysDIK));
+
+	// Uzun basış (parmak kıpırdamadan): sağ tık = NPC ile konuş / ceset-kutu aç / nesne olayı.
+	// Çift dokunuş zaten iki hızlı sol tık → oyunun çift tık = hedefe saldır davranışı.
+	{
+		uint32_t now = timeGetTime();
+		for (Finger& f : m_fingers)
+		{
+			if (f.role != Role::Pending)
+				continue;
+			if (now - f.downTicks >= m_tuning.longPressMs && std::abs(f.x - f.startX) <= TAP_SLOP && std::abs(f.y - f.startY) <= TAP_SLOP)
+			{
+				in.taps.push_back({f.x, f.y, true});
+				f.role = Role::Done;
+			}
+		}
+	}
 	if (!m_enabled)
 		return;
 
@@ -309,7 +350,7 @@ void KoTouchOverlay::Update()
 			}
 			m_knobX = m_joyCx + dx;
 			m_knobY = m_joyCy + dy;
-			if (len > m_joyR * 0.22f)
+			if (len > m_joyR * m_tuning.joyDeadZone)
 			{
 				float nx = dx / len, ny = dy / len;
 				if (ny < -0.35f) in.virtualKeysDIK[KM_MOVE_FOWARD] = 0x80;

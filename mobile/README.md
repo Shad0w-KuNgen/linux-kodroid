@@ -169,6 +169,21 @@ Yazı tipi için `<veri>/fonts/default.ttf` koyun (yoksa `/system/fonts/` deneni
   `[Shadow] Use`, `[Texture] LOD_*` (düşük doku kalitesi). Hepsi launcher Ayarlar'da.
   Ortam: `KO_SHOW_FPS`, `KO_RENDER_SCALE`.
 
+### Dokunmatik kontroller (oyun içi)
+
+- Sol yarı: parmağın bastığı yerde beliren joystick (W/S ileri-geri, A/D dönüş; ölü bölge
+  `JoyDeadZone`). Serbest alanda sürükleme: kamera (sağ tuş sürüklemesi, hız `CameraSens`);
+  iki parmak: yakınlaştırma.
+- Tek dokunuş = sol tık (yürü / hedef seç / arayüz). Çift dokunuş = oyunun çift tıkı = hedefe
+  saldır. Uzun basış (`LongPressMs`, varsayılan 450 ms) = sağ tık: NPC ile konuş, ceset/kutu aç,
+  nesne olayı.
+- Sağ alt: SALDIR (R), HEDEF (Z), 8 beceri yuvası (1-8), HP/MP pot düğmeleri (ayarlanan yuvaya
+  basar: `PotHpSlot`/`PotMpSlot`). Sağ üst: kamera kümesi. Alt çubuk: Çanta, Karakter, Beceri,
+  Otur, Harita, Al, Sohbet (Enter → klavye açılır, Enter gönderir), Menü.
+- Düğme boyutu fiziksel DPI'dan hesaplanır (en az ~48dp). `UiScale=125|150` oyun içi mantıksal
+  yüksekliği 768/ölçek yapar (arayüz pencereleri ve yazılar büyür); giriş/karakter ekranları 768'de
+  kalır. Hepsi launcher Ayarlar'da.
+
 ### Ekran klavyesi
 
 SDL 2.30 metin girişini açılışta "aktif" bırakır (klavye göstermeden); bu yüzden `SDL_IsTextInputActive()`

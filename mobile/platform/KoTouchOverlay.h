@@ -32,6 +32,19 @@ public:
 	/// Sol üstte FPS / çizim çağrısı sayacı (Ayarlar: ShowFps)
 	void SetShowFps(bool on) { m_showFps = on; }
 
+	/// Ayarlanabilir davranış (Option.ini [Mobile])
+	struct Tuning
+	{
+		float camSens        = 1.0f;  // kamera sürükleme hızı çarpanı (CameraSens %)
+		float joyDeadZone    = 0.22f; // joystick ölü bölge (yarıçap oranı, JoyDeadZone %)
+		uint32_t longPressMs = 450;   // uzun basış = sağ tık (NPC ile konuş / eşya al)
+		int hpSlot           = 7;     // HP pot düğmesinin bastığı kısayol yuvası (1..8)
+		int mpSlot           = 8;     // MP pot düğmesinin bastığı kısayol yuvası (1..8)
+		float minTouchPx     = 0.0f;  // düğmeler için en az dokunma boyutu (mantıksal piksel, ~48dp)
+	};
+	void SetTuning(const Tuning& t) { m_tuning = t; }
+	const Tuning& GetTuning() const { return m_tuning; }
+
 	/// Mantıksal (oyun) çözünürlüğüne göre düzeni kur
 	void Layout(int logicalW, int logicalH);
 
@@ -62,7 +75,7 @@ private:
 		int64_t finger = -1;
 		bool fired     = false;
 	};
-	enum class Role { None, Joystick, Button, Pending, Camera, LeftDrag };
+	enum class Role { None, Joystick, Button, Pending, Camera, LeftDrag, Done };
 	struct Finger
 	{
 		int64_t id;
@@ -84,6 +97,7 @@ private:
 
 	bool m_enabled      = false;
 	bool m_showFps      = false;
+	Tuning m_tuning;
 	uint32_t m_fpsLastTick = 0;
 	int m_fpsFrames        = 0;
 	float m_fpsValue       = 0.0f;
