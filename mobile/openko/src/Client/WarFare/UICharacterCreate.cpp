@@ -73,6 +73,21 @@ static bool IDEquals(const CN3UIBase* p, const char* szID)
 	return p != nullptr && strcasecmp(p->m_szID.c_str(), szID) == 0;
 }
 
+// 2369 oluşturma ekranı (re_charactercreate.uif) denetimleri Group_name / Group_class / Group_race altında:
+// alt ağaçta özyinelemeli, büyük/küçük harf duyarsız arama
+template <typename T>
+static T* FindDeep(const CN3UIBase* pParent, const std::string& szID)
+{
+	if (pParent == nullptr)
+		return nullptr;
+	if (T* p = pParent->GetChildByID<T>(szID))
+		return p;
+	for (CN3UIBase* pChild : pParent->GetChildren())
+		if (T* p = FindDeep<T>(pChild, szID))
+			return p;
+	return nullptr;
+}
+
 bool CUICharacterCreate::Load(File& file)
 {
 	if (!CN3UIBase::Load(file))
@@ -80,8 +95,8 @@ bool CUICharacterCreate::Load(File& file)
 
 	// 2369 arayüzü için teşhis: temel denetimler yoksa alt ağacı Log.txt'ye dök
 	{
-		CN3UIBase* pCreate = GetChildByID("btn_create");
-		CN3UIBase* pName   = GetChildByID("edit_name");
+		CN3UIBase* pCreate = FindDeep<CN3UIButton>(this, "btn_create");
+		CN3UIBase* pName   = FindDeep<CN3UIEdit>(this, "edit_name");
 		if (pCreate == nullptr || pName == nullptr)
 		{
 			std::string szTree;
@@ -105,11 +120,11 @@ bool CUICharacterCreate::Load(File& file)
 	pInfoBase->eRace            = RACE_UNKNOWN;
 	pInfoBase->eClass           = CLASS_UNKNOWN;
 
-	N3_VERIFY_UI_COMPONENT(m_pEdit_Name, GetChildByID<CN3UIEdit>("edit_name"));
+	N3_VERIFY_UI_COMPONENT(m_pEdit_Name, FindDeep<CN3UIEdit>(this, "edit_name"));
 	if (m_pEdit_Name != nullptr)
 		m_pEdit_Name->SetString("");
 
-	N3_VERIFY_UI_COMPONENT(m_pStr_Desc, GetChildByID<CN3UIString>("text_desc"));
+	N3_VERIFY_UI_COMPONENT(m_pStr_Desc, FindDeep<CN3UIString>(this, "text_desc"));
 	e_Nation eNation = pInfoBase->eNation;
 	if (m_pStr_Desc != nullptr)
 	{
@@ -125,7 +140,7 @@ bool CUICharacterCreate::Load(File& file)
 		}
 	}
 
-	N3_VERIFY_UI_COMPONENT(m_pArea_Character, GetChildByID<CN3UIArea>("area_character"));
+	N3_VERIFY_UI_COMPONENT(m_pArea_Character, FindDeep<CN3UIArea>(this, "area_character"));
 
 	std::string szTexts[MAX_STATS] = { "text_str", "text_sta", "text_dex", "text_int", "text_map" };
 	std::string szAreas[MAX_STATS] = { "area_str", "area_sta", "area_dex", "area_int", "area_map" };
@@ -133,20 +148,20 @@ bool CUICharacterCreate::Load(File& file)
 	uint32_t dwResrcIDs[MAX_STATS] = { IDS_NEWCHR_POW, IDS_NEWCHR_STA, IDS_NEWCHR_DEX, IDS_NEWCHR_INT, IDS_NEWCHR_MAP };
 	for (int i = 0; i < MAX_STATS; i++)
 	{
-		N3_VERIFY_UI_COMPONENT(m_pStr_Stats[i], GetChildByID<CN3UIString>(szTexts[i]));
-		N3_VERIFY_UI_COMPONENT(m_pArea_Stats[i], GetChildByID<CN3UIArea>(szAreas[i]));
-		N3_VERIFY_UI_COMPONENT(m_pStr_Stat_Labels[i], GetChildByID<CN3UIString>(szImgs[i]));
+		N3_VERIFY_UI_COMPONENT(m_pStr_Stats[i], FindDeep<CN3UIString>(this, szTexts[i]));
+		N3_VERIFY_UI_COMPONENT(m_pArea_Stats[i], FindDeep<CN3UIArea>(this, szAreas[i]));
+		N3_VERIFY_UI_COMPONENT(m_pStr_Stat_Labels[i], FindDeep<CN3UIString>(this, szImgs[i]));
 
 		if (m_pArea_Stats[i] != nullptr)
 			m_pArea_Stats[i]->SetTooltipText(fmt::format_text_resource(dwResrcIDs[i]));
 	}
 
-	N3_VERIFY_UI_COMPONENT(m_pStr_Bonus, GetChildByID<CN3UIString>("text_bonus"));
+	N3_VERIFY_UI_COMPONENT(m_pStr_Bonus, FindDeep<CN3UIString>(this, "text_bonus"));
 
-	N3_VERIFY_UI_COMPONENT(m_pBtn_Face_Left, GetChildByID<CN3UIButton>("btn_face_left"));
-	N3_VERIFY_UI_COMPONENT(m_pBtn_Face_Right, GetChildByID<CN3UIButton>("btn_face_right"));
-	N3_VERIFY_UI_COMPONENT(m_pBtn_Hair_Left, GetChildByID<CN3UIButton>("btn_hair_left"));
-	N3_VERIFY_UI_COMPONENT(m_pBtn_Hair_Right, GetChildByID<CN3UIButton>("btn_hair_right"));
+	N3_VERIFY_UI_COMPONENT(m_pBtn_Face_Left, FindDeep<CN3UIButton>(this, "btn_face_left"));
+	N3_VERIFY_UI_COMPONENT(m_pBtn_Face_Right, FindDeep<CN3UIButton>(this, "btn_face_right"));
+	N3_VERIFY_UI_COMPONENT(m_pBtn_Hair_Left, FindDeep<CN3UIButton>(this, "btn_hair_left"));
+	N3_VERIFY_UI_COMPONENT(m_pBtn_Hair_Right, FindDeep<CN3UIButton>(this, "btn_hair_right"));
 
 	std::string szBtnIDs[MAX_RACE_SELECT];
 	uint32_t dwResrcID_Races[MAX_RACE_SELECT];
@@ -178,7 +193,7 @@ bool CUICharacterCreate::Load(File& file)
 	{
 		if (szBtnIDs[i].empty())
 			continue;
-		N3_VERIFY_UI_COMPONENT(m_pBtn_Races[i], GetChildByID<CN3UIButton>(szBtnIDs[i]));
+		N3_VERIFY_UI_COMPONENT(m_pBtn_Races[i], FindDeep<CN3UIButton>(this, szBtnIDs[i]));
 
 		if (m_pBtn_Races[i] != nullptr)
 			m_pBtn_Races[i]->SetTooltipText(fmt::format_text_resource(dwResrcID_Races[i]));
@@ -204,8 +219,8 @@ bool CUICharacterCreate::Load(File& file)
 
 	for (int i = 0; i < MAX_CLASS_SELECT; i++)
 	{
-		N3_VERIFY_UI_COMPONENT(m_pBtn_Classes[i], GetChildByID<CN3UIButton>(szBtns[i]));
-		N3_VERIFY_UI_COMPONENT(m_pImg_Disable_Classes[i], GetChildByID<CN3UIImage>(szImgs2[i]));
+		N3_VERIFY_UI_COMPONENT(m_pBtn_Classes[i], FindDeep<CN3UIButton>(this, szBtns[i]));
+		N3_VERIFY_UI_COMPONENT(m_pImg_Disable_Classes[i], FindDeep<CN3UIImage>(this, szImgs2[i]));
 
 		if (m_pBtn_Classes[i] != nullptr)
 			m_pBtn_Classes[i]->SetTooltipText(fmt::format_text_resource(dwResrcID_Classes[i]));
