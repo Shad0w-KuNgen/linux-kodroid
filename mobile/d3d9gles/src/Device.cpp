@@ -361,10 +361,22 @@ void DeviceImpl::InitGL()
 	caps                   = {};
 	caps.DeviceType        = D3DDEVTYPE_HAL;
 	caps.DevCaps           = D3DDEVCAPS_HWTRANSFORMANDLIGHT;
-	caps.PrimitiveMiscCaps = D3DPMISCCAPS_CULLNONE | D3DPMISCCAPS_CULLCW | D3DPMISCCAPS_CULLCCW;
-	caps.RasterCaps        = D3DPRASTERCAPS_FOGVERTEX | D3DPRASTERCAPS_FOGTABLE | D3DPRASTERCAPS_ZBIAS;
-	caps.TextureCaps       = D3DPTEXTURECAPS_PERSPECTIVE | D3DPTEXTURECAPS_ALPHA | D3DPTEXTURECAPS_MIPMAP;
-	caps.TextureOpCaps     = D3DTEXOPCAPS_DISABLE | D3DTEXOPCAPS_SELECTARG1 | D3DTEXOPCAPS_SELECTARG2 | D3DTEXOPCAPS_MODULATE | D3DTEXOPCAPS_ADD;
+	// D3DPMISCCAPS_BLENDOP şart: CN3Terrain::TestAvailableTile bunu (ve >=3 aşama) görmezse arazi
+	// tek geçişli 3 aşamalı karışım yerine iki geçişli ZERO/SRCCOLOR yoluna düşüyordu (yarım çizim).
+	caps.PrimitiveMiscCaps = D3DPMISCCAPS_CULLNONE | D3DPMISCCAPS_CULLCW | D3DPMISCCAPS_CULLCCW | D3DPMISCCAPS_BLENDOP
+							 | D3DPMISCCAPS_MASKZ | D3DPMISCCAPS_COLORWRITEENABLE | D3DPMISCCAPS_TSSARGTEMP;
+	caps.RasterCaps        = D3DPRASTERCAPS_FOGVERTEX | D3DPRASTERCAPS_FOGTABLE | D3DPRASTERCAPS_ZBIAS | D3DPRASTERCAPS_FOGRANGE
+							 | D3DPRASTERCAPS_ZTEST | D3DPRASTERCAPS_MIPMAPLODBIAS | D3DPRASTERCAPS_WFOG | D3DPRASTERCAPS_SCISSORTEST;
+	caps.ZCmpCaps          = 0xFF;  // tüm karşılaştırmalar
+	caps.SrcBlendCaps      = 0x1FFF;
+	caps.DestBlendCaps     = 0x1FFF;
+	caps.AlphaCmpCaps      = 0xFF;
+	caps.ShadeCaps         = D3DPSHADECAPS_COLORGOURAUDRGB | D3DPSHADECAPS_SPECULARGOURAUDRGB | D3DPSHADECAPS_ALPHAGOURAUDBLEND | D3DPSHADECAPS_FOGGOURAUD;
+	caps.TextureCaps       = D3DPTEXTURECAPS_PERSPECTIVE | D3DPTEXTURECAPS_ALPHA | D3DPTEXTURECAPS_MIPMAP | D3DPTEXTURECAPS_PROJECTED;
+	caps.TextureFilterCaps = 0x03030300; // MIN/MAG/MIP point+linear
+	caps.TextureAddressCaps = D3DPTADDRESSCAPS_WRAP | D3DPTADDRESSCAPS_MIRROR | D3DPTADDRESSCAPS_CLAMP | D3DPTADDRESSCAPS_INDEPENDENTUV;
+	caps.StencilCaps       = 0xFF;
+	caps.TextureOpCaps     = 0x03FFFFFF; // tüm fixed-function işlemleri (shader üretir)
 	caps.MaxTextureWidth = caps.MaxTextureHeight = (DWORD) maxTextureSize;
 	caps.MaxTextureAspectRatio  = (DWORD) maxTextureSize;
 	caps.MaxTextureRepeat       = 8192;
@@ -437,8 +449,20 @@ ProgramKey DeviceImpl::BuildKey(const FvfLayout& layout)
 		const StageState& st = stages[i];
 		if (st.colorOp == D3DTOP_DISABLE)
 			break;
-		bool refsTex = ((st.colorArg1 & D3DTA_SELECTMASK) == D3DTA_TEXTURE) || ((st.colorArg2 & D3DTA_SELECTMASK) == D3DTA_TEXTURE)
-					   || (st.alphaOp != D3DTOP_DISABLE && (((st.alphaArg1 & D3DTA_SELECTMASK) == D3DTA_TEXTURE) || ((st.alphaArg2 & D3DTA_SELECTMASK) == D3DTA_TEXTURE)));
+		// Yalnız işlemin gerçekten kullandığı argümanlar sayılır (SELECTARG1 → arg1, SELECTARG2 → arg2);
+		// aksi halde varsayılan alphaArg1=TEXTURE yüzünden dokusuz "CURRENT × DIFFUSE" aşaması
+		// (arazi aydınlatması) zinciri bitiriyordu.
+		auto usesTex = [](DWORD op, DWORD a1, DWORD a2) {
+			if (op == D3DTOP_DISABLE)
+				return false;
+			bool t1 = (a1 & D3DTA_SELECTMASK) == D3DTA_TEXTURE, t2 = (a2 & D3DTA_SELECTMASK) == D3DTA_TEXTURE;
+			if (op == D3DTOP_SELECTARG1)
+				return t1;
+			if (op == D3DTOP_SELECTARG2)
+				return t2;
+			return t1 || t2;
+		};
+		bool refsTex = usesTex(st.colorOp, st.colorArg1, st.colorArg2) || usesTex(st.alphaOp, st.alphaArg1, st.alphaArg2);
 		if (refsTex && textures[i] == nullptr)
 			break; // D3D (ve Wine) davranışı: dokusu olmayan aşamada zincir biter
 		k.stage[n].colorOp       = (uint8_t) st.colorOp;

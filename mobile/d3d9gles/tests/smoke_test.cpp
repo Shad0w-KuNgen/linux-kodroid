@@ -356,6 +356,94 @@ static void TestMipLoadSurface(IDirect3DDevice9* dev)
 	tex->Release();
 }
 
+
+// Arazi (CN3TerrainPatch) 3 aşamalı karışım: aşama0 SELECTARG1(TEXTURE), aşama1 ADD(TEXTURE, CURRENT),
+// aşama2 MODULATE(CURRENT, DIFFUSE) ve aşama 2'de doku yok. İki doku koordinat seti (FVF TEX2).
+struct VtxRhwTex2
+{
+	float x, y, z, rhw;
+	D3DCOLOR color;
+	float u0, v0, u1, v1;
+};
+
+static IDirect3DTexture9* SolidTexture(IDirect3DDevice9* dev, D3DCOLOR c)
+{
+	IDirect3DTexture9* tex = nullptr;
+	dev->CreateTexture(2, 2, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr);
+	if (!tex)
+		return nullptr;
+	D3DLOCKED_RECT lr;
+	tex->LockRect(0, &lr, nullptr, 0);
+	for (int y = 0; y < 2; ++y)
+	{
+		uint32_t* p = (uint32_t*) ((uint8_t*) lr.pBits + y * lr.Pitch);
+		p[0] = p[1] = c;
+	}
+	tex->UnlockRect(0);
+	return tex;
+}
+
+static void TestTerrainStages(IDirect3DDevice9* dev)
+{
+	std::printf("[test] Arazi 3 aşamalı doku karışımı (SELECTARG1 / ADD / MODULATE DIFFUSE, aşama 2 dokusuz)\n");
+	D3DCAPS9 caps;
+	dev->GetDeviceCaps(&caps);
+	CHECK(caps.MaxTextureBlendStages >= 3, "MaxTextureBlendStages=%u (>=3 olmalı)", caps.MaxTextureBlendStages);
+	CHECK((caps.PrimitiveMiscCaps & D3DPMISCCAPS_BLENDOP) != 0, "D3DPMISCCAPS_BLENDOP yok (arazi iki geçişe düşer)");
+
+	dev->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
+	IDirect3DTexture9* t0 = SolidTexture(dev, 0xFF400000); // R 64
+	IDirect3DTexture9* t1 = SolidTexture(dev, 0xFF004000); // G 64
+	dev->SetTexture(0, t0);
+	dev->SetTexture(1, t1);
+	dev->SetTexture(2, nullptr);
+	dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+	dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+	dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_ADD);
+	dev->SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	dev->SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_CURRENT);
+	dev->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+	dev->SetTextureStageState(1, D3DTSS_ALPHAARG2, D3DTA_CURRENT);
+	dev->SetTextureStageState(2, D3DTSS_COLOROP, D3DTOP_MODULATE);
+	dev->SetTextureStageState(2, D3DTSS_COLORARG1, D3DTA_CURRENT);
+	dev->SetTextureStageState(2, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	dev->SetTextureStageState(2, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+	dev->SetTextureStageState(2, D3DTSS_ALPHAARG2, D3DTA_CURRENT);
+	dev->SetTextureStageState(3, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+	dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+	dev->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+	dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX2);
+	D3DCOLOR half = D3DCOLOR_XRGB(128, 128, 128); // diffuse = 0.5
+	VtxRhwTex2 quad[4] = {
+		{0, 0, 0.5f, 1, half, 0, 0, 0, 0}, {(float) W, 0, 0.5f, 1, half, 1, 0, 1, 0},
+		{0, (float) H, 0.5f, 1, half, 0, 1, 0, 1}, {(float) W, (float) H, 0.5f, 1, half, 1, 1, 1, 1}};
+	dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(VtxRhwTex2));
+	unsigned char px[4];
+	ReadPixel(W / 2, H / 2, px);
+	// (64 + 0) * 0.5 = 32 kırmızı, (0 + 64) * 0.5 = 32 yeşil
+	CHECK(Near(px[0], 32) && Near(px[1], 32) && Near(px[2], 0), "beklenen ~(32,32,0), okunan %d %d %d", px[0], px[1], px[2]);
+
+	// Aynı durum, aşama 2 ile aynı sonucu vermeli; aşama 1 kapalıyken yalnız doku0 * diffuse
+	dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+	dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(VtxRhwTex2));
+	ReadPixel(W / 2, H / 2, px);
+	CHECK(Near(px[0], 32) && Near(px[1], 0), "tek aşama: beklenen ~(32,0,0), okunan %d %d %d", px[0], px[1], px[2]);
+
+	dev->SetTexture(0, nullptr);
+	dev->SetTexture(1, nullptr);
+	dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+	dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	dev->SetTextureStageState(2, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	if (t0) t0->Release();
+	if (t1) t1->Release();
+}
+
 int main()
 {
 	// EGL başsız bağlam
@@ -412,6 +500,7 @@ int main()
 	TestAlphaBlendAndTest(dev);
 	TestVertexBufferDraw(dev);
 	TestMipLoadSurface(dev);
+	TestTerrainStages(dev);
 	dev->Present(nullptr, nullptr, nullptr, nullptr);
 
 	GLenum err = glGetError();
