@@ -1,3 +1,7 @@
 .claude/settings.local.json
 mobile/**/build/
 mobile/build*/
+
+# oyun/test çalıştırmalarının bıraktığı günlük
+Log.txt
+mobile/**/Log.txt
