@@ -174,12 +174,21 @@ Yazı tipi için `<veri>/fonts/default.ttf` koyun (yoksa `/system/fonts/` deneni
 - Sol yarı: parmağın bastığı yerde beliren joystick (W/S ileri-geri, A/D dönüş; ölü bölge
   `JoyDeadZone`). Serbest alanda sürükleme: kamera (sağ tuş sürüklemesi, hız `CameraSens`);
   iki parmak: yakınlaştırma.
-- Tek dokunuş = sol tık (yürü / hedef seç / arayüz). Çift dokunuş = oyunun çift tıkı = hedefe
-  saldır. Uzun basış (`LongPressMs`, varsayılan 450 ms) = sağ tık: NPC ile konuş, ceset/kutu aç,
-  nesne olayı.
-- Sağ alt: SALDIR (R), HEDEF (Z), 8 beceri yuvası (1-8), HP/MP pot düğmeleri (ayarlanan yuvaya
-  basar: `PotHpSlot`/`PotMpSlot`). Sağ üst: kamera kümesi. Alt çubuk: Çanta, Karakter, Beceri,
-  Otur, Harita, Al, Sohbet (Enter → klavye açılır, Enter gönderir), Menü.
+- Tek dokunuş = sol tık (yürü / hedef seç / arayüz). 3D dünyada çift dokunuş = oyunun çift tıkı
+  = hedefe saldır; uzun basış (`LongPressMs`, varsayılan 450 ms) = sağ tık: NPC ile konuş,
+  ceset/kutu aç, kapı/nesne olayı.
+- Arayüz pencereleri üstünde (çanta, beceri, skill bar, ticaret, depo, pazar, ekipman):
+  sürükleme = sol tuş sürüklemesi (ikon taşıma, pencere taşıma, kaydırma çubuğu; LBCLICK ve ilk
+  LBDOWN ikonun üstünde iki kare tutulur); uzun basış = ikonu tut, parmak kıpırdamadan kalkarsa
+  **yapışkan taşıma** (ipucu çıkar, sonraki dokunuş ikonu oraya bırakır); çift dokunuş = sağ tık
+  (eşya kullan / giy, beceri kullan). Sayılabilir eşyalar ticaret/depo/pazarda bırakılınca oyunun
+  kendi adet penceresi açılır (klavye otomatik gelir).
+- Sağ alt: SALDIR (R), HEDEF (Z), PARTI (X), DOST (V), NPC (B), 8 beceri yuvası (1-8), S1..S8
+  beceri sayfası döngüsü (F1-F8), HP/MP pot düğmeleri (`PotHpSlot`/`PotMpSlot`). Joystick üstünde
+  OTO (E, sürekli yürüme). Sağ üst: kamera kümesi (F9, 180°, +/-, T koş). Alt çubuk: Çanta (I),
+  Karakter (U), Beceri (K), Otur (C), Harita (M), Al (F), Sohbet (Enter → klavye açılır, Enter
+  gönderir), Menü (H komut listesi), Yardım (F10), Kapat (ESC).
+- `ko_touch_test` (ctest): parmak olayı → kaplama → CLocalInput zincirini başsız doğrular.
 - Düğme boyutu fiziksel DPI'dan hesaplanır (en az ~48dp). `UiScale=125|150` oyun içi mantıksal
   yüksekliği 768/ölçek yapar (arayüz pencereleri ve yazılar büyür); giriş/karakter ekranları 768'de
   kalır. Hepsi launcher Ayarlar'da.

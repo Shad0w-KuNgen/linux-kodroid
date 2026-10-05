@@ -114,6 +114,8 @@ private:
 	float m_joyR = 0, m_joyHomeX = 0, m_joyHomeY = 0;
 	float m_joyCx = 0, m_joyCy = 0, m_knobX = 0, m_knobY = 0;
 	int64_t m_joyFinger = -1;
+	uint32_t m_lastTapTicks = 0; // çift dokunuş tespiti (arayüz ikonu: sağ tık = kullan/giy)
+	int m_lastTapX = -1000, m_lastTapY = -1000;
 	int m_skillPage     = 1;  // beceri çubuğu sayfası (F1..F8)
 	int m_pageKey       = 0;  // basılı tutulacak sayfa tuşu
 	int m_pageKeyFrames = 0;

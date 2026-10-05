@@ -24,6 +24,7 @@
 namespace
 {
 constexpr int TAP_SLOP           = 14;         // piksel: bundan az kayarsa "tık"
+constexpr uint32_t DOUBLE_TAP_MS = 450;        // arayüz ikonunda çift dokunuş = sağ tık
 constexpr uint32_t COL_JOY_BASE  = 0x38FFFFFF;
 constexpr uint32_t COL_JOY_RING  = 0x90E8D8A0;
 constexpr uint32_t COL_KNOB      = 0xA0FFFFFF;
@@ -350,8 +351,20 @@ void KoTouchOverlay::ReleaseFinger(Finger& f)
 			m_joyCy = m_knobY = m_joyHomeY;
 			break;
 		case Role::Pending:
-			in.taps.push_back({f.x, f.y, false}); // CLocalInput::Tick kare kare işler
+		{
+			// Arayüz ikonu üstünde çift dokunuş = sağ tık (KO'da eşya kullan / giy, beceri kullan;
+			// ICON_RUP aynı yuvada RBCLICK+RBCLICKED ister). 3D dünyada çift dokunuş = oyunun çift
+			// tıkı (hedefe saldır) olarak kalır.
+			uint32_t now  = timeGetTime();
+			bool dblTap   = (now - m_lastTapTicks) <= DOUBLE_TAP_MS && std::abs(f.x - m_lastTapX) <= TAP_SLOP * 2
+							&& std::abs(f.y - m_lastTapY) <= TAP_SLOP * 2;
+			bool overUI   = IsOverUI(f.x, f.y);
+			in.taps.push_back({f.x, f.y, dblTap && overUI}); // CLocalInput::Tick kare kare işler
+			m_lastTapTicks = dblTap ? 0 : now; // üçüncü dokunuş yeni dizi başlatsın
+			m_lastTapX     = f.x;
+			m_lastTapY     = f.y;
 			break;
+		}
 		case Role::Camera:
 			in.rbDown   = false;
 			m_pinchDist = 0.0f;

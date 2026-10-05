@@ -166,6 +166,18 @@ static void TestLongPressOnUIStickyDrag()
 	Frame();
 	Frame();
 
+	// Arayuz ikonunda cift dokunus = sag tik (esya kullan / giy)
+	std::printf("[test] arayuz ustunde cift dokunus = sag tik (RBCLICK + RBCLICKED ayni yerde)\n");
+	Reset();
+	KoTouch().OnFingerDown(4, 250, 250);
+	KoTouch().OnFingerUp(4, 250, 250);
+	KoTouch().OnFingerDown(5, 252, 251);
+	KoTouch().OnFingerUp(5, 252, 251);
+	int h1 = Frame(), h2 = Frame(), h3 = Frame(), h4 = Frame();
+	CHECK((h1 & MOUSE_LBCLICK) && (h2 & MOUSE_LBCLICKED), "ilk dokunus sol tik: 0x%X 0x%X", h1, h2);
+	CHECK((h3 & MOUSE_RBCLICK) && !(h3 & MOUSE_LBCLICK), "ikinci dokunus sag tik: 0x%X", h3);
+	CHECK((h4 & MOUSE_RBCLICKED) && g_li->MouseGetPos().x == 252, "sag tik birakma: 0x%X", h4);
+
 	CGameProcedure::s_pUIMgr = nullptr;
 	delete mgr; // cocuklari da siler
 }
