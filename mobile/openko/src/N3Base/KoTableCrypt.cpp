@@ -1,6 +1,7 @@
 // KoTableCrypt.cpp — bkz. KoTableCrypt.h
 #include "KoTableCrypt.h"
 
+#include <algorithm>
 #include <cstring>
 
 namespace
@@ -191,7 +192,7 @@ void KoTableXorDecrypt(uint8_t* pData, size_t nSize, uint16_t key_r, uint16_t c1
 	}
 }
 
-bool KoTableLayer2Decrypt(std::vector<uint8_t>& data, uint8_t* pPrefix)
+bool KoTableLayer2DecryptRaw(std::vector<uint8_t>& data)
 {
 	if (!KoTableIsLayer2(data.data(), data.size()))
 		return false;
@@ -203,11 +204,36 @@ bool KoTableLayer2Decrypt(std::vector<uint8_t>& data, uint8_t* pPrefix)
 		DesBlock(out.data() + i);
 	out.resize(length);
 	KoTableXorDecrypt(out.data(), out.size(), 0x0418, 0x8041, 0x1804);
-	if (out.size() < LAYER2_PREFIX || !KoTableHeaderLooksValid(out.data() + LAYER2_PREFIX, out.size() - LAYER2_PREFIX))
-		return false;
-	if (pPrefix)
-		memcpy(pPrefix, out.data(), LAYER2_PREFIX);
-	out.erase(out.begin(), out.begin() + LAYER2_PREFIX);
 	data.swap(out);
 	return true;
+}
+
+bool KoTableLayer2Decrypt(std::vector<uint8_t>& data, uint8_t* pPrefix, size_t* pPrefixLen)
+{
+	std::vector<uint8_t> out = data;
+	if (!KoTableLayer2DecryptRaw(out))
+		return false;
+	// Önek genelde 5 bayt; bazı tablolarda farklı (UIs_us vb.): geçerli başlığı 0..64 ofset arasında ara
+	size_t prefix = KoTableFindHeaderOffset(out.data(), out.size(), LAYER2_PREFIX);
+	if (prefix == (size_t) -1)
+		return false;
+	if (pPrefix)
+		memcpy(pPrefix, out.data(), std::min<size_t>(LAYER2_PREFIX, out.size()));
+	if (pPrefixLen)
+		*pPrefixLen = prefix;
+	out.erase(out.begin(), out.begin() + prefix);
+	data.swap(out);
+	return true;
+}
+
+size_t KoTableFindHeaderOffset(const uint8_t* pData, size_t nSize, size_t nPreferred)
+{
+	if (pData == nullptr)
+		return (size_t) -1;
+	if (nPreferred < nSize && KoTableHeaderLooksValid(pData + nPreferred, nSize - nPreferred))
+		return nPreferred;
+	for (size_t off = 0; off <= 64 && off < nSize; off++)
+		if (off != nPreferred && KoTableHeaderLooksValid(pData + off, nSize - off))
+			return off;
+	return (size_t) -1;
 }

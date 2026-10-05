@@ -6,6 +6,7 @@ Kullanım:
   tbl_tool.py dump  <dosya.tbl> [N]       # çözülen tabloyu CSV benzeri yazdır (ilk N satır)
   tbl_tool.py xor   <giriş> <çıkış>       # yalnız XOR katmanını çöz (ham baytlar)
   tbl_tool.py schema <dizin>              # tablo başına sütun türleri (harf: C B S W I D T F R) + ilk satır
+  tbl_tool.py hex   <dosya.tbl> [N]       # DES+XOR sonrası (önek dahil) ilk N baytın hex/ascii dökümü (teşhis)
 
 Katman 1 (tüm KO istemcileri): akış XOR'u, key_r=0x0816, c1=0x6081, c2=0x1608 (N3TableBaseImpl.cpp).
 Katman 2 (2xxx istemcileri, 2369/ISTIRAP dahil): ham dosya = [16 bayt sabit başlık][uint32 BE uzunluk]
@@ -52,18 +53,32 @@ def header_ok(d: bytes):
 LAYER2_PREFIX_LEN = 5  # çözülen veri: [uint32 ?][uint8 sütun sayısı] + standart tablo
 
 
+def find_header(d: bytes, preferred=LAYER2_PREFIX_LEN):
+    ok, why = header_ok(d[preferred:])
+    if ok:
+        return preferred, why
+    for off in range(0, min(65, len(d))):
+        ok, why = header_ok(d[off:])
+        if ok:
+            return off, why
+    return -1, header_ok(d[preferred:])[1]
+
+
 def decode(data: bytes):
+    ok0, why0 = header_ok(data)
+    if ok0:
+        return data, 'plain', why0
     if ko_tbl_des.is_layer2(data):
         d2 = ko_tbl_des.decrypt(data)
-        ok2, why2 = header_ok(d2[LAYER2_PREFIX_LEN:])
-        if ok2:
-            return d2[LAYER2_PREFIX_LEN:], 'des+xor', why2 + f' önek={d2[:LAYER2_PREFIX_LEN].hex()}'
-        return None, 'des?', f'DES çözüldü ama başlık geçersiz: {why2}; ilk16={d2[:16].hex()}'
+        off, why2 = find_header(d2)
+        if off >= 0:
+            return d2[off:], 'des+xor', why2 + f' önek={d2[:off].hex()} ({off} bayt)'
+        return None, 'des?', f'DES çözüldü ama başlık geçersiz: {why2}; ilk32={d2[:32].hex()}'
     d = xor_layer(data)
     ok, why = header_ok(d)
     if ok:
         return d, 'xor', why
-    return None, 'unknown', f'{why}; ilk16={d[:16].hex()} boyut%8={len(d) % 8}'
+    return None, 'unknown', f'{why}; ilk16={d[:16].hex()} ham16={data[:16].hex()} boyut%8={len(d) % 8}'
 
 
 def rows_of(d: bytes):
@@ -117,6 +132,19 @@ def cmd_schema(path):
         print(f'{os.path.basename(f)}: {"".join(LETTERS.get(t, "?") for t in types)} rows={rows} first={first[:12]}')
 
 
+def cmd_hex(path, n):
+    raw = open(path, 'rb').read()
+    if ko_tbl_des.is_layer2(raw):
+        d = ko_tbl_des.decrypt(raw)
+        print(f'# DES+XOR sonrası {len(d)} bayt (ham {len(raw)})')
+    else:
+        d = xor_layer(raw)
+        print(f'# katman-2 değil; XOR sonrası {len(d)} bayt; ham ilk16={raw[:16].hex()}')
+    for i in range(0, min(n, len(d)), 16):
+        chunk = d[i:i + 16]
+        print(f'{i:04x}  {chunk.hex(" "):48s}  {"".join(chr(b) if 32 <= b < 127 else "." for b in chunk)}')
+
+
 def cmd_dump(path, n):
     d, kind, why = decode(open(path, 'rb').read())
     if d is None:
@@ -143,6 +171,8 @@ def main(argv):
         open(argv[3], 'wb').write(xor_layer(open(argv[2], 'rb').read()))
     elif cmd == 'schema':
         cmd_schema(argv[2])
+    elif cmd == 'hex':
+        cmd_hex(argv[2], int(argv[3]) if len(argv) > 3 else 96)
     else:
         print(__doc__)
         return 2

@@ -22,7 +22,13 @@ bool KoTableIsLayer2(const uint8_t* pData, size_t nSize);
 
 // 2xxx DES katmanını çözer: data yerinde düz N3 tablosuna dönüşür (5 baytlık önek atılır). Başlık geçersizse false
 // (data değişmemiş kalır). pPrefix verilirse atılan 5 bayt oraya yazılır.
-bool KoTableLayer2Decrypt(std::vector<uint8_t>& data, uint8_t* pPrefix = nullptr);
+bool KoTableLayer2Decrypt(std::vector<uint8_t>& data, uint8_t* pPrefix = nullptr, size_t* pPrefixLen = nullptr);
+
+// DES + iç XOR (önek/başlık denetimi yok; teşhis ve araçlar için). Düzen uymazsa false.
+bool KoTableLayer2DecryptRaw(std::vector<uint8_t>& data);
+
+// Çözülmüş veride geçerli N3 başlığının ofseti (önce nPreferred, sonra 0..64 taraması); yoksa (size_t)-1.
+size_t KoTableFindHeaderOffset(const uint8_t* pData, size_t nSize, size_t nPreferred);
 
 // Klasik akış XOR katmanı (yerinde).
 void KoTableXorDecrypt(uint8_t* pData, size_t nSize, uint16_t key_r = 0x0816, uint16_t c1 = 0x6081, uint16_t c2 = 0x1608);

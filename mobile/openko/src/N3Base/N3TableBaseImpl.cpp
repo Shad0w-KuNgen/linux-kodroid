@@ -82,20 +82,41 @@ bool CN3TableBaseImpl::LoadFromFile(const std::string& szFN)
 	encryptedFile.Read(datas.data(), encryptedFileSize); // 암호화된 데이터 읽고..
 	encryptedFile.Close();                               // 원래 파일 닫고
 
-	if (KoTableIsLayer2(datas.data(), datas.size()))
+	if (KoTableHeaderLooksValid(datas.data(), datas.size()))
+	{
+		// Şifresiz tablo (bazı özel sunucu tabloları)
+#ifdef _N3GAME
+		CLogWriter::Write("N3TableBase - şifresiz tablo ({})", szFN);
+#endif
+	}
+	else if (KoTableIsLayer2(datas.data(), datas.size()))
 	{
 		// 2xxx (1886/2195/2369) verisi: DES katmanı + iç XOR; klasik XOR katmanı yok (KoTableCrypt.h)
-		uint8_t prefix[5] = {};
-		if (!KoTableLayer2Decrypt(datas, prefix))
+		uint8_t prefix[5]  = {};
+		size_t prefixLen   = 0;
+		std::vector<uint8_t> raw = datas;
+		if (!KoTableLayer2Decrypt(datas, prefix, &prefixLen))
 		{
 #ifdef _N3GAME
-			CLogWriter::Write("N3TableBase - 2xxx DES katmanı çözüldü ama başlık geçersiz ({})", szFN);
+			// Teşhis: çözülmüş verinin ilk 32 baytı (önek biçimi farklı olabilir)
+			std::vector<uint8_t> dec = raw;
+			std::string szHex;
+			if (KoTableLayer2DecryptRaw(dec))
+			{
+				char h[3];
+				for (size_t i = 0; i < 32 && i < dec.size(); i++)
+				{
+					snprintf(h, 3, "%02x", dec[i]);
+					szHex += h;
+				}
+			}
+			CLogWriter::Write("N3TableBase - 2xxx DES katmanı çözüldü ama başlık geçersiz ({}): ilk32={}", szFN, szHex);
 #endif
 			return false;
 		}
 #ifdef _N3GAME
-		CLogWriter::Write("N3TableBase - 2xxx DES katmanı çözüldü ({}, {} bayt, önek {:02x}{:02x}{:02x}{:02x}{:02x})", szFN,
-			datas.size(), prefix[0], prefix[1], prefix[2], prefix[3], prefix[4]);
+		CLogWriter::Write("N3TableBase - 2xxx DES katmanı çözüldü ({}, {} bayt, önek {} bayt {:02x}{:02x}{:02x}{:02x}{:02x})", szFN,
+			datas.size(), prefixLen, prefix[0], prefix[1], prefix[2], prefix[3], prefix[4]);
 #endif
 	}
 	else
