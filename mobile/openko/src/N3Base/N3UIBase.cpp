@@ -398,6 +398,7 @@ bool CN3UIBase::Load(File& file)
 	{
 		m_szID.assign(iIDLen, '\0');
 		file.Read(&m_szID[0], iIDLen); // ui id
+		N3TrimTrailingJunk(m_szID);    // 2xxx araçları ID'ye sonlandırıcı/boşluk ekleyebiliyor: GetChildByID eşleşsin
 	}
 	else
 	{
@@ -453,11 +454,12 @@ bool CN3UIBase::Load(File& file)
 		m_pSnd_CloseUI = s_SndMgr.CreateObj(szSoundFN, SNDTYPE_2D);
 	}
 
-	// 2xxx (düğüm sürümü >= 2): kapanış sesinden sonra 2 ek bayt (anlamı bilinmiyor; co_tooltip.uif'te 0)
+	// 2xxx: kapanış sesinden sonra düğüm sürümüne göre ek baytlar (anlamı bilinmiyor):
+	// v2 → 2 bayt (co_tooltip.uif'te 00 00), v3 → 3 bayt (el_login_intro_us / re_messagebox'ta 01 00 00)
 	if (m_iFileFormatVersion >= N3FORMAT_VER_1264 && m_sNodeVersion >= 2)
 	{
-		int16_t sExtra = 0;
-		file.Read(&sExtra, sizeof(int16_t));
+		uint8_t byExtra[4] = {};
+		file.Read(byExtra, N3UIExtraBytesForNodeVersion(m_sNodeVersion));
 	}
 
 	return true;

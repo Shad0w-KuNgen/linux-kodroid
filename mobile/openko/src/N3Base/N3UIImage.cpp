@@ -250,7 +250,9 @@ bool CN3UIImage::Load(File& file)
 	{
 		file.Read(szFName, iStrLen); // 파일 이름
 		szFName[iStrLen] = '\0';
-		SetTex(szFName);
+		std::string szTexFN(szFName);
+		N3TrimTrailingJunk(szTexFN); // 2xxx: sondaki '\0'/boşluk dosya aramasını bozmasın
+		SetTex(szTexFN);
 	}
 
 	file.Read(&m_frcUVRect, sizeof(m_frcUVRect)); // uv좌표

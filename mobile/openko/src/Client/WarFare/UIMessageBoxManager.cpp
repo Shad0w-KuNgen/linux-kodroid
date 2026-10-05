@@ -40,7 +40,18 @@ std::string CUIMessageBoxManager::MessageBoxPost(const std::string& szMsg, const
 
 		pTblUI = CGameBase::s_pTbl_UI.Find(NATION_ELMORAD);
 
-		pMB->LoadFromFile(pTblUI->szMessageBox);
+		bool bLoaded = pTblUI != nullptr && pMB->LoadFromFile(pTblUI->szMessageBox);
+		if (!bLoaded || !pMB->IsLoaded())
+		{
+			// Mesaj kutusu arayüzü yüklenemedi (ör. re_messagebox.uif biçimi): çökme yerine Log.txt + sistem kutusu
+			CLogWriter::Write("CUIMessageBoxManager: mesaj kutusu arayüzü yüklenemedi ({}); mesaj: [{}] {}",
+				pTblUI ? pTblUI->szMessageBox : std::string("UI tablosu yok"), szTitle, szMsg);
+			delete pMB;
+			::MessageBox(nullptr, szMsg.c_str(), szTitle.empty() ? "Knight OnLine" : szTitle.c_str(), MB_OK | MB_ICONERROR);
+			if (eBehavior == BEHAVIOR_EXIT)
+				::PostQuitMessage(0);
+			return szMsg;
+		}
 		pMB->SetVisible(false);
 		m_UBMs.insert(val_UBM(szMsg, pMB));
 	}

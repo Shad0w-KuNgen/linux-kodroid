@@ -5,12 +5,12 @@
   ui_tool.py extract <UI dizini> <ad> <çıkış>    # paketten tek dosya çıkar
   ui_tool.py istirap <dosya.istirap> <çıkış.uif> # Pearl Guard dcpUIF çözümü
   ui_tool.py info    <dosya>                      # ilk 64 baytın hex dökümü (UIF başlığı kontrolü)
-  ui_tool.py uif     <dosya.uif>                  # UIF ağacını yürü (düğüm sürümü 0/1/2); sapma noktasında hex bağlamı
+  ui_tool.py uif     <dosya.uif>                  # UIF ağacını yürü (düğüm sürümü 0/1/2/3); sapma noktasında hex bağlamı
   ui_tool.py uifall  <UI dizini>                  # paketteki tüm .uif'leri yürü, sorunluları listele
 
 Paket: ui.hdr = u32 kayıt sayısı, kayıt: u32 adUzunluk | ad | u32 ofset | u32 boyut.
-ui.src kaydı: u32 yolUzunluk | özgün yol | dosya baytları. Boyutun yol başlığını içerip içermediği ardışık
-kayıtlardan çıkarılır. .istirap: ilk 4 bayt düz; blok = boyut çiftse 32, tekse 31; her blok RC4 başından;
+ui.src kaydı: dosyanın ham baytları (başlık yok), ofset'ten itibaren boyut kadar; kayıtlar ardışık.
+.istirap: ilk 4 bayt düz; blok = boyut çiftse 32, tekse 31; her blok RC4 başından;
 anahtar = SHA1(parola[:29])[:16] (3 - AntiCheat-Source/Pearl Guard/Pearl.cpp LoadCrypto).
 """
 import hashlib
@@ -69,33 +69,18 @@ def load_index(uidir):
         pos += 8
         entries[name.lower()] = (name, off, size)
     srcpath = find(uidir, 'ui.src')
-    # boyut anlamı
-    ordered = sorted(entries.values(), key=lambda e: e[1])
-    includes_header = True
-    if len(ordered) >= 2:
-        with open(srcpath, 'rb') as f:
-            f.seek(ordered[0][1])
-            plen = struct.unpack('<I', f.read(4))[0]
-        if ordered[1][1] == ordered[0][1] + ordered[0][2]:
-            includes_header = True
-        elif ordered[1][1] == ordered[0][1] + 4 + plen + ordered[0][2]:
-            includes_header = False
-        else:
-            print(f'# uyarı: boyut anlamı çıkarılamadı (ofset1={ordered[1][1]}, ofset0+boyut={ordered[0][1] + ordered[0][2]}, yol={plen})')
-    return entries, srcpath, includes_header
+    return entries, srcpath
 
 
 def extract(uidir, name):
-    entries, srcpath, inc = load_index(uidir)
+    """Kaydı ham olarak çıkarır: ui.src[ofset : ofset+boyut] (başlık yok, ilk 4 bayt UIF'in kendi N3 ad uzunluğu)."""
+    entries, srcpath = load_index(uidir)
     e = entries.get(name.lower())
     if not e:
-        return None, None
+        return None
     with open(srcpath, 'rb') as f:
         f.seek(e[1])
-        plen = struct.unpack('<I', f.read(4))[0]
-        path = f.read(plen).decode('latin-1')
-        dlen = (e[2] - 4 - plen) if inc else e[2]
-        return f.read(dlen), path
+        return f.read(e[2])
 
 
 # ---- UIF (1264 biçimi) yürüyücü: OpenKO CN3UI*::Load okuma sırasının birebiri ----
@@ -145,7 +130,7 @@ class Walker:
         start = self.pos
         name = self.lstr('N3 ad', 256)
         cc = self.i16()
-        ver = self.i16()  # düğüm sürümü: 0 eski (string'de satır aralığı yok), 1 = 1264, 2 = 2xxx (+2 bayt)
+        ver = self.i16()  # düğüm sürümü: 0 eski (string'de satır aralığı yok), 1 = 1264, 2 = 2xxx (+2 bayt), 3 = 2369 (+3 bayt)
         self.ver = ver
         if cc < 0 or cc > 4096:
             raise UifError(f'çocuk sayısı {cc} @{self.pos - 4}')
@@ -160,8 +145,10 @@ class Walker:
         self.lstr('tooltip', 1024)
         self.lstr('ses açılış', 1024)
         self.lstr('ses kapanış', 1024)
-        if ver >= 2:
-            self.skip(2)
+        if ver == 2:
+            self.skip(2)  # kapanış sesinden sonra 2 ek bayt (co_tooltip: 00 00)
+        elif ver >= 3:
+            self.skip(3)  # 3 ek bayt (el_login_intro_us, re_messagebox: 01 00 00)
         self.lines.append('  ' * depth + f'{UI_TYPES[typ]} "{ident}" @{start} (v{ver}, {cc} çocuk)')
         return ident
 
@@ -205,7 +192,7 @@ def walk_bytes(d):
 
 
 def cmd_uifall(uidir):
-    entries, srcpath, inc = load_index(uidir)
+    entries, srcpath = load_index(uidir)
     ok = bad = 0
     with open(srcpath, 'rb') as f:
         for key, (name, off, size) in sorted(entries.items()):
@@ -248,19 +235,19 @@ def main(argv):
         return 2
     cmd = argv[1]
     if cmd == 'list':
-        entries, srcpath, inc = load_index(argv[2])
+        entries, srcpath = load_index(argv[2])
         flt = argv[3].lower() if len(argv) > 3 else ''
-        print(f'# {len(entries)} kayıt, boyut başlık {"dahil" if inc else "hariç"}, kaynak {srcpath}')
+        print(f'# {len(entries)} kayıt (ham, başlıksız), kaynak {srcpath}')
         for name, off, size in sorted(entries.values(), key=lambda e: e[0].lower()):
             if flt in name.lower():
                 print(f'{name:48s} ofset={off:>10d} boyut={size:>9d}')
     elif cmd == 'extract':
-        data, path = extract(argv[2], argv[3])
+        data = extract(argv[2], argv[3])
         if data is None:
             print('kayıt yok:', argv[3])
             return 1
         open(argv[4], 'wb').write(data)
-        print(f'{argv[3]} -> {argv[4]} ({len(data)} bayt, özgün yol {path})')
+        print(f'{argv[3]} -> {argv[4]} ({len(data)} bayt, ilk16={data[:16].hex()})')
     elif cmd == 'istirap':
         data = istirap_decrypt(open(argv[2], 'rb').read())
         open(argv[3], 'wb').write(data)

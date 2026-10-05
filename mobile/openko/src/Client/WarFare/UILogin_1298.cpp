@@ -11,6 +11,8 @@
 #include <N3Base/N3UIString.h>
 
 #include <algorithm>
+#include <cctype>
+#include <initializer_list>
 #include <shellapi.h>
 
 CUILogIn_1298::CUILogIn_1298()
@@ -172,22 +174,80 @@ bool CUILogIn_1298::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 	return false;
 }
 
+// Birden fazla ID adayından ilk bulunan çocuk (büyük/küçük harf duyarsız; 1.298 ve 2369/ISTIRAP adlandırması)
+static CN3UIBase* FindChildAlias(const CN3UIBase* pParent, std::initializer_list<const char*> ids)
+{
+	for (const char* szID : ids)
+	{
+		CN3UIBase* p = pParent->GetChildByID(szID);
+		if (p != nullptr)
+			return p;
+	}
+	return nullptr;
+}
+
+template <typename T>
+static T* FindChildAlias(const CN3UIBase* pParent, std::initializer_list<const char*> ids)
+{
+	for (const char* szID : ids)
+	{
+		T* p = pParent->GetChildByID<T>(szID);
+		if (p != nullptr)
+			return p;
+	}
+	return nullptr;
+}
+
 bool CUILogIn_1298::Load(File& file)
 {
 	if (!CN3UIBase::Load(file))
 		return false;
 
-	N3_VERIFY_UI_COMPONENT(m_pGroup_LogIn, GetChildByID("Group_LogIn"));
+	// ID araması zaten büyük/küçük harf duyarsız (GetChildByID → strncasecmp); 2369/ISTIRAP adları için takma adlar
+	N3_VERIFY_UI_COMPONENT(m_pGroup_LogIn, FindChildAlias(this, { "Group_LogIn", "Group_Login", "Group_Login_01" }));
 
 	if (m_pGroup_LogIn != nullptr)
 	{
-		N3_VERIFY_UI_COMPONENT(m_pBtn_LogIn, m_pGroup_LogIn->GetChildByID<CN3UIButton>("btn_ok"));
-		N3_VERIFY_UI_COMPONENT(m_pBtn_Cancel, m_pGroup_LogIn->GetChildByID<CN3UIButton>("btn_cancel"));
-		N3_VERIFY_UI_COMPONENT(m_pBtn_Option, m_pGroup_LogIn->GetChildByID<CN3UIButton>("btn_option"));
-		N3_VERIFY_UI_COMPONENT(m_pBtn_Join, m_pGroup_LogIn->GetChildByID<CN3UIButton>("btn_homepage"));
+		N3_VERIFY_UI_COMPONENT(m_pBtn_LogIn, FindChildAlias<CN3UIButton>(m_pGroup_LogIn, { "btn_ok", "btn_login", "btn_connect", "btn_enter" }));
+		N3_VERIFY_UI_COMPONENT(m_pBtn_Cancel, FindChildAlias<CN3UIButton>(m_pGroup_LogIn, { "btn_cancel", "btn_exit", "btn_close" }));
+		N3_VERIFY_UI_COMPONENT(m_pBtn_Option, FindChildAlias<CN3UIButton>(m_pGroup_LogIn, { "btn_option", "btn_options" }));
+		N3_VERIFY_UI_COMPONENT(m_pBtn_Join, FindChildAlias<CN3UIButton>(m_pGroup_LogIn, { "btn_homepage", "btn_join", "btn_register" }));
 
-		N3_VERIFY_UI_COMPONENT(m_pEdit_id, m_pGroup_LogIn->GetChildByID<CN3UIEdit>("Edit_ID"));
-		N3_VERIFY_UI_COMPONENT(m_pEdit_pw, m_pGroup_LogIn->GetChildByID<CN3UIEdit>("Edit_PW"));
+		N3_VERIFY_UI_COMPONENT(m_pEdit_id, FindChildAlias<CN3UIEdit>(m_pGroup_LogIn, { "Edit_ID", "edit_account", "edit_user", "edit_login" }));
+		N3_VERIFY_UI_COMPONENT(m_pEdit_pw, FindChildAlias<CN3UIEdit>(m_pGroup_LogIn, { "Edit_PW", "edit_password", "edit_pass", "edit_pwd" }));
+
+		// Takma adlar da tutmazsa türe/alt dizgeye göre sezgisel seçim: ilk "id/account" edit'i, ilk "pw/pass" edit'i,
+		// "ok/login/connect" düğmesi; her durumda grup çocukları Log.txt'ye (tür, ID, uzunluk)
+		if (m_pEdit_id == nullptr || m_pEdit_pw == nullptr || m_pBtn_LogIn == nullptr)
+		{
+			std::string szKids;
+			for (CN3UIBase* pChild : m_pGroup_LogIn->GetChildren())
+			{
+				if (pChild == nullptr)
+					continue;
+				szKids += std::to_string((int) pChild->UIType()) + ":" + pChild->m_szID + "(" + std::to_string(pChild->m_szID.size()) + ") ";
+				std::string szLower = pChild->m_szID;
+				for (char& c : szLower)
+					c = (char) tolower((unsigned char) c);
+				if (pChild->UIType() == UI_TYPE_EDIT)
+				{
+					bool bPw = szLower.find("pw") != std::string::npos || szLower.find("pass") != std::string::npos;
+					if (bPw && m_pEdit_pw == nullptr)
+						m_pEdit_pw = static_cast<CN3UIEdit*>(pChild);
+					else if (!bPw && m_pEdit_id == nullptr)
+						m_pEdit_id = static_cast<CN3UIEdit*>(pChild);
+				}
+				else if (pChild->UIType() == UI_TYPE_BUTTON && m_pBtn_LogIn == nullptr)
+				{
+					if (szLower.find("ok") != std::string::npos || szLower.find("login") != std::string::npos
+						|| szLower.find("connect") != std::string::npos || szLower.find("enter") != std::string::npos)
+						m_pBtn_LogIn = static_cast<CN3UIButton*>(pChild);
+				}
+			}
+			CLogWriter::Write("CUILogIn_1298::Load: {} '{}' çocukları (tür:ID(uzunluk)): {}| seçim: id={} pw={} ok={}", m_szFileName,
+				m_pGroup_LogIn->m_szID, szKids, m_pEdit_id ? m_pEdit_id->m_szID : "yok", m_pEdit_pw ? m_pEdit_pw->m_szID : "yok",
+				m_pBtn_LogIn ? m_pBtn_LogIn->m_szID : "yok");
+		}
 
 		m_pGroup_LogIn->SetVisible(true);
 	}
@@ -235,7 +295,7 @@ bool CUILogIn_1298::Load(File& file)
 	if (m_pStr_Premium != nullptr)
 		m_pStr_Premium->SetVisible(false);
 
-	N3_VERIFY_UI_COMPONENT(m_pGroup_ServerList, GetChildByID("Group_ServerList_01"));
+	N3_VERIFY_UI_COMPONENT(m_pGroup_ServerList, FindChildAlias(this, { "Group_ServerList_01", "Group_ServerList", "Group_Server" }));
 
 	if (m_pGroup_ServerList != nullptr)
 		m_pGroup_ServerList->SetVisible(false);
@@ -264,8 +324,9 @@ bool CUILogIn_1298::Load(File& file)
 	{
 		std::string szIDs;
 		for (CN3UIBase* pChild : m_Children)
-			szIDs += (pChild ? pChild->m_szID : std::string("?")) + " ";
-		CLogWriter::Write("CUILogIn_1298::Load: Group_LogIn/Group_ServerList bulunamadı ({}); çocuklar: {}", m_szFileName, szIDs);
+			szIDs += (pChild ? pChild->m_szID + "(" + std::to_string(pChild->m_szID.size()) + ")" : std::string("?")) + " ";
+		CLogWriter::Write("CUILogIn_1298::Load: Group_LogIn={} Group_ServerList={} ({}); çocuklar (ID(uzunluk)): {}",
+			m_pGroup_LogIn ? "var" : "YOK", m_pGroup_ServerList ? "var" : "YOK", m_szFileName, szIDs);
 	}
 
 	return true;

@@ -34,6 +34,8 @@ public:
 	void SetVisibleEditControl(bool bVisible); // Edit Control Visible
 	void SetTitle(const std::string& szTitle);
 	void SetText(const std::string& szMsg);
+	// Arayüz dosyası (re_messagebox.uif) yüklendi ve metin öğesi var mı? (yoksa SetText çöker)
+	bool IsLoaded() const { return m_pText_Message != nullptr; }
 	bool Load(File& file) override;
 	bool ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg) override;
 

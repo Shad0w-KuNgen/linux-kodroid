@@ -60,12 +60,14 @@ bool CUIMessageBox::Load(File& file)
 
 void CUIMessageBox::SetText(const std::string& szMsg)
 {
-	m_pText_Message->SetString(szMsg);
+	if (m_pText_Message != nullptr)
+		m_pText_Message->SetString(szMsg);
 }
 
 void CUIMessageBox::SetTitle(const std::string& szTitle)
 {
-	m_pText_Title->SetString(szTitle);
+	if (m_pText_Title != nullptr)
+		m_pText_Title->SetString(szTitle);
 }
 
 bool CUIMessageBox::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)

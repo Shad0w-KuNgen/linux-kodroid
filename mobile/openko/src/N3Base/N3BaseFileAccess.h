@@ -22,6 +22,27 @@ enum e_N3FormatVersion : uint16_t
 
 inline constexpr e_N3FormatVersion N3FORMAT_VER_DEFAULT = N3FORMAT_VER_1298;
 
+// UIF düğüm sürümüne göre kapanış sesinden sonraki ek bayt sayısı: v0/v1 yok, v2 → 2, v3 ve üstü → 3
+inline int N3UIExtraBytesForNodeVersion(int16_t sNodeVersion)
+{
+	if (sNodeVersion <= 1)
+		return 0;
+	return sNodeVersion == 2 ? 2 : 3;
+}
+
+// Sondaki '\0', boşluk ve satır sonlarını at (2xxx UIF araçlarının yazdığı ID/dosya adları)
+inline void N3TrimTrailingJunk(std::string& sz)
+{
+	while (!sz.empty())
+	{
+		char c = sz.back();
+		if (c == '\0' || c == ' ' || c == '\t' || c == '\r' || c == '\n')
+			sz.pop_back();
+		else
+			break;
+	}
+}
+
 class CN3BaseFileAccess : public CN3Base
 {
 protected:
@@ -32,7 +53,7 @@ protected:
 public:
 	uint32_t m_iFileFormatVersion;
 	// UIF düğüm sürümü (1264 başlığındaki int16 "idk"): 0 eski (string'de satır aralığı yok), 1 = 1264,
-	// 2 = 2xxx istemcileri (kapanış sesinden sonra 2 ek bayt). Her düğüm kendi değerini taşır.
+	// 2 = 2xxx (kapanış sesinden sonra 2 ek bayt), 3 = 2369 (3 ek bayt). Her düğüm kendi değerini taşır.
 	int16_t m_sNodeVersion = 1;
 	int m_iLOD; // 로딩할때 쓸 LOD
 

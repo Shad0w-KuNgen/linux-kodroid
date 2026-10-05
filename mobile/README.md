@@ -195,11 +195,16 @@ PC'de `scripts/ui_tool.py list|extract|istirap|info|uif` (`uif`: ağacı 1264 bi
 
 **2369 UIF biçimi:** 1264 başlığındaki `int16` "idk" alanı aslında düğüm sürümüdür ve her düğüm
 kendi değerini taşır: 0 = eski (string'de satır aralığı yok; ISTIRAP `re_login_intro`), 1 = 1264 (1.298
-verisinin tamamı), 2 = 2xxx (kapanış sesinden sonra 2 ek bayt; `co_tooltip.uif`). `CN3UIBase::Load`
-bu alanı `m_sNodeVersion` olarak saklar; `CN3UIString` satır aralığını sürüm 0'da okumaz. Doğrulama:
-`ui_tool.py uif` (1.298'in 174 UIF'i + 2369 `co_tooltip` fikstürü tam tüketim), `uifall <UI>` paketteki
-892 UIF'i tarar. ISTIRAP giriş arayüzü 1.298 denetim ID'lerini (Group_LogIn, Edit_ID…) taşımıyorsa
-`CGameProcLogIn_1298` paketteki `el_login_intro_us.uif` / `ka_login_intro_us.uif` dosyasına döner.
+verisinin tamamı), 2 = 2xxx (kapanış sesinden sonra 2 ek bayt; `co_tooltip.uif`), 3 = 2369 (3 ek bayt
+`01 00 00`; `el_login_intro_us.uif`, `re_messagebox.uif`). `CN3UIBase::Load` bu alanı `m_sNodeVersion`
+olarak saklar (`N3UIExtraBytesForNodeVersion`); `CN3UIString` satır aralığını sürüm 0'da okumaz; ID ve doku
+adlarının sonundaki `\0`/boşluk atılır (`N3TrimTrailingJunk`). Doğrulama: `ui_tool.py uif` (1.298'in 174
+UIF'i + 2369 `co_tooltip` fikstürü tam tüketim), `uifall <UI>` paketteki 892 UIF'i tarar. ISTIRAP giriş
+arayüzü (`Group_Login`, `Group_ServerList_01`, `btn_remember`…) için `CUILogIn_1298::Load` ID takma adları
+ve tür/alt dizge sezgisi kullanır, bulamazsa grup çocuklarını Log.txt'ye döker; giriş denetimleri yine
+yoksa `CGameProcLogIn_1298` paketteki `el_login_intro_us.uif` / `ka_login_intro_us.uif` dosyasına döner.
+Mesaj kutusu arayüzü (`re_messagebox.uif`) yüklenemezse `CUIMessageBoxManager` çökmek yerine sistem
+mesaj kutusunu gösterir.
 
 `ko_proto_test` (CTest) sunucu kaynağındaki `Packet <<` sırasını taklit eden paketlerle bu ayrıştırıcıları
 ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya/yükseltme, klan/kral/PUS,
