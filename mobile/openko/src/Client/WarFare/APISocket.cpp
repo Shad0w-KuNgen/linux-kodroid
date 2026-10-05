@@ -294,9 +294,19 @@ BOOL CAPISocket::ReceiveProcess()
 void CAPISocket::Send(uint8_t* pData, int nSize)
 {
 	if (!m_bEnableSend)
+	{
+#ifdef _N3GAME
+		CLogWriter::Write("socket send ATLANDI (gönderim kapalı): opcode 0x{:02x}, {} bayt", nSize > 0 ? pData[0] : 0, nSize);
+#endif
 		return; // 보내기 가능..?
+	}
 	if (INVALID_SOCKET == (SOCKET) m_hSocket || FALSE == m_bConnected)
+	{
+#ifdef _N3GAME
+		CLogWriter::Write("socket send ATLANDI (bağlı değil): opcode 0x{:02x}, {} bayt", nSize > 0 ? pData[0] : 0, nSize);
+#endif
 		return;
+	}
 
 #ifdef _CRYPTION
 	DataPack DP;

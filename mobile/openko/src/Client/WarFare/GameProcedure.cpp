@@ -876,7 +876,8 @@ void CGameProcedure::MsgSend_GameServerLogIn()
 	CAPISocket::MP_AddString(byBuff, iOffset, s_szPassWord);                 // 실제 패스워드
 
 	s_pSocket->Send(byBuff, iOffset);                                        // 보낸다
-	CLogWriter::Write("MsgSend_GameServerLogIn: WIZ_LOGIN gönderildi ({} bayt, hesap {})", iOffset, s_szAccount);
+	CLogWriter::Write("MsgSend_GameServerLogIn: WIZ_LOGIN gönderildi ({} bayt, hesap {}, gönderim {})", iOffset, s_szAccount,
+		s_pSocket->m_bEnableSend ? "açık" : "KAPALI");
 }
 
 void CGameProcedure::MsgSend_VersionCheck()                                  // virtual
@@ -886,11 +887,13 @@ void CGameProcedure::MsgSend_VersionCheck()                                  // 
 	uint8_t byBuffs[4];
 	CAPISocket::MP_AddByte(byBuffs, iOffset, WIZ_VERSION_CHECK); // 커멘드.
 	s_pSocket->Send(byBuffs, iOffset);                           // 보낸다
-	CLogWriter::Write("MsgSend_VersionCheck: WIZ_VERSION_CHECK gönderildi ({} bayt, bağlı {}, gönderim {})", iOffset,
-		s_pSocket->IsConnected() ? "evet" : "HAYIR", s_pSocket->m_bEnableSend ? "açık" : "KAPALI");
+	CLogWriter::Write("MsgSend_VersionCheck: WIZ_VERSION_CHECK gönderildi ({} bayt, bağlı {})", iOffset,
+		s_pSocket->IsConnected() ? "evet" : "HAYIR");
 
 #ifdef _CRYPTION
-	s_pSocket->m_bEnableSend = FALSE;                            // 보내기 가능..?
+	// 1.298: şifreleme anahtarı gelene kadar gönderim kapalı; 2369'da şifreleme yok, kapatma
+	if (!KoProto::Is2369())
+		s_pSocket->m_bEnableSend = FALSE;                        // 보내기 가능..?
 #endif                                                           // #ifdef _CRYPTION
 }
 
@@ -953,6 +956,11 @@ int CGameProcedure::MsgRecv_VersionCheck(Packet& pkt) // virtual
 		// 2369: uint8 0, uint16 sürüm, uint8, uint64, uint64, uint8 (şifreleme anahtarı yok)
 		if (!KoProto::ParseVersionCheck2369(pkt, iVersion))
 			iVersion = -1;
+#ifdef _CRYPTION
+		// MsgSend_VersionCheck gönderimi kapatmıştı (1.298'de anahtar gelince açılır); 2369'da şifreleme yok,
+		// gönderimi burada aç; yoksa WIZ_LOGIN sessizce atılıyordu ve sunucu hiç yanıt vermiyordu
+		s_pSocket->m_bEnableSend = TRUE;
+#endif
 	}
 	else
 	{
