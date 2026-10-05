@@ -54,12 +54,30 @@ void CGameProcLogIn_1298::Init()
 	__TABLE_UI_RESRC* pTbl = s_pTbl_UI.Find(iRandomNation);
 	if (pTbl != nullptr)
 	{
-		if (!m_pUILogIn->LoadFromFile(pTbl->szLoginIntro))
+		bool bLoaded = m_pUILogIn->LoadFromFile(pTbl->szLoginIntro);
+		if (!bLoaded || !m_pUILogIn->HasLogInControls())
 		{
-			// 2369/ISTIRAP arayüzü 1.298 yükleyicisiyle okunamadı: çökme yerine açık mesaj (ayrıntı Log.txt'de)
-			CLogWriter::Write("Giriş arayüzü yüklenemedi: {}", pTbl->szLoginIntro);
-			MessageBoxPost("Login UI could not be loaded: " + pTbl->szLoginIntro + "\nSee Log.txt (Launcher > Bug report).", "",
-				MB_OK, BEHAVIOR_NOTHING);
+			// 2369/ISTIRAP özel giriş arayüzü (istirap\re_login_intro) 1.298 denetim ID'lerini taşımıyor:
+			// paketteki standart giriş arayüzüne geri dön
+			CLogWriter::Write("Giriş arayüzü {}: {}; standart arayüz deneniyor", pTbl->szLoginIntro,
+				bLoaded ? "giriş denetimleri eksik" : "yüklenemedi");
+			const char* szFallbacks[] = { "ui\\el_login_intro_us.uif", "ui\\ka_login_intro_us.uif", "ui_us\\el_login_intro_us.uif" };
+			bLoaded = false;
+			for (const char* szFB : szFallbacks)
+			{
+				delete m_pUILogIn; // Release üye işaretçilerini sıfırlamaz; nesneyi yeniden kur
+				m_pUILogIn = new CUILogIn_1298();
+				m_pUILogIn->Init(s_pUIMgr);
+				if (m_pUILogIn->LoadFromFile(szFB) && m_pUILogIn->HasLogInControls())
+				{
+					CLogWriter::Write("Giriş arayüzü: {} kullanılıyor", szFB);
+					bLoaded = true;
+					break;
+				}
+			}
+			if (!bLoaded)
+				MessageBoxPost("Login UI could not be loaded: " + pTbl->szLoginIntro + "\nSee Log.txt (Launcher > Bug report).", "",
+					MB_OK, BEHAVIOR_NOTHING);
 		}
 	}
 

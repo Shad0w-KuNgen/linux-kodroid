@@ -193,6 +193,14 @@ ISTIRAP'a özel `ISTIRAP\*.istirap` UIF'leri Pearl Guard `dcpUIF` şemasıyla ş
 `ui_cache/istirap/<ad>.uif` olarak çözülür. `ko_vfs_test` sentetik paket ve istirap gidiş-dönüşünü doğrular;
 PC'de `scripts/ui_tool.py list|extract|istirap|info|uif` (`uif`: ağacı 1264 biçimine göre yürür, sapma noktasında hex bağlamı; 1.298'in 174 UIF'inde tam tüketim doğrulandı).
 
+**2369 UIF biçimi:** 1264 başlığındaki `int16` "idk" alanı aslında düğüm sürümüdür ve her düğüm
+kendi değerini taşır: 0 = eski (string'de satır aralığı yok; ISTIRAP `re_login_intro`), 1 = 1264 (1.298
+verisinin tamamı), 2 = 2xxx (kapanış sesinden sonra 2 ek bayt; `co_tooltip.uif`). `CN3UIBase::Load`
+bu alanı `m_sNodeVersion` olarak saklar; `CN3UIString` satır aralığını sürüm 0'da okumaz. Doğrulama:
+`ui_tool.py uif` (1.298'in 174 UIF'i + 2369 `co_tooltip` fikstürü tam tüketim), `uifall <UI>` paketteki
+892 UIF'i tarar. ISTIRAP giriş arayüzü 1.298 denetim ID'lerini (Group_LogIn, Edit_ID…) taşımıyorsa
+`CGameProcLogIn_1298` paketteki `el_login_intro_us.uif` / `ka_login_intro_us.uif` dosyasına döner.
+
 `ko_proto_test` (CTest) sunucu kaynağındaki `Packet <<` sırasını taklit eden paketlerle bu ayrıştırıcıları
 ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya/yükseltme, klan/kral/PUS,
 2369 arayüzü, 2369 veri uyumluluğu (bölge numaraları, `UI` klasörü, NPC ad tablosu).

@@ -464,7 +464,8 @@ bool CN3UIString::Load(File& file)
 	}
 
 	// NOTE: testing UI string
-	if (m_iFileFormatVersion >= N3FORMAT_VER_1264)
+	// Satır aralığı: 1264 ve sonrası; düğüm sürümü 0 olan 2xxx düğümlerinde (ör. ISTIRAP re_login_intro) yok
+	if (m_iFileFormatVersion >= N3FORMAT_VER_1264 && m_sNodeVersion != 0)
 	{
 		if (!file.Read(&m_iLineSpacing, sizeof(int)))
 			throw std::runtime_error("CN3UIString: expected line spacing, not found");

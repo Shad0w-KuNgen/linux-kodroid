@@ -310,8 +310,9 @@ bool CN3UIBase::Load(File& file)
 	{
 		int16_t sCC = 0, sIdk0 = 0;
 		file.Read(&sCC, sizeof(int16_t)); // children count
-		file.Read(&sIdk0, sizeof(int16_t));
-		iCC = static_cast<int>(sCC);
+		file.Read(&sIdk0, sizeof(int16_t)); // düğüm sürümü: 0 eski, 1 = 1264, 2 = 2xxx (2369 istemci verisi)
+		iCC            = static_cast<int>(sCC);
+		m_sNodeVersion = sIdk0;
 	}
 	else
 	{
@@ -450,6 +451,13 @@ bool CN3UIBase::Load(File& file)
 
 		__ASSERT(nullptr == m_pSnd_CloseUI, "memory leak");
 		m_pSnd_CloseUI = s_SndMgr.CreateObj(szSoundFN, SNDTYPE_2D);
+	}
+
+	// 2xxx (düğüm sürümü >= 2): kapanış sesinden sonra 2 ek bayt (anlamı bilinmiyor; co_tooltip.uif'te 0)
+	if (m_iFileFormatVersion >= N3FORMAT_VER_1264 && m_sNodeVersion >= 2)
+	{
+		int16_t sExtra = 0;
+		file.Read(&sExtra, sizeof(int16_t));
 	}
 
 	return true;

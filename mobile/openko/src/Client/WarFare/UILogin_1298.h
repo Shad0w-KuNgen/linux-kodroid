@@ -109,6 +109,11 @@ public:
 	void FocusToID();
 	bool Load(File& file) override;
 	void PositionGroups();
+	// Giriş için gerekli denetimler (Group_LogIn, Edit_ID/PW, btn_ok) bulundu mu? (2369/ISTIRAP özel arayüzünde eksik olabilir)
+	bool HasLogInControls() const
+	{
+		return m_pGroup_LogIn != nullptr && m_pEdit_id != nullptr && m_pEdit_pw != nullptr && m_pBtn_LogIn != nullptr;
+	}
 
 	bool ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg) override; // 메시지를 받는다.. 보낸놈, msg
 

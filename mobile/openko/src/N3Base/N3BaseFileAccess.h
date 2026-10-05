@@ -31,6 +31,9 @@ protected:
 
 public:
 	uint32_t m_iFileFormatVersion;
+	// UIF düğüm sürümü (1264 başlığındaki int16 "idk"): 0 eski (string'de satır aralığı yok), 1 = 1264,
+	// 2 = 2xxx istemcileri (kapanış sesinden sonra 2 ek bayt). Her düğüm kendi değerini taşır.
+	int16_t m_sNodeVersion = 1;
 	int m_iLOD; // 로딩할때 쓸 LOD
 
 public:

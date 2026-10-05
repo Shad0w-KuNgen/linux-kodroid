@@ -5,7 +5,8 @@
   ui_tool.py extract <UI dizini> <ad> <çıkış>    # paketten tek dosya çıkar
   ui_tool.py istirap <dosya.istirap> <çıkış.uif> # Pearl Guard dcpUIF çözümü
   ui_tool.py info    <dosya>                      # ilk 64 baytın hex dökümü (UIF başlığı kontrolü)
-  ui_tool.py uif     <dosya.uif>                  # UIF ağacını 1264 biçimine göre yürü; sapma noktasında hex bağlamı
+  ui_tool.py uif     <dosya.uif>                  # UIF ağacını yürü (düğüm sürümü 0/1/2); sapma noktasında hex bağlamı
+  ui_tool.py uifall  <UI dizini>                  # paketteki tüm .uif'leri yürü, sorunluları listele
 
 Paket: ui.hdr = u32 kayıt sayısı, kayıt: u32 adUzunluk | ad | u32 ofset | u32 boyut.
 ui.src kaydı: u32 yolUzunluk | özgün yol | dosya baytları. Boyutun yol başlığını içerip içermediği ardışık
@@ -144,7 +145,8 @@ class Walker:
         start = self.pos
         name = self.lstr('N3 ad', 256)
         cc = self.i16()
-        self.i16()
+        ver = self.i16()  # düğüm sürümü: 0 eski (string'de satır aralığı yok), 1 = 1264, 2 = 2xxx (+2 bayt)
+        self.ver = ver
         if cc < 0 or cc > 4096:
             raise UifError(f'çocuk sayısı {cc} @{self.pos - 4}')
         kids = []
@@ -158,11 +160,14 @@ class Walker:
         self.lstr('tooltip', 1024)
         self.lstr('ses açılış', 1024)
         self.lstr('ses kapanış', 1024)
-        self.lines.append('  ' * depth + f'{UI_TYPES[typ]} "{ident}" @{start} ({cc} çocuk)')
+        if ver >= 2:
+            self.skip(2)
+        self.lines.append('  ' * depth + f'{UI_TYPES[typ]} "{ident}" @{start} (v{ver}, {cc} çocuk)')
         return ident
 
     def node(self, depth, typ):
         ident = self.base(depth, typ)
+        ver = self.ver
         if typ == 4:  # image
             self.lstr('doku adı', 1024)
             self.skip(16 + 4)
@@ -171,7 +176,8 @@ class Walker:
                 self.skip(8)
             self.skip(4)
             self.lstr('metin', 8192)
-            self.i32()  # satır aralığı (1264)
+            if ver != 0:
+                self.i32()  # satır aralığı (1264+)
         elif typ == 1:  # button
             self.skip(16)
             self.lstr('ses on', 1024)
@@ -187,6 +193,34 @@ class Walker:
             if self.lstr('yazı tipi', 32):
                 self.skip(16)
         return ident
+
+
+def walk_bytes(d):
+    w = Walker(d)
+    try:
+        w.node(0, 0)
+        return w.pos == len(d), w.pos, None
+    except UifError as e:
+        return False, w.pos, str(e)
+
+
+def cmd_uifall(uidir):
+    entries, srcpath, inc = load_index(uidir)
+    ok = bad = 0
+    with open(srcpath, 'rb') as f:
+        for key, (name, off, size) in sorted(entries.items()):
+            if not name.lower().endswith('.uif'):
+                continue
+            f.seek(off)
+            d = f.read(size)
+            full, pos, err = walk_bytes(d)
+            if full:
+                ok += 1
+            else:
+                bad += 1
+                print(f'{name}: {pos}/{len(d)} {err or "eksik tüketim"}')
+    print(f'# {ok} tam, {bad} sorunlu')
+    return 0 if bad == 0 else 1
 
 
 def cmd_uif(path):
@@ -233,6 +267,8 @@ def main(argv):
         print(f'{argv[2]} -> {argv[3]} ({len(data)} bayt) ilk16={data[:16].hex()}')
     elif cmd == 'uif':
         return cmd_uif(argv[2])
+    elif cmd == 'uifall':
+        return cmd_uifall(argv[2])
     elif cmd == 'info':
         d = open(argv[2], 'rb').read()
         print(f'{argv[2]}: {len(d)} bayt')
