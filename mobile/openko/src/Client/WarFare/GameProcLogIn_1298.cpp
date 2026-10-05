@@ -53,7 +53,15 @@ void CGameProcLogIn_1298::Init()
 
 	__TABLE_UI_RESRC* pTbl = s_pTbl_UI.Find(iRandomNation);
 	if (pTbl != nullptr)
-		m_pUILogIn->LoadFromFile(pTbl->szLoginIntro);
+	{
+		if (!m_pUILogIn->LoadFromFile(pTbl->szLoginIntro))
+		{
+			// 2369/ISTIRAP arayüzü 1.298 yükleyicisiyle okunamadı: çökme yerine açık mesaj (ayrıntı Log.txt'de)
+			CLogWriter::Write("Giriş arayüzü yüklenemedi: {}", pTbl->szLoginIntro);
+			MessageBoxPost("Login UI could not be loaded: " + pTbl->szLoginIntro + "\nSee Log.txt (Launcher > Bug report).", "",
+				MB_OK, BEHAVIOR_NOTHING);
+		}
+	}
 
 	m_pUILogIn->SetPosCenter();
 

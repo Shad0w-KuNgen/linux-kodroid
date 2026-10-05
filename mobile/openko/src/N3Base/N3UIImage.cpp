@@ -3,6 +3,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "StdAfxBase.h"
+#include <string>
 #include "N3UIImage.h"
 #include "N3Texture.h"
 
@@ -241,7 +242,8 @@ bool CN3UIImage::Load(File& file)
 	file.Read(&iStrLen, sizeof(iStrLen)); // 파일 이름 길이
 
 	if (iStrLen < 0 || iStrLen > MAX_SUPPORTED_PATH_LENGTH)
-		throw std::runtime_error("CN3UIImage: invalid texture filename length");
+		throw std::runtime_error("CN3UIImage: invalid texture filename length " + std::to_string(iStrLen) + " at offset "
+								 + std::to_string((long long) file.Offset() - 4) + " (id '" + m_szID + "')");
 
 	char szFName[MAX_SUPPORTED_PATH_LENGTH + 1] {};
 	if (iStrLen > 0)

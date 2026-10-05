@@ -5,6 +5,7 @@
   ui_tool.py extract <UI dizini> <ad> <çıkış>    # paketten tek dosya çıkar
   ui_tool.py istirap <dosya.istirap> <çıkış.uif> # Pearl Guard dcpUIF çözümü
   ui_tool.py info    <dosya>                      # ilk 64 baytın hex dökümü (UIF başlığı kontrolü)
+  ui_tool.py uif     <dosya.uif>                  # UIF ağacını 1264 biçimine göre yürü; sapma noktasında hex bağlamı
 
 Paket: ui.hdr = u32 kayıt sayısı, kayıt: u32 adUzunluk | ad | u32 ofset | u32 boyut.
 ui.src kaydı: u32 yolUzunluk | özgün yol | dosya baytları. Boyutun yol başlığını içerip içermediği ardışık
@@ -96,6 +97,117 @@ def extract(uidir, name):
         return f.read(dlen), path
 
 
+# ---- UIF (1264 biçimi) yürüyücü: OpenKO CN3UI*::Load okuma sırasının birebiri ----
+UI_TYPES = {0: 'base', 1: 'button', 2: 'static', 3: 'progress', 4: 'image', 5: 'scrollbar', 6: 'string', 7: 'trackbar',
+            8: 'edit', 9: 'area', 10: 'tooltip', 11: 'icon', 12: 'iconmgr', 13: 'iconslot', 14: 'list'}
+
+
+class UifError(Exception):
+    pass
+
+
+class Walker:
+    def __init__(self, data):
+        self.d = data
+        self.pos = 0
+        self.lines = []
+
+    def u32(self):
+        if self.pos + 4 > len(self.d):
+            raise UifError(f'EOF @{self.pos}')
+        v = struct.unpack_from('<I', self.d, self.pos)[0]
+        self.pos += 4
+        return v
+
+    def i32(self):
+        return struct.unpack('<i', struct.pack('<I', self.u32()))[0]
+
+    def i16(self):
+        if self.pos + 2 > len(self.d):
+            raise UifError(f'EOF @{self.pos}')
+        v = struct.unpack_from('<h', self.d, self.pos)[0]
+        self.pos += 2
+        return v
+
+    def lstr(self, what, maxlen=1024):
+        n = self.i32()
+        if n < 0 or n > maxlen:
+            raise UifError(f'{what}: geçersiz uzunluk {n} @{self.pos - 4}')
+        s = self.d[self.pos:self.pos + n].decode('latin-1')
+        self.pos += n
+        return s
+
+    def skip(self, n):
+        self.pos += n
+
+    def base(self, depth, typ):
+        start = self.pos
+        name = self.lstr('N3 ad', 256)
+        cc = self.i16()
+        self.i16()
+        if cc < 0 or cc > 4096:
+            raise UifError(f'çocuk sayısı {cc} @{self.pos - 4}')
+        kids = []
+        for i in range(cc):
+            t = self.u32()
+            if t not in UI_TYPES or t >= 10 and t != 14:
+                raise UifError(f'bilinmeyen UI türü {t} (çocuk {i}/{cc}) @{self.pos - 4}')
+            kids.append(self.node(depth + 1, t))
+        ident = self.lstr('ID', 128)
+        self.skip(16 + 16 + 4 + 4)  # region, movable, style, reserved
+        self.lstr('tooltip', 1024)
+        self.lstr('ses açılış', 1024)
+        self.lstr('ses kapanış', 1024)
+        self.lines.append('  ' * depth + f'{UI_TYPES[typ]} "{ident}" @{start} ({cc} çocuk)')
+        return ident
+
+    def node(self, depth, typ):
+        ident = self.base(depth, typ)
+        if typ == 4:  # image
+            self.lstr('doku adı', 1024)
+            self.skip(16 + 4)
+        elif typ == 6:  # string
+            if self.lstr('yazı tipi', 32):
+                self.skip(8)
+            self.skip(4)
+            self.lstr('metin', 8192)
+            self.i32()  # satır aralığı (1264)
+        elif typ == 1:  # button
+            self.skip(16)
+            self.lstr('ses on', 1024)
+            self.lstr('ses click', 1024)
+        elif typ == 2:  # static
+            self.lstr('ses click', 1024)
+        elif typ == 8:  # edit = static + typing
+            self.lstr('ses click', 1024)
+            self.lstr('ses typing', 1024)
+        elif typ == 9:  # area
+            self.i32()
+        elif typ == 14:  # list
+            if self.lstr('yazı tipi', 32):
+                self.skip(16)
+        return ident
+
+
+def cmd_uif(path):
+    d = open(path, 'rb').read()
+    w = Walker(d)
+    try:
+        w.node(0, 0)
+        ok = w.pos == len(d)
+        print('\n'.join(w.lines))
+        print(f'# {"TAM" if ok else "KISMİ"}: {w.pos}/{len(d)} bayt tüketildi')
+        return 0 if ok else 1
+    except UifError as e:
+        print('\n'.join(w.lines))
+        print(f'# HATA: {e}')
+        ctx = max(0, w.pos - 48)
+        for i in range(ctx, min(len(d), w.pos + 48), 16):
+            c = d[i:i + 16]
+            print(f'{i:08x}  {c.hex(" "):48s}  {"".join(chr(b) if 32 <= b < 127 else "." for b in c)}')
+        return 1
+
+
 def main(argv):
     if len(argv) < 3:
         print(__doc__)
@@ -119,6 +231,8 @@ def main(argv):
         data = istirap_decrypt(open(argv[2], 'rb').read())
         open(argv[3], 'wb').write(data)
         print(f'{argv[2]} -> {argv[3]} ({len(data)} bayt) ilk16={data[:16].hex()}')
+    elif cmd == 'uif':
+        return cmd_uif(argv[2])
     elif cmd == 'info':
         d = open(argv[2], 'rb').read()
         print(f'{argv[2]}: {len(d)} bayt')

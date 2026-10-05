@@ -241,18 +241,32 @@ bool CUILogIn_1298::Load(File& file)
 		m_pGroup_ServerList->SetVisible(false);
 
 	// get List_Server (structure: Group_ServerList_01 -> server_20 -> List_Server )
+	// 2369/ISTIRAP giriş arayüzünde bu gruplar olmayabilir: null denetimi (çökme yerine Log.txt)
 	for (int i = 0; i < MAX_SERVERS; i++)
 	{
 		std::string szID = "server_" + std::to_string(i + 1);
-		N3_VERIFY_UI_COMPONENT(m_pServer_Group[i], m_pGroup_ServerList->GetChildByID(szID));
+		if (m_pGroup_ServerList != nullptr)
+		{
+			N3_VERIFY_UI_COMPONENT(m_pServer_Group[i], m_pGroup_ServerList->GetChildByID(szID));
 
-		szID = "img_arrow" + std::to_string(i + 1);
-		N3_VERIFY_UI_COMPONENT(m_pArrow_Group[i], m_pGroup_ServerList->GetChildByID(szID));
+			szID = "img_arrow" + std::to_string(i + 1);
+			N3_VERIFY_UI_COMPONENT(m_pArrow_Group[i], m_pGroup_ServerList->GetChildByID(szID));
+		}
 
-		N3_VERIFY_UI_COMPONENT(m_pList_Group[i], m_pServer_Group[i]->GetChildByID<CN3UIString>("List_Server"));
+		if (m_pServer_Group[i] != nullptr)
+			N3_VERIFY_UI_COMPONENT(m_pList_Group[i], m_pServer_Group[i]->GetChildByID<CN3UIString>("List_Server"));
 	}
 
-	N3_VERIFY_UI_COMPONENT(m_pBtn_Connect, m_pGroup_ServerList->GetChildByID<CN3UIButton>("Btn_Connect"));
+	if (m_pGroup_ServerList != nullptr)
+		N3_VERIFY_UI_COMPONENT(m_pBtn_Connect, m_pGroup_ServerList->GetChildByID<CN3UIButton>("Btn_Connect"));
+
+	if (m_pGroup_LogIn == nullptr || m_pGroup_ServerList == nullptr)
+	{
+		std::string szIDs;
+		for (CN3UIBase* pChild : m_Children)
+			szIDs += (pChild ? pChild->m_szID : std::string("?")) + " ";
+		CLogWriter::Write("CUILogIn_1298::Load: Group_LogIn/Group_ServerList bulunamadı ({}); çocuklar: {}", m_szFileName, szIDs);
+	}
 
 	return true;
 }

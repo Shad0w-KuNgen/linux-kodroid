@@ -3,6 +3,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "StdAfxBase.h"
+#include <string>
 #include "N3UIBase.h"
 #include "N3UIButton.h"
 #include "N3UIProgress.h"
@@ -318,7 +319,8 @@ bool CN3UIBase::Load(File& file)
 	}
 
 	if (iCC < 0 || iCC > MAX_SUPPORTED_CHILD_COUNT)
-		throw std::runtime_error("CN3UIBase: invalid child count");
+		throw std::runtime_error("CN3UIBase: invalid child count " + std::to_string(iCC) + " at offset "
+								 + std::to_string((long long) file.Offset()));
 
 	for (int i = 0; i < iCC; i++)
 	{
@@ -368,7 +370,9 @@ bool CN3UIBase::Load(File& file)
 				break;
 
 			default:
-				throw std::runtime_error("CN3UIBase: invalid or unhandled UI type");
+				throw std::runtime_error("CN3UIBase: invalid or unhandled UI type " + std::to_string((int) eChildUIType) + " at offset "
+										 + std::to_string((long long) file.Offset() - 4) + " in '" + m_szFileName + "' (child " + std::to_string(i)
+										 + "/" + std::to_string(iCC) + ")");
 		}
 
 		__ASSERT(pChild, "Unknown type UserInterface!!!");
