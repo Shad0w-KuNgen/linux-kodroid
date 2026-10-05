@@ -206,10 +206,13 @@ void LoginServer::GetInfoFromIni()
     ini.GetString("DOWNLOAD", "URL", "ftp.yoursite.net", m_strFtpUrl, false);
     ini.GetString("DOWNLOAD", "PATH", "/", m_strFilePath, false);
 
-    m_ODBCName = "KO_MAIN";
-    m_ODBCLogin = "sa";
-    m_ODBCPwd = "E3g8wbc7y";
-    m_LoginServerPort = 15100;
+    // Veritabanı ve portlar artık LoginServer.ini'den (kaynağa gömülü sa şifresi/port kaldırıldı):
+    // [ODBC] DSN / UID / PWD, [SETTINGS] PORT / GAMESERVER_PORT
+    ini.GetString("ODBC", "DSN", "KO_MAIN", m_ODBCName, false);
+    ini.GetString("ODBC", "UID", "", m_ODBCLogin);
+    ini.GetString("ODBC", "PWD", "", m_ODBCPwd);
+    m_LoginServerPort = ini.GetInt("SETTINGS", "PORT", 15100);
+    m_GameServerSocketPort = ini.GetInt("SETTINGS", "GAMESERVER_PORT", 13001);
 
     char key[20];
 
