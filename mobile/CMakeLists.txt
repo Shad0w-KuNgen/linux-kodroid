@@ -174,4 +174,10 @@ if(KO_BUILD_TESTS AND NOT ANDROID)
   target_link_libraries(ko_proto_test PRIVATE ko_warfare ko::sdl2 GLESv2 EGL)
   ko_openko_target(ko_proto_test)
   add_test(NAME ko_proto_test COMMAND ko_proto_test)
+
+  # .tbl şifre katmanları (klasik XOR, 2xxx DES) — örnek tablolar platform/tests/data
+  add_executable(ko_tbl_test platform/tests/tbl_test.cpp)
+  target_link_libraries(ko_tbl_test PRIVATE ko_n3base)
+  target_compile_definitions(ko_tbl_test PRIVATE KO_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/platform/tests/data")
+  add_test(NAME ko_tbl_test COMMAND ko_tbl_test)
 endif()

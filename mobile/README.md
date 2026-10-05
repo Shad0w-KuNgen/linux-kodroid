@@ -165,13 +165,15 @@ Launcher Ayarlar'ında "Sunucu protokolü" (1.298 / 2369), giriş/oyun portu ve 
 | `WIZ_NOTICE` | biçim 1 (eski), 2 (başlık+mesaj çiftleri), 4 (sağ üst başlık iletisi) |
 | `WIZ_ZONE_CHANGE` | ışınlanma: `uint16` bölge, x, z, y, ulus, eski zafer |
 
-**2369 veri tabloları:** `client2369.zip` içindeki 243 `.tbl` dosyasının 233'ü çift katman şifreli
-(klasik XOR katmanı + 8 baytlık bloklarla çalışan ikinci bir şifre; XOR sonrası sabit 16 bayt önek
-`44 29 ae 6e …`, boyut % 8 == 4). İstemci XOR sonrası başlığı denetler, ikinci katmanı tanır ve Log.txt'ye
-yazar (`N3TableBaseImpl.cpp`: `KoTableHeaderLooksValid` / `KoTableLayer2Decrypt`); çözücü
-`Knightonline.exe` analiziyle eklenecek. Temel tablolar (Texts/UIs/Zones) okunamazsa oyun siyah ekran
-yerine açıklayıcı bir hata kutusu gösterip kapanır. PC'de inceleme için `scripts/tbl_tool.py info <Data>`
-(XOR katmanı + başlık denetimi + katman-2 tespiti) ve `dump <tbl>`.
+**2xxx veri tabloları (DES katmanı):** `client2369.zip` içindeki 243 `.tbl` dosyasının 233'ü yeni
+biçimde: ham dosya `[16 bayt sabit başlık][uint32 BE özgün uzunluk][8 baytlık DES blokları]`
+(IP/FP'siz DES, 16 tur, sabit tur anahtarları; bu dosyalarda klasik XOR katmanı yoktur), çözülen veri
+akış XOR'u (0x0418/0x8041/0x1804) sonrası `[5 bayt önek][standart N3 tablosu]`. Algoritma
+[co3moz/ko-tbl-reader](https://github.com/co3moz/ko-tbl-reader) (MIT) `double.js`'den türetildi;
+`openko/src/N3Base/KoTableCrypt.{h,cpp}` uygular, `N3TableBaseImpl::LoadFromFile` başlığa göre otomatik
+seçer (klasik XOR / DES). `ko_tbl_test` 2195 ve 1886 örnek tablolarıyla (platform/tests/data) çözümü
+baştan sona doğrular. PC'de: `scripts/tbl_tool.py info <Data>` (sınıflandırma) ve `dump <tbl>` (CSV).
+Temel tablolar (Texts/UIs/Zones) yine de okunamazsa oyun siyah ekran yerine hata kutusu gösterip kapanır.
 
 `ko_proto_test` (CTest) sunucu kaynağındaki `Packet <<` sırasını taklit eden paketlerle bu ayrıştırıcıları
 ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya/yükseltme, klan/kral/PUS,

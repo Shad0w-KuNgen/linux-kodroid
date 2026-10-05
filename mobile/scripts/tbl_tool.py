@@ -7,16 +7,20 @@ Kullanım:
   tbl_tool.py xor   <giriş> <çıkış>       # yalnız XOR katmanını çöz (ham baytlar)
 
 Katman 1 (tüm KO istemcileri): akış XOR'u, key_r=0x0816, c1=0x6081, c2=0x1608 (N3TableBaseImpl.cpp).
-Katman 2 (2369/ISTIRAP verisi): XOR sonrası 16 baytlık sabit önek + 8 baytlık bloklar + 4 bayt; çözümü
-Knightonline.exe'den çıkarılınca `layer2_decrypt` doldurulacak. Şimdilik yalnız tespit edilir.
+Katman 2 (2xxx istemcileri, 2369/ISTIRAP dahil): ham dosya = [16 bayt sabit başlık][uint32 BE uzunluk]
+[8 baytlık DES blokları] (IP/FP'siz DES, sabit tur anahtarları; ko_tbl_des.py). Çözülen veri = [5 bayt önek]
+[standart N3 tablosu]; ardından akış XOR'u (0x0418/0x8041/0x1804). Bu dosyalarda klasik XOR katmanı YOKTUR
+(XOR sonrası görülen 4429ae6e... öneki, sabit başlığın XOR'lanmış hâlidir).
 """
 import os
 import struct
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ko_tbl_des  # noqa: E402
+
 DT_NAMES = {1: 'char', 2: 'byte', 3: 'short', 4: 'word', 5: 'int', 6: 'dword', 7: 'string', 8: 'float', 9: 'double'}
 DT_SIZE = {1: 1, 2: 1, 3: 2, 4: 2, 5: 4, 6: 4, 8: 4, 9: 8}
-LAYER2_MAGIC = bytes.fromhex('4429ae6e58951b5c728f31a2c655d6f2')
 
 
 def xor_layer(data: bytes) -> bytes:
@@ -44,30 +48,21 @@ def header_ok(d: bytes):
     return True, f'{n} sütun {rows} satır türler {[DT_NAMES[t] for t in types]}'
 
 
-def layer2_detect(d: bytes):
-    return d[:16] == LAYER2_MAGIC, len(d) % 8
-
-
-def layer2_decrypt(d: bytes) -> bytes:
-    raise NotImplementedError('2. katman henüz bilinmiyor (Knightonline.exe analizi bekleniyor)')
+LAYER2_PREFIX_LEN = 5  # çözülen veri: [uint32 ?][uint8 sütun sayısı] + standart tablo
 
 
 def decode(data: bytes):
+    if ko_tbl_des.is_layer2(data):
+        d2 = ko_tbl_des.decrypt(data)
+        ok2, why2 = header_ok(d2[LAYER2_PREFIX_LEN:])
+        if ok2:
+            return d2[LAYER2_PREFIX_LEN:], 'des+xor', why2 + f' önek={d2[:LAYER2_PREFIX_LEN].hex()}'
+        return None, 'des?', f'DES çözüldü ama başlık geçersiz: {why2}; ilk16={d2[:16].hex()}'
     d = xor_layer(data)
     ok, why = header_ok(d)
     if ok:
         return d, 'xor', why
-    l2, mod = layer2_detect(d)
-    if l2:
-        try:
-            d2 = layer2_decrypt(d)
-            ok2, why2 = header_ok(d2)
-            if ok2:
-                return d2, 'xor+layer2', why2
-            return None, 'layer2?', f'katman 2 çözüldü ama başlık geçersiz: {why2}'
-        except NotImplementedError as e:
-            return None, 'layer2-unknown', f'{e}; boyut%8={mod}'
-    return None, 'unknown', f'{why}; ilk16={d[:16].hex()} boyut%8={mod}'
+    return None, 'unknown', f'{why}; ilk16={d[:16].hex()} boyut%8={len(d) % 8}'
 
 
 def rows_of(d: bytes):

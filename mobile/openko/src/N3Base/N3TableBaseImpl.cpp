@@ -1,5 +1,8 @@
-﻿#include "StdAfxBase.h"
+#include "StdAfxBase.h"
 #include "N3TableBaseImpl.h"
+#include "KoTableCrypt.h"
+
+#include <vector>
 
 #include <FileIO/FileReader.h>
 #include <FileIO/FileWriter.h>
@@ -7,34 +10,6 @@
 #ifdef _N3GAME
 #include "LogWriter.h"
 #endif
-
-// XOR katmanı çözülmüş tablo başlığı makul mu? (sütun sayısı 1..256, türler DT_CHAR..DT_DOUBLE, ilk sütun DT_DWORD)
-bool KoTableHeaderLooksValid(const uint8_t* pData, size_t nSize)
-{
-	if (pData == nullptr || nSize < 12)
-		return false;
-	uint32_t nCols = 0;
-	memcpy(&nCols, pData, 4);
-	if (nCols == 0 || nCols > 256 || nSize < 4 + 4 * (size_t) nCols + 4)
-		return false;
-	for (uint32_t i = 0; i < nCols; i++)
-	{
-		uint32_t t = 0;
-		memcpy(&t, pData + 4 + 4 * i, 4);
-		if (t < DT_CHAR || t > DT_DOUBLE)
-			return false;
-		if (i == 0 && t != DT_DWORD)
-			return false;
-	}
-	return true;
-}
-
-// 2369 verisinin ikinci şifre katmanı (8 baytlık bloklar + 4 bayt; Knightonline.exe'den çıkarılacak).
-// Çözülünce veriyi yerinde değiştirip true döner. Henüz bilinmiyor: false.
-bool KoTableLayer2Decrypt(uint8_t* /*pData*/, size_t /*nSize*/)
-{
-	return false;
-}
 
 CN3TableBaseImpl::CN3TableBaseImpl()
 {
@@ -71,66 +46,44 @@ bool CN3TableBaseImpl::LoadFromFile(const std::string& szFN)
 	}
 
 	// 원래 파일을 읽고..
-	uint8_t* pDatas = new uint8_t[encryptedFileSize];
-	encryptedFile.Read(pDatas, encryptedFileSize); // 암호화된 데이터 읽고..
-	encryptedFile.Close();                         // 원래 파일 닫고
+	std::vector<uint8_t> datas(encryptedFileSize);
+	encryptedFile.Read(datas.data(), encryptedFileSize); // 암호화된 데이터 읽고..
+	encryptedFile.Close();                               // 원래 파일 닫고
 
-												   // 테이블 만드는 툴에서 쓰는 키와 같은 키..
-	uint16_t key_r  = 0x0816;
-	uint16_t key_c1 = 0x6081;
-	uint16_t key_c2 = 0x1608;
-
-	//uint8_t Encrypt(uint8_t plain)
-	//{
-	//	uint8_t cipher;
-	//	cipher = (plain ^ (key_r>>8));
-	//	key_r = (cipher + key_r) * key_c1 + key_c2;
-	//	return cipher;
-	//}
-
-	//uint8_t Decrypt(uint8_t cipher)
-	//{
-	//	uint8_t plain;
-	//	plain = (cipher ^ (m_r>>8));
-	//	m_r = (cipher + m_r) * m_c1 + m_c2;
-	//	return plain;
-	//}
-
-	// 암호화 풀고..
-	for (uint32_t i = 0; i < encryptedFileSize; i++)
+	if (KoTableIsLayer2(datas.data(), datas.size()))
 	{
-		uint8_t byData = (pDatas[i] ^ (key_r >> 8));
-		key_r          = (pDatas[i] + key_r) * key_c1 + key_c2;
-		pDatas[i]      = byData;
-	}
-
-	// 2369 (ISTIRAP) istemci verisi: XOR katmanının altında ikinci bir blok şifresi var. XOR sonrası
-	// başlık (int32 sütun sayısı, int32 türler, ilk sütun DT_DWORD) geçerli değilse ve dosya bilinen
-	// 16 baytlık önekle başlıyorsa bunu Log.txt'ye yaz; çözücü (KoTableLayer2Decrypt) eklenince burada
-	// uygulanacak.
-	if (!KoTableHeaderLooksValid(pDatas, encryptedFileSize))
-	{
-		static const uint8_t LAYER2_PREFIX[16] = { 0x44, 0x29, 0xae, 0x6e, 0x58, 0x95, 0x1b, 0x5c, 0x72, 0x8f, 0x31, 0xa2,
-			0xc6, 0x55, 0xd6, 0xf2 };
-		bool bLayer2 = encryptedFileSize >= 16 && memcmp(pDatas, LAYER2_PREFIX, 16) == 0;
-		if (bLayer2 && KoTableLayer2Decrypt(pDatas, encryptedFileSize))
+		// 2xxx (1886/2195/2369) verisi: DES katmanı + iç XOR; klasik XOR katmanı yok (KoTableCrypt.h)
+		uint8_t prefix[5] = {};
+		if (!KoTableLayer2Decrypt(datas, prefix))
 		{
 #ifdef _N3GAME
-			CLogWriter::Write("N3TableBase - 2369 ikinci katman çözüldü ({})", szFN);
+			CLogWriter::Write("N3TableBase - 2xxx DES katmanı çözüldü ama başlık geçersiz ({})", szFN);
 #endif
+			return false;
 		}
-		else
+#ifdef _N3GAME
+		CLogWriter::Write("N3TableBase - 2xxx DES katmanı çözüldü ({}, {} bayt, önek {:02x}{:02x}{:02x}{:02x}{:02x})", szFN,
+			datas.size(), prefix[0], prefix[1], prefix[2], prefix[3], prefix[4]);
+#endif
+	}
+	else
+	{
+		// 테이블 만드는 툴에서 쓰는 키와 같은 키.. (klasik akış XOR'u: key_r 0x0816, c1 0x6081, c2 0x1608)
+		KoTableXorDecrypt(datas.data(), datas.size());
+		if (!KoTableHeaderLooksValid(datas.data(), datas.size()))
 		{
 #ifdef _N3GAME
 			char szHex[16 * 2 + 1] = {};
-			for (size_t i = 0; i < 16 && i < encryptedFileSize; i++)
-				snprintf(szHex + i * 2, 3, "%02x", pDatas[i]);
-			CLogWriter::Write("N3TableBase - XOR sonrası başlık geçersiz ({}): boyut {} (%8={}), ilk16={}{}", szFN,
-				encryptedFileSize, encryptedFileSize % 8, szHex,
-				bLayer2 ? " -> 2369 ikinci katman (çözücü henüz yok)" : "");
+			for (size_t i = 0; i < 16 && i < datas.size(); i++)
+				snprintf(szHex + i * 2, 3, "%02x", datas[i]);
+			CLogWriter::Write("N3TableBase - XOR sonrası başlık geçersiz ({}): boyut {} (%8={}), ilk16={}", szFN, datas.size(),
+				datas.size() % 8, szHex);
 #endif
 		}
 	}
+
+	uint8_t* pDatas = datas.data();
+	encryptedFileSize = datas.size();
 
 	// TODO: Rather than write to file to read it back again, we should just read it from a memory stream.
 
@@ -140,14 +93,12 @@ bool CN3TableBaseImpl::LoadFromFile(const std::string& szFN)
 		if (!tmpFileWriter.Create(szFNTmp))
 		{
 			tmpFileWriter.Close();
-			delete[] pDatas;
 			return false;
 		}
 
 		tmpFileWriter.Write(pDatas, encryptedFileSize); // 임시파일에 암호화 풀린 데이터 쓰기
 	}
 
-	delete[] pDatas;
 	pDatas = nullptr;
 
 	// 임시 파일 읽기 모드로 열기.
