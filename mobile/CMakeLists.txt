@@ -160,4 +160,12 @@ if(KO_BUILD_TESTS AND NOT ANDROID)
   add_executable(ko_crypt_test engine-port/tests/crypt_test.cpp engine-port/WinCrypt_portable.cpp)
   target_link_libraries(ko_crypt_test PRIVATE ko_n3base)
   add_test(NAME ko_crypt_test COMMAND ko_crypt_test)
+
+  # Dokunmatik kaplama + CLocalInput: parmak olayları → oyunun gördüğü fare bayrakları
+  add_executable(ko_touch_test platform/tests/touch_test.cpp platform/LocalInput_sdl.cpp
+    platform/KoPlatformInput.cpp platform/KoTouchOverlay.cpp)
+  target_link_libraries(ko_touch_test PRIVATE ko_warfare ko::sdl2 GLESv2 EGL)
+  ko_openko_target(ko_touch_test)
+  target_include_directories(ko_touch_test PRIVATE platform)
+  add_test(NAME ko_touch_test COMMAND ko_touch_test)
 endif()

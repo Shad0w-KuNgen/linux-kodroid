@@ -171,6 +171,9 @@ void CLocalInput::Tick()
 		dwClicked = timeGetTime();
 	}
 
+	if (in.dragHoldFrames > 0)
+		--in.dragHoldFrames; // bu kare başlangıç noktasında örneklendi
+
 	if (m_nMouseFlag & MOUSE_LBDOWN) { m_rcLBDrag.right = m_ptCurMouse.x; m_rcLBDrag.bottom = m_ptCurMouse.y; }
 	if (m_nMouseFlag & MOUSE_MBDOWN) { m_rcMBDrag.right = m_ptCurMouse.x; m_rcMBDrag.bottom = m_ptCurMouse.y; }
 	if (m_nMouseFlag & MOUSE_RBDOWN) { m_rcRBDrag.right = m_ptCurMouse.x; m_rcRBDrag.bottom = m_ptCurMouse.y; }

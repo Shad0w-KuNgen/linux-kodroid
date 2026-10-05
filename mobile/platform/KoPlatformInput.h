@@ -24,6 +24,13 @@ struct KoInputState
 	// her tık için bir kare LBDOWN|LBCLICK, sonraki kare LBCLICKED üretir. Tıklar birleşmez.
 	struct Tap { int x, y; bool right; };
 	std::deque<Tap> taps;
+
+	// Sürükleme başlangıcı: bu kadar kare boyunca imleç başlangıç noktasında ve sol tuş basılı
+	// tutulur (önce LBCLICK, sonra LBDOWN ikonun ÜSTÜNDE görülsün), sonra parmak izlenir.
+	int dragHoldFrames = 0;
+	// Yapışkan sürükleme: ikon uzun basışla alındı, parmak kalktı; sol tuş basılı kalır,
+	// bir sonraki dokunuşta imleç oraya taşınıp bırakılır ("ikona dokun → hedefe dokun").
+	bool stickyDrag = false;
 };
 
 KoInputState& KoInput();

@@ -1,7 +1,9 @@
 // KoTouchOverlay.cpp — dokunmatik kontrol kaplaması (bkz. KoTouchOverlay.h).
 #include "StdAfx.h"
 #include "KoTouchOverlay.h"
+#include "UIManager.h"
 #include <cstdio>
+#include <string>
 #include "KoPlatformInput.h"
 
 #include "GameProcedure.h"
@@ -128,16 +130,35 @@ void KoTouchOverlay::Layout(int w, int h)
 	circle(Action::Key, KM_TOGGLE_RUN, "KOS", camX0 - 4 * step, camY, camR, COL_CAM);
 
 	// --- Alt çubuk ---
+	// MENU = H (komut listesi, PC'deki pencere); KAPAT = ESC (pencere kapat / çıkış menüsü)
 	const struct { int dik; const char* label; } bar[] = {
 		{KM_TOGGLE_INVENTORY, "CANTA"}, {KM_TOGGLE_STATE, "KARAKTER"}, {KM_TOGGLE_SKILL, "BECERI"},
 		{KM_TOGGLE_SITDOWN, "OTUR"}, {KM_TOGGLE_MINIMAP, "HARITA"}, {KM_DROPPED_ITEM_OPEN, "AL"},
-		{DIK_RETURN, "SOHBET"}, {DIK_ESCAPE, "MENU"}};
+		{DIK_RETURN, "SOHBET"}, {KM_TOGGLE_CMDLIST, "MENU"}, {KM_TOGGLE_HELP, "YARDIM"}, {DIK_ESCAPE, "KAPAT"}};
 	int n = (int) (sizeof(bar) / sizeof(bar[0]));
-	float bw = 96.0f * u, bh = 26.0f * u, gap = 10.0f * u;
+	float gap = 8.0f * u, bh = 26.0f * u;
+	float bw  = std::min(96.0f * u, (w - 16.0f * u - (n - 1) * gap) / n);
 	float total = n * bw + (n - 1) * gap;
 	float x0 = (w - total) / 2.0f + bw / 2.0f, y0 = h - 20.0f * u;
 	for (int i = 0; i < n; ++i)
 		rect(bar[i].dik, bar[i].label, x0 + i * (bw + gap), y0, bw, bh);
+
+	// --- Hedef seçimi: parti (X), dost (V), NPC (B) — HEDEF'in sağında ---
+	circle(Action::Key, KM_TARGET_NEAREST_PARTY, "PARTI", atkCx + 58.0f * u, atkCy - 126.0f * u, 20.0f * u, COL_TARGET);
+	circle(Action::Key, KM_TARGET_NEAREST_FRIEND, "DOST", atkCx + 8.0f * u, atkCy - 150.0f * u, 20.0f * u, COL_TARGET);
+	circle(Action::Key, KM_TARGET_NEAREST_NPC, "NPC", atkCx + 100.0f * u, atkCy - 90.0f * u, 20.0f * u, COL_TARGET);
+
+	// --- Beceri sayfası (F1..F8): halkanın altında döngü düğmesi ---
+	{
+		Button b;
+		b.action = Action::SkillPage; b.shape = Shape::Ring; b.dik = 0;
+		b.label = "S" + std::to_string(m_skillPage);
+		b.cx = atkCx - 130.0f * u; b.cy = atkCy + 70.0f * u; b.r = 22.0f * u; b.color = COL_SLOT;
+		m_buttons.push_back(b);
+	}
+
+	// --- Sürekli yürüme (E): joystick'in üstünde küçük düğme ---
+	circle(Action::Key, KM_TOGGLE_MOVE_CONTINOUS, "OTO", m_joyHomeX + m_joyR + 30.0f * u, m_joyHomeY - m_joyR - 10.0f * u, 20.0f * u, COL_CAM);
 
 	// --- HP / MP pot düğmeleri (kısayol yuvası ayarlanabilir) ---
 	const int slotKeys[8] = {KM_HOTKEY1, KM_HOTKEY2, KM_HOTKEY3, KM_HOTKEY4, KM_HOTKEY5, KM_HOTKEY6, KM_HOTKEY7, KM_HOTKEY8};
@@ -202,6 +223,18 @@ void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
 {
 	KoInputState& in = KoInput();
 	Finger f {id, Role::Pending, x, y, x, y, -1, timeGetTime()};
+	if (in.stickyDrag)
+	{
+		// Yapışkan sürükleme: ikonu buraya taşı ve bırak (bir kare LBDOWN, sonra LBCLICKED)
+		in.mouseX            = x;
+		in.mouseY            = y;
+		in.dragHoldFrames    = 0;
+		in.pendingLbUpFrames = 2;
+		in.stickyDrag        = false;
+		f.role               = Role::Done;
+		m_fingers.push_back(f);
+		return;
+	}
 	bool overlayActive = m_enabled && (IsInGame() || m_forceVisible) && CN3UIBase::GetFocusedEdit() == nullptr;
 	if (overlayActive)
 	{
@@ -244,14 +277,18 @@ void KoTouchOverlay::OnFingerMotion(int64_t id, int x, int y)
 		case Role::Pending:
 			if (std::abs(x - f->startX) > TAP_SLOP || std::abs(y - f->startY) > TAP_SLOP)
 			{
-				bool camera = m_enabled && IsInGame();
-				f->role     = camera ? Role::Camera : Role::LeftDrag;
+				// Arayüz penceresi üstünde başlayan sürükleme = sol tuş sürüklemesi (ikon taşıma,
+				// pencere taşıma, kaydırma çubuğu); 3D dünyada = kamera (sağ tuş sürüklemesi)
+				bool camera = m_enabled && IsInGame() && !IsOverUI(f->startX, f->startY);
 				if (camera)
+				{
+					f->role   = Role::Camera;
 					in.rbDown = true;
+					in.mouseX = f->startX;
+					in.mouseY = f->startY;
+				}
 				else
-					in.lbDown = true;
-				in.mouseX = f->startX;
-				in.mouseY = f->startY;
+					BeginLeftDrag(*f);
 			}
 			break;
 		case Role::Camera:
@@ -261,12 +298,38 @@ void KoTouchOverlay::OnFingerMotion(int64_t id, int x, int y)
 			in.mouseY = f->startY + (int) std::lround((y - f->startY) * m_tuning.camSens);
 			break;
 		case Role::LeftDrag:
-			in.mouseX = x;
-			in.mouseY = y;
+			if (in.dragHoldFrames == 0) // başlangıç kareleri bitmeden imleç kıpırdamaz
+			{
+				in.mouseX = x;
+				in.mouseY = y;
+			}
 			break;
 		default:
 			break;
 	}
+}
+
+void KoTouchOverlay::BeginLeftDrag(Finger& f)
+{
+	KoInputState& in  = KoInput();
+	f.role            = Role::LeftDrag;
+	in.mouseX         = f.startX;
+	in.mouseY         = f.startY;
+	in.lbDown         = true;
+	in.dragHoldFrames = 2; // kare 1: LBCLICK ikon üstünde, kare 2: LBDOWN ikon üstünde, sonra takip
+}
+
+bool KoTouchOverlay::IsOverUI(int x, int y) const
+{
+	CUIManager* mgr = CGameProcedure::s_pUIMgr;
+	if (!mgr || !mgr->IsVisible())
+		return false;
+	for (CN3UIBase* child : mgr->GetChildren())
+	{
+		if (child && child->IsVisible() && child->IsIn(x, y))
+			return true;
+	}
+	return false;
 }
 
 void KoTouchOverlay::ReleaseFinger(Finger& f)
@@ -294,7 +357,20 @@ void KoTouchOverlay::ReleaseFinger(Finger& f)
 			m_pinchDist = 0.0f;
 			break;
 		case Role::LeftDrag:
-			in.lbDown = false;
+			if (f.longPressDrag && std::abs(f.x - f.startX) <= TAP_SLOP && std::abs(f.y - f.startY) <= TAP_SLOP)
+			{
+				// Uzun basışla alınan ikon, parmak kıpırdamadan kalktı: yapışkan sürükleme —
+				// sol tuş basılı kalır, sonraki dokunuşta hedefe bırakılır
+				in.stickyDrag = true;
+			}
+			else if (in.dragHoldFrames > 0)
+				in.pendingLbUpFrames = in.dragHoldFrames + 1; // başlangıç kareleri işlendikten sonra bırak (yerinde)
+			else
+			{
+				in.mouseX = f.x; // bırakma noktası = parmağın kalktığı yer
+				in.mouseY = f.y;
+				in.lbDown = false;
+			}
 			break;
 		default:
 			break;
@@ -327,10 +403,33 @@ void KoTouchOverlay::Update()
 				continue;
 			if (now - f.downTicks >= m_tuning.longPressMs && std::abs(f.x - f.startX) <= TAP_SLOP && std::abs(f.y - f.startY) <= TAP_SLOP)
 			{
-				in.taps.push_back({f.x, f.y, true});
-				f.role = Role::Done;
+				if (IsOverUI(f.startX, f.startY))
+				{
+					// Arayüz üstünde uzun basış = ikonu/pencereyi tut (sürükleme başlar); sağ tık
+					// (eşyayı kullan) değil — kullanmak için çift dokunuş
+					BeginLeftDrag(f);
+					f.longPressDrag = true;
+				}
+				else
+				{
+					in.taps.push_back({f.x, f.y, true}); // 3D dünya: sağ tık (NPC, kapı, kutu)
+					f.role = Role::Done;
+				}
 			}
 		}
+		// Sürüklenen parmağı izle (başlangıç kareleri bittikten sonra)
+		for (Finger& f : m_fingers)
+			if (f.role == Role::LeftDrag && in.dragHoldFrames == 0)
+			{
+				in.mouseX = f.x;
+				in.mouseY = f.y;
+			}
+	}
+	// Beceri sayfası tuşu birkaç kare basılı tutulur
+	if (m_pageKeyFrames > 0)
+	{
+		in.virtualKeysDIK[m_pageKey] = 0x80;
+		--m_pageKeyFrames;
 	}
 	if (!m_enabled)
 		return;
@@ -381,13 +480,23 @@ void KoTouchOverlay::Update()
 			case Action::ZoomOut:
 				if (eng && IsInGame()) eng->CameraZoom(-0.6f);
 				break;
+			case Action::SkillPage:
+				if (!b.fired)
+				{
+					m_skillPage     = (m_skillPage % 8) + 1;
+					m_pageKey       = KM_SKILL_PAGE_1 + (m_skillPage - 1); // DIK_F1..F8 ardışık
+					m_pageKeyFrames = 2;
+					b.label         = "S" + std::to_string(m_skillPage);
+					b.fired         = true;
+				}
+				break;
 		}
 	}
 
 	// İki parmakla yakınlaştırma
 	std::vector<Finger*> free;
 	for (auto& f : m_fingers)
-		if (f.role == Role::Camera || f.role == Role::Pending || f.role == Role::LeftDrag)
+		if (f.role == Role::Camera || f.role == Role::Pending)
 			free.push_back(&f);
 	if (free.size() >= 2 && IsInGame() && eng)
 	{
@@ -527,6 +636,13 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 	};
 	setup();
 	float u = m_u;
+
+	if (KoInput().stickyDrag)
+	{
+		DrawRect(dev, m_w / 2.0f - 170.0f * u, 48.0f * u, 340.0f * u, 24.0f * u, 0xB0203050);
+		DrawLabel(dev, (int) m_buttons.size() + 1, "Birakmak icin hedef yuvaya dokun", m_w / 2.0f, 60.0f * u, COL_TEXT, 11);
+		setup();
+	}
 
 	// Joystick (aktifken parmağın altında, değilken soluk ipucu)
 	bool joyActive = m_joyFinger >= 0;

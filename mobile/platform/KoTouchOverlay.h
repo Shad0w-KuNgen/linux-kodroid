@@ -61,7 +61,7 @@ public:
 	bool IsInGame() const;
 
 private:
-	enum class Action { Key, Yaw180, ZoomIn, ZoomOut };
+	enum class Action { Key, Yaw180, ZoomIn, ZoomOut, SkillPage };
 	enum class Shape { Circle, Ring, Rect };
 	struct Button
 	{
@@ -83,12 +83,16 @@ private:
 		int startX, startY, x, y;
 		int buttonIndex;
 		uint32_t downTicks;
+		bool longPressDrag = false; // uzun basışla başlayan sürükleme (kalkınca yapışkan olur)
 	};
 
 	Finger* Find(int64_t id);
 	int HitButton(int x, int y) const;
 	bool InJoystickZone(int x, int y) const;
 	void ReleaseFinger(Finger& f);
+	void BeginLeftDrag(Finger& f);
+	/// Nokta görünür bir arayüz penceresinin (çanta, beceri, ticaret...) üstünde mi?
+	bool IsOverUI(int x, int y) const;
 	void DrawCircle(IDirect3DDevice9* dev, float cx, float cy, float r, uint32_t color, int segs = 32);
 	void DrawRing(IDirect3DDevice9* dev, float cx, float cy, float r, float thickness, uint32_t color, int segs = 40);
 	void DrawRect(IDirect3DDevice9* dev, float x, float y, float w, float h, uint32_t color);
@@ -110,6 +114,9 @@ private:
 	float m_joyR = 0, m_joyHomeX = 0, m_joyHomeY = 0;
 	float m_joyCx = 0, m_joyCy = 0, m_knobX = 0, m_knobY = 0;
 	int64_t m_joyFinger = -1;
+	int m_skillPage     = 1;  // beceri çubuğu sayfası (F1..F8)
+	int m_pageKey       = 0;  // basılı tutulacak sayfa tuşu
+	int m_pageKeyFrames = 0;
 	std::vector<Button> m_buttons;
 	std::vector<Finger> m_fingers;
 	std::vector<CDFont*> m_fonts;
