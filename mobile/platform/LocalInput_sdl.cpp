@@ -79,7 +79,34 @@ void CLocalInput::Tick()
 {
 	KoInputState& in = KoInput();
 	if (!in.windowFocused)
+	{
+		// Kenar bayrakları (CLICK/CLICKED) tekrar etmesin
+		m_nMouseFlagOld = m_nMouseFlag;
+		m_nMouseFlag &= (MOUSE_LBDOWN | MOUSE_MBDOWN | MOUSE_RBDOWN);
 		return;
+	}
+
+	// Dokunmatik tık kuyruğu: önce önceki tıkın bırakma karesi, sonra sıradaki tıkın basma karesi
+	if (in.pendingLbUpFrames > 0)
+	{
+		if (--in.pendingLbUpFrames == 0)
+		{
+			in.lbDown = false;
+			in.rbDown = false;
+		}
+	}
+	else if (!in.lbDown && !in.rbDown && !in.taps.empty())
+	{
+		KoInputState::Tap t = in.taps.front();
+		in.taps.pop_front();
+		in.mouseX = t.x;
+		in.mouseY = t.y;
+		if (t.right)
+			in.rbDown = true;
+		else
+			in.lbDown = true;
+		in.pendingLbUpFrames = 1; // bir sonraki karede bırakılır → LBCLICKED
+	}
 
 	// KLAVYE
 	KoInputUpdateKeyboard();
@@ -102,7 +129,11 @@ void CLocalInput::Tick()
 	RECT rcClient;
 	::GetClientRect(m_hWnd, &rcClient);
 	if (!PtInRect(&rcClient, m_ptCurMouse))
+	{
+		m_nMouseFlagOld = m_nMouseFlag;
+		m_nMouseFlag &= (MOUSE_LBDOWN | MOUSE_MBDOWN | MOUSE_RBDOWN);
 		return;
+	}
 
 	m_nMouseFlagOld = m_nMouseFlag;
 	m_nMouseFlag    = 0;

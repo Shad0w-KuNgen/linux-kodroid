@@ -153,9 +153,28 @@ void CGameProcCharacterCreate::Tick()
 
 	CGameProcedure::Tick();
 
+	// Sunucu yanıtı beklenirken zaman aşımı: yanıt gelmezse ekran kilitli kalmasın
+	if (m_fWaitReplySec > 0.0f)
+	{
+		m_fWaitReplySec -= s_fSecPerFrm;
+		if (m_fWaitReplySec <= 0.0f)
+		{
+			m_fWaitReplySec = 0.0f;
+			s_pUIMgr->EnableOperationSet(true);
+			MessageBoxPost("No response from the server. Check your connection and try again.", "", MB_OK,
+				BEHAVIOR_NOTHING);
+			CLogWriter::Write("WIZ_NEW_CHAR: no reply, UI re-enabled");
+		}
+	}
+
 	uint32_t dwMouseFlags = s_pLocalInput->MouseGetFlag();
 	m_pUICharacterCreate->Tick();
-	m_pUICharacterCreate->MouseProc(dwMouseFlags, s_pLocalInput->MouseGetPos(), s_pLocalInput->MouseGetPosOld());
+	// Yanıt beklenirken (UI yöneticisi kapalı) doğrudan çağrı da tık almasın; yoksa Create'e
+	// tekrar basılıp ikinci WIZ_NEW_CHAR gidiyordu
+	if (s_pUIMgr->EnableOperation())
+		m_pUICharacterCreate->MouseProc(dwMouseFlags, s_pLocalInput->MouseGetPos(), s_pLocalInput->MouseGetPosOld());
+	else
+		m_pUICharacterCreate->MouseProc(0, s_pLocalInput->MouseGetPos(), s_pLocalInput->MouseGetPosOld());
 
 	s_pEng->s_SndMgr.Tick(); // Sound Engine...
 
@@ -270,6 +289,7 @@ bool CGameProcCharacterCreate::MsgSendCharacterCreate()
 			s_pSocket->Send(byBuff, iOffset);                                              // 보낸다
 
 			s_pUIMgr->EnableOperationSet(false);                                           // 패킷이 들어올때까지 UI 를 Disable 시킨다...
+			m_fWaitReplySec = 15.0f;                                                       // yanıt zaman aşımı
 
 			return true;
 		}
@@ -325,6 +345,7 @@ bool CGameProcCharacterCreate::ProcessPacket(Packet& pkt)
 		case WIZ_NEW_CHAR:                                                      // 캐릭터 선택 메시지..
 		{
 			uint8_t bySuccess = pkt.read<uint8_t>();                            // 커멘드 파싱..
+			m_fWaitReplySec   = 0.0f;
 			if (0 == bySuccess)
 			{
 				ProcActiveSet((CGameProcedure*) s_pProcCharacterSelect);        // 캐릭터 선택창으로 가기..
@@ -332,9 +353,8 @@ bool CGameProcCharacterCreate::ProcessPacket(Packet& pkt)
 			else                                                                // 실패하면.. 이유가 0 이 아닌 값으로 온다..
 			{
 				ReportErrorCharacterCreate((e_ErrorCharacterCreate) bySuccess); // 에러 메시지 띄움..
-				s_pUIMgr->EnableOperationSet(false);                            // UI 조작 가능하게 한다... 다시 캐릭터 만들어야 한다..
+				s_pUIMgr->EnableOperationSet(true);                             // UI 조작 가능하게 한다... 다시 캐릭터 만들어야 한다..
 			}
-			s_pUIMgr->EnableOperationSet(false);                                // 패킷이 들어올때까지 UI 를 Disable 시킨다...
 		}
 			return true;
 

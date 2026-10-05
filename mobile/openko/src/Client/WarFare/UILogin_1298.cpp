@@ -147,6 +147,18 @@ bool CUILogIn_1298::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 		// being called...
 		if (!m_bLogIn && m_pEdit_id && m_pEdit_pw)
 		{
+			// Mobil: sanal klavyede Tab yok; ID kutusunda Enter/İleri şifre kutusuna geçer,
+			// şifre boşken şifre kutusundan Enter ID'ye döner.
+			if (pSender == m_pEdit_id && m_pEdit_pw->GetString().empty())
+			{
+				m_pEdit_pw->SetFocus();
+				return true;
+			}
+			if (pSender == m_pEdit_pw && m_pEdit_id->GetString().empty())
+			{
+				m_pEdit_id->SetFocus();
+				return true;
+			}
 			CN3UIBase* pMsgBox = CGameProcedure::s_pMsgBoxMgr->GetFocusMsgBox();
 			if (!(pMsgBox && pMsgBox->IsVisible()))
 				CGameProcedure::s_pProcLogIn->MsgSend_AccountLogIn(LIC_KNIGHTONLINE);
@@ -563,6 +575,14 @@ void CUILogIn_1298::SetVisibleLogInUIs(bool bEnable)
 {
 	if (m_pGroup_LogIn != nullptr)
 		m_pGroup_LogIn->SetVisible(bEnable); // 로그인을 숨긴다..
+
+	// Gizlenen gruptaki edit odağı tutmasın (sanal klavye açık kalıyor, yazı gizli kutuya gidiyordu)
+	if (!bEnable)
+	{
+		CN3UIEdit* pFocused = CN3UIBase::GetFocusedEdit();
+		if (pFocused != nullptr && (pFocused == m_pEdit_id || pFocused == m_pEdit_pw))
+			pFocused->KillFocus();
+	}
 }
 
 bool CUILogIn_1298::OnKeyPress(int iKey)

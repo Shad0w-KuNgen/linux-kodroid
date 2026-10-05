@@ -250,6 +250,7 @@ void CGameProcCharacterSelect::Init()
 		MsgSend_VersionCheck();
 	else
 		MsgSend_RequestAllCharacterInfo(); // 캐릭터 정보 요청..
+	m_fWaitReplySec = 20.0f;               // karakter listesi yanıtı zaman aşımı
 }
 
 void CGameProcCharacterSelect::Tick()
@@ -267,6 +268,22 @@ void CGameProcCharacterSelect::Tick()
 
 	// 배경..
 	m_pActiveBg->Tick();
+
+	// Sunucu yanıtı zaman aşımı: ekran kilitli kalmasın
+	if (m_fWaitReplySec > 0.0f && !s_pUIMgr->EnableOperation())
+	{
+		m_fWaitReplySec -= s_fSecPerFrm;
+		if (m_fWaitReplySec <= 0.0f)
+		{
+			m_fWaitReplySec = 0.0f;
+			s_pUIMgr->EnableOperationSet(true);
+			MessageBoxPost("No response from the server. Check your connection and try again.", "", MB_OK,
+				BEHAVIOR_NOTHING);
+			CLogWriter::Write("Character select: no reply from server, UI re-enabled");
+		}
+	}
+	else if (m_fWaitReplySec > 0.0f)
+		m_fWaitReplySec = 0.0f;
 
 	if (s_pUIMgr->m_bDoneSomething == false && s_pUIMgr->EnableOperation()) // 패킷을 받기 전에 아무짓도 못하게 한다.
 	{
@@ -1151,6 +1168,7 @@ void CGameProcCharacterSelect::CharacterSelect()
 	}
 
 	m_bReceivedCharacterSelect = true;   // 캐릭터 고르기 완료..
+	m_fWaitReplySec            = 0.0f;
 	s_pUIMgr->EnableOperationSet(false); // 일단 고르면 UI 안되게 한다...
 }
 
@@ -1471,6 +1489,7 @@ void CGameProcCharacterSelect::MsgSend_CharacterSelect()           // virtual
 {
 	CGameProcedure::MsgSend_CharacterSelect();
 	s_pUIMgr->EnableOperationSet(false);                           // UI 를 조작 못하게 한다..
+	m_fWaitReplySec = 20.0f;                                       // seçim yanıtı zaman aşımı
 }
 
 bool CGameProcCharacterSelect::ProcessPacket(Packet& pkt)
@@ -1487,6 +1506,7 @@ bool CGameProcCharacterSelect::ProcessPacket(Packet& pkt)
 		case WIZ_ALLCHAR_INFO_REQ:              // 캐릭터 선택 메시지..
 			MsgRecv_AllCharacterInfo(pkt);
 			s_pUIMgr->EnableOperationSet(true); // 캐릭터 정보가 다오면 UI 조작하게 한다..
+			m_fWaitReplySec = 0.0f;
 			return true;
 
 		case WIZ_DEL_CHAR:

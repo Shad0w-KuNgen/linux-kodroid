@@ -261,10 +261,7 @@ void KoTouchOverlay::ReleaseFinger(Finger& f)
 			m_joyCy = m_knobY = m_joyHomeY;
 			break;
 		case Role::Pending:
-			in.mouseX = f.x;
-			in.mouseY = f.y;
-			in.lbDown = true;
-			in.pendingLbUpFrames = 2;
+			in.taps.push_back({f.x, f.y, false}); // CLocalInput::Tick kare kare işler
 			break;
 		case Role::Camera:
 			in.rbDown   = false;
@@ -293,11 +290,6 @@ void KoTouchOverlay::Update()
 {
 	KoInputState& in = KoInput();
 	std::memset(in.virtualKeysDIK, 0, sizeof(in.virtualKeysDIK));
-	if (in.pendingLbUpFrames > 0)
-	{
-		if (--in.pendingLbUpFrames == 0)
-			in.lbDown = false;
-	}
 	if (!m_enabled)
 		return;
 

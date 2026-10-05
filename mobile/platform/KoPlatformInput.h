@@ -7,6 +7,7 @@
 #define KO_PLATFORM_INPUT_H
 
 #include <cstdint>
+#include <deque>
 
 struct KoInputState
 {
@@ -17,6 +18,12 @@ struct KoInputState
 	uint8_t keysDIK[256] = {};    // DirectInput tarama kodu → basılı mı (0x80)
 	uint8_t virtualKeysDIK[256] = {}; // dokunmatik kaplamanın ürettiği tuşlar (fiziksel ile OR'lanır)
 	int pendingLbUpFrames = 0;    // dokunmatik "tık": sol tuş bu kadar kare sonra bırakılır
+
+	// Dokunmatik tık kuyruğu. Parmak bas+bırak aynı karede gelirse (düşük FPS'te hemen her
+	// zaman) anlık lbDown değişimi kaybolur; bunun yerine her tık kuyruğa girer ve CLocalInput
+	// her tık için bir kare LBDOWN|LBCLICK, sonraki kare LBCLICKED üretir. Tıklar birleşmez.
+	struct Tap { int x, y; bool right; };
+	std::deque<Tap> taps;
 };
 
 KoInputState& KoInput();

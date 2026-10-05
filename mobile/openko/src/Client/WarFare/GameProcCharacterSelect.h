@@ -141,6 +141,7 @@ public:
 	bool m_bFadeOutRender;
 
 	bool m_bReceivedCharacterSelect;
+	float m_fWaitReplySec = 0.0f; // sunucu yanıtı bekleniyor (saniye); 0 = beklenmiyor
 
 public:
 	void CharacterSelectOrCreate();

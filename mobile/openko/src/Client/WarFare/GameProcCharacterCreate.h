@@ -54,6 +54,7 @@ class CGameProcCharacterCreate : public CGameProcedure
 public:
 	class CUICharacterCreate* m_pUICharacterCreate;
 	RECT m_rcChr;
+	float m_fWaitReplySec = 0.0f; // WIZ_NEW_CHAR yanıtı bekleniyor (saniye); 0 = beklenmiyor
 	CN3TableBase<__TABLE_NEW_CHR> m_Tbl_InitValue; // 사운드 소스 정보 테이블..
 
 												   //	int						m_InitValue[TRIBE_NUM][CVAL_NUM];

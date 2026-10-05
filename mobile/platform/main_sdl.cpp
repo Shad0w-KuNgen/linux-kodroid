@@ -11,6 +11,8 @@
 #include "UIManager.h"
 #include "UIMessageBoxManager.h"
 #include "UIMessageBox.h"
+#include "ClientResourceFormatter.h"
+#include "text_resources.h"
 
 #include <N3Base/N3Base.h>
 #include <N3Base/N3UIBase.h>
@@ -44,6 +46,7 @@ int g_logicalW = 1024, g_logicalH = 768; // oyunun gördüğü çözünürlük
 int g_presentX = 0, g_presentY = 0, g_presentW = 1, g_presentH = 1; // mantıksal görüntünün ekrandaki yeri
 int g_mobileLogicalHeight = 0;           // [Mobile] LogicalHeight (0 = ölçekleme yok)
 bool g_touchControls = false;
+bool g_inputDebug    = false; // KO_INPUT_DEBUG: dokunma/metin olaylarını stderr'e yaz
 bool g_physicalShotPending = false;
 std::string g_physicalShotPath;
 
@@ -102,6 +105,7 @@ void LoadOptions(const std::string& iniPath)
 #endif
 	if (const char* lh = std::getenv("KO_LOGICAL_HEIGHT"))
 		g_mobileLogicalHeight = std::atoi(lh);
+	g_inputDebug = std::getenv("KO_INPUT_DEBUG") != nullptr || ini.GetBool("Mobile", "InputDebug", false);
 }
 
 std::string ResolveClientDir(int argc, char** argv)
@@ -225,7 +229,21 @@ void OnSocketEvent(SOCKET, HWND, unsigned, long event)
 				CGameProcedure::s_pSocket->Receive();
 			break;
 		case FD_CLOSE:
-			CGameProcedure::ReportServerConnectionClosed(true);
+			// Giriş ekranında (sunucu boşta kalan bağlantıyı kapatır) oyundan çıkma; "Disconnected"
+			// kutusunda OK'e basılınca giriş sunucusuna yeniden bağlan.
+			if (CGameProcedure::s_pProcActive != nullptr
+				&& CGameProcedure::s_pProcActive == (CGameProcedure*) CGameProcedure::s_pProcLogIn
+				&& CGameProcedure::s_bNeedReportConnectionClosed)
+			{
+				CGameProcedure::s_pProcLogIn->ResetGameConnectionAttemptTimer();
+				std::string szMsg = fmt::format_text_resource(IDS_CONNECTION_CLOSED);
+				CGameProcedure::MessageBoxPost(szMsg, "", MB_OK, BEHAVIOR_RECONNECT_LOGIN);
+				if (CGameProcedure::s_pSocket)
+					CGameProcedure::s_pSocket->Disconnect();
+				CLogWriter::Write("Login server closed the connection; reconnect on OK");
+			}
+			else
+				CGameProcedure::ReportServerConnectionClosed(true);
 			break;
 		default:
 			break;
@@ -341,35 +359,25 @@ void PumpEvents()
 			{
 				int x = ToLogicalX((int) (e.tfinger.x * dw)), y = ToLogicalY((int) (e.tfinger.y * dh));
 				int64_t id = (int64_t) e.tfinger.fingerId;
-				if (KoTouch().Enabled())
-				{
-					if (e.type == SDL_FINGERDOWN) KoTouch().OnFingerDown(id, x, y);
-					else if (e.type == SDL_FINGERMOTION) KoTouch().OnFingerMotion(id, x, y);
-					else KoTouch().OnFingerUp(id, x, y);
-				}
-				else
-				{
-					// Basit eşleme: ilk parmak sol tık, ikinci parmak sağ tık
-					int fingers = SDL_GetNumTouchFingers(e.tfinger.touchId);
-					if (e.type == SDL_FINGERDOWN)
-					{
-						if (fingers <= 1) { in.mouseX = x; in.mouseY = y; in.lbDown = true; }
-						else in.rbDown = true;
-					}
-					else if (e.type == SDL_FINGERMOTION)
-					{
-						if (fingers <= 1) { in.mouseX = x; in.mouseY = y; }
-					}
-					else
-					{
-						if (fingers <= 1) { in.lbDown = false; in.rbDown = false; }
-						else in.rbDown = false;
-					}
-				}
+				// Kaplama kapalıyken de aynı yoldan: tık (kuyruk), sürükleme; aynı karedeki
+				// bas+bırak kaybolmaz
+				if (e.type == SDL_FINGERDOWN) KoTouch().OnFingerDown(id, x, y);
+				else if (e.type == SDL_FINGERMOTION) KoTouch().OnFingerMotion(id, x, y);
+				else KoTouch().OnFingerUp(id, x, y);
+				if (g_inputDebug)
+					std::fprintf(stderr, "[ko-input] finger %s id=%lld (%d,%d)\n",
+						e.type == SDL_FINGERDOWN ? "down" : e.type == SDL_FINGERUP ? "up" : "move", (long long) id, x, y);
 				break;
 			}
 			case SDL_TEXTINPUT:
+				if (g_inputDebug)
+					std::fprintf(stderr, "[ko-input] textinput '%s' focusedEdit=%p\n", e.text.text,
+						(void*) CN3UIBase::GetFocusedEdit());
 				CN3UIEdit::InputText(e.text.text);
+				break;
+			case SDL_TEXTEDITING: // IME bileşim metni: nihai metin SDL_TEXTINPUT ile gelir
+				if (g_inputDebug)
+					std::fprintf(stderr, "[ko-input] textediting '%s'\n", e.edit.text);
 				break;
 			case SDL_KEYDOWN:
 				HandleTextInputKey(e.key);
@@ -379,12 +387,22 @@ void PumpEvents()
 		}
 	}
 
-	// Sanal klavye / metin girişi yönetimi
+	// Sanal klavye / metin girişi yönetimi. SDL_StopTextInput SDL_TEXTINPUT olaylarını da kapatır
+	// ve Android'de IME bağlantısını yeniden başlatır; odak bir kare için bile kaybolsa harfler
+	// düşmesin diye kapatma birkaç kare gecikmeli (histerezis) yapılır.
 	bool wants = CN3UIEdit::WantsTextInput();
-	if (wants && !SDL_IsTextInputActive())
-		SDL_StartTextInput();
-	else if (!wants && SDL_IsTextInputActive())
+	static int noEditFrames = 0;
+	if (wants)
+	{
+		noEditFrames = 0;
+		if (!SDL_IsTextInputActive())
+			SDL_StartTextInput();
+	}
+	else if (SDL_IsTextInputActive() && ++noEditFrames > 15)
+	{
 		SDL_StopTextInput();
+		noEditFrames = 0;
+	}
 }
 } // namespace
 
@@ -475,6 +493,17 @@ int main(int argc, char** argv)
 		PumpEvents();
 		KoTouch().Update();
 		KoWinsockPoll(OnSocketEvent);
+		if (CGameProcedure::s_bReconnectLogInRequested)
+		{
+			// "Disconnected" kutusunda OK: giriş sahnesini kapat ve yeniden başlat (Init yeniden bağlanır)
+			CGameProcedure::s_bReconnectLogInRequested = false;
+			if (CGameProcedure::s_pProcActive == (CGameProcedure*) CGameProcedure::s_pProcLogIn
+				&& CGameProcedure::s_pProcPrev == CGameProcedure::s_pProcActive)
+			{
+				CGameProcedure::s_pProcActive->Release();
+				CGameProcedure::s_pProcPrev = nullptr; // TickActive → Init()
+			}
+		}
 		CGameProcedure::TickActive();
 		CGameProcedure::RenderActive();
 		++frame;

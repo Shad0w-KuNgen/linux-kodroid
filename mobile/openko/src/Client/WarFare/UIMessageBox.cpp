@@ -93,6 +93,11 @@ bool CUIMessageBox::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 
 			switch (m_eBehavior)
 			{
+				case BEHAVIOR_RECONNECT_LOGIN:
+					// Giriş sunucusu bağlantıyı kapattı: oyundan çıkmak yerine giriş sahnesi
+					// yeniden başlatılır (platform döngüsü Release+Init yapar, Init yeniden bağlanır).
+					CGameProcedure::s_bReconnectLogInRequested = true;
+					break;
 				case BEHAVIOR_EXIT:
 				{
 					if (CGameProcedure::s_pProcActive == pProcMain) // 지금 메인 프로시저이면..

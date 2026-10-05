@@ -1310,6 +1310,8 @@ enum e_Behavior : int8_t
 
 	BEHAVIOR_EXECUTE_OPTION,            // Exit game and open options.
 
+	BEHAVIOR_RECONNECT_LOGIN,           // Mobile: reconnect to the login server (instead of exiting)
+
 	BEHAVIOR_UNKNOWN = -1
 };
 

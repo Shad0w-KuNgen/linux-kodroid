@@ -93,6 +93,7 @@ public:
 	static HWND s_hWndSubSocket;               // 서브 소켓용 윈도우 핸들..
 
 	static bool s_bNeedReportConnectionClosed; // 서버접속이 끊어진걸 보고해야 하는지..
+	static bool s_bReconnectLogInRequested;    // Mobile: "Disconnected" OK → giriş sahnesini yeniden başlat
 	static bool s_bWindowed;                   // 창모드 실행??
 	static bool s_bKeyPress;                   //키가 눌려졌을때 ui에서 해당하는 조작된적이 있다면
 	static bool s_bKeyPressed;                 //키가 올라갔을때 ui에서 해당하는 조작된적이 있다면

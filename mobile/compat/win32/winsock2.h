@@ -50,7 +50,8 @@ void KoWinsockPoll(KoWinsockEventFn fn);
 inline int WSAStartup(WORD, WSAData* d) { if (d) { d->wVersion = 0x0101; d->wHighVersion = 0x0202; } return 0; }
 inline int WSACleanup() { return 0; }
 inline int WSAGetLastError() { return errno; }
-inline int closesocket(SOCKET s) { return close(s); }
+void KoWinsockForget(SOCKET s); // izleme listesinden çıkar (sahte FD_CLOSE olmasın)
+inline int closesocket(SOCKET s) { KoWinsockForget(s); return close(s); }
 inline int ioctlsocket(SOCKET s, long cmd, unsigned long* arg)
 {
 	if (cmd == FIONBIO)

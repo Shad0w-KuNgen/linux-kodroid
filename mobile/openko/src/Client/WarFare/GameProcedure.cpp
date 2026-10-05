@@ -84,6 +84,7 @@ HCURSOR CGameProcedure::m_hPrevGameCursor          = nullptr;
 HWND CGameProcedure::s_hWndSubSocket               = nullptr; // 서브 소켓용 윈도우 핸들..
 int CGameProcedure::s_iChrSelectIndex              = 0;
 bool CGameProcedure::s_bNeedReportConnectionClosed = false;   // 서버접속이 끊어진걸 보고해야 하는지..
+bool CGameProcedure::s_bReconnectLogInRequested    = false;
 bool CGameProcedure::s_bWindowed                   = false;   // 창모드 실행??
 bool CGameProcedure::s_bKeyPress                   = false;   //키가 눌려졌을때 ui에서 해당하는 조작된적이 있다면
 bool CGameProcedure::s_bKeyPressed                 = false;   //키가 올라갔을때 ui에서 해당하는 조작된적이 있다면
@@ -363,9 +364,14 @@ void CGameProcedure::Tick()
 			SetGameCursor(((NATION_ELMORAD == eNation) ? s_hCursorNormal1 : s_hCursorNormal));
 	}
 
+	// Mesaj kutusu açıkken kalıcı (modal): alttaki arayüz tık almaz (dokunmatikte kutular
+	// üst üste biniyordu). Hover için konum yine iletilir, bayraklar sıfırlanır.
+	CUIMessageBox* pFocusBox = s_pMsgBoxMgr->GetFocusMsgBox();
+	bool bMsgBoxModal        = (pFocusBox != nullptr && pFocusBox->IsVisible());
+
 	uint32_t dwRet = s_pMsgBoxMgr->MouseProcAndTick(dwMouseFlags, ptCur, ptPrev);
 	if (dwRet == 0)
-		dwRet = s_pUIMgr->MouseProc(dwMouseFlags, ptCur, ptPrev);
+		dwRet = s_pUIMgr->MouseProc(bMsgBoxModal ? 0 : dwMouseFlags, ptCur, ptPrev);
 
 	s_pUIMgr->Tick();
 

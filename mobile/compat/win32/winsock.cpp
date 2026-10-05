@@ -26,6 +26,13 @@ int WSAAsyncSelect(SOCKET s, HWND hwnd, unsigned msg, long events)
 	return 0;
 }
 
+void KoWinsockForget(SOCKET s)
+{
+	// Yerel olarak kapatılan soket için Windows FD_CLOSE göndermez; biz de izlemeyi bırakıyoruz.
+	// (Önceden kapatılan fd bir sonraki poll'da POLLNVAL verip sahte "Disconnected" üretiyordu.)
+	g_watches.erase(std::remove_if(g_watches.begin(), g_watches.end(), [&](const Watch& w) { return w.s == s; }), g_watches.end());
+}
+
 void KoWinsockPoll(KoWinsockEventFn fn)
 {
 	if (g_watches.empty() || !fn)
@@ -40,25 +47,32 @@ void KoWinsockPoll(KoWinsockEventFn fn)
 	{
 		const Watch& w = snapshot[i];
 		short re       = fds[i].revents;
+		// Önce bekleyen veri (karşı taraf kapatmadan hemen önce yanıt göndermiş olabilir),
+		// sonra kapanış.
+		if (re & POLLIN)
+		{
+			char peek;
+			ssize_t n = recv(w.s, &peek, 1, MSG_PEEK | MSG_DONTWAIT);
+			if (n > 0)
+			{
+				if (w.events & FD_READ)
+					fn(w.s, w.hwnd, w.msg, FD_READ);
+				continue; // kapanış varsa bir sonraki turda (veri tükenince) bildirilir
+			}
+			if (n == 0 || (re & (POLLHUP | POLLERR | POLLNVAL)))
+			{
+				WSAAsyncSelect(w.s, w.hwnd, w.msg, 0);
+				if (w.events & FD_CLOSE)
+					fn(w.s, w.hwnd, w.msg, FD_CLOSE);
+			}
+			continue;
+		}
 		if (re & (POLLHUP | POLLERR | POLLNVAL))
 		{
 			WSAAsyncSelect(w.s, w.hwnd, w.msg, 0);
 			if (w.events & FD_CLOSE)
 				fn(w.s, w.hwnd, w.msg, FD_CLOSE);
 			continue;
-		}
-		if (re & POLLIN)
-		{
-			char peek;
-			ssize_t n = recv(w.s, &peek, 1, MSG_PEEK | MSG_DONTWAIT);
-			if (n == 0)
-			{
-				WSAAsyncSelect(w.s, w.hwnd, w.msg, 0);
-				if (w.events & FD_CLOSE)
-					fn(w.s, w.hwnd, w.msg, FD_CLOSE);
-			}
-			else if (n > 0 && (w.events & FD_READ))
-				fn(w.s, w.hwnd, w.msg, FD_READ);
 		}
 	}
 }
