@@ -26,7 +26,7 @@ set(D3D9GLES_BUILD_TESTS ${KO_BUILD_TESTS})
 add_subdirectory(d3d9gles)
 
 # --- compat ----------------------------------------------------------------
-add_library(ko_compat STATIC compat/win32/windows.cpp compat/win32/registry.cpp compat/win32/findfile.cpp compat/win32/ini.cpp compat/win32/winsock.cpp compat/win32/paths.cpp)
+add_library(ko_compat STATIC compat/win32/windows.cpp compat/win32/registry.cpp compat/win32/findfile.cpp compat/win32/ini.cpp compat/win32/winsock.cpp compat/win32/paths.cpp compat/win32/ko_vfs.cpp)
 target_include_directories(ko_compat PUBLIC ${KO_COMPAT}/win32)
 if(KO_SPDLOG_EXTERNAL_FMT)
   target_include_directories(ko_compat PUBLIC ${KO_COMPAT}/spdlog-bundled)
@@ -181,4 +181,10 @@ if(KO_BUILD_TESTS AND NOT ANDROID)
   target_link_libraries(ko_tbl_test PRIVATE ko_n3base)
   target_compile_definitions(ko_tbl_test PRIVATE KO_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/platform/tests/data")
   add_test(NAME ko_tbl_test COMMAND ko_tbl_test)
+
+  # Sanal dosya katmanı: UI paketi (ui.hdr/ui.src) ve .istirap çözümü
+  add_executable(ko_vfs_test platform/tests/vfs_test.cpp)
+  target_link_libraries(ko_vfs_test PRIVATE ko_compat)
+  target_include_directories(ko_vfs_test PRIVATE compat/win32)
+  add_test(NAME ko_vfs_test COMMAND ko_vfs_test)
 endif()

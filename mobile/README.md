@@ -185,6 +185,14 @@ alt dizi; fazlalıklar okunup atılır, eşlenmeyen struct alanları varsayılan
 klasörü `KoResolvePath` ile karşılıklı yedeklenir. PC'de `scripts/tbl_tool.py schema <Data>` tüm tabloların
 tür dizgisini ve ilk satırını listeler (eşleme doğrulama için).
 
+**2369 arayüz dosyaları:** `UI\` klasöründe tek tek `.uif/.dxt` yok; `ui.hdr` (şifresiz dizin) +
+`ui.src` (634 MB paket). `compat/win32/ko_vfs.cpp` "ui\<ad>" / "ui_us\<ad>" isteklerinde kaydı
+`ui_cache/<ad>` altına çıkarıp o yolu döndürür (`KoResolvePath` içinden; ilk kullanımda bir kez).
+ISTIRAP'a özel `ISTIRAP\*.istirap` UIF'leri Pearl Guard `dcpUIF` şemasıyla şifreli (ilk 4 bayt düz,
+32/31 baytlık bloklar, her blok RC4 başından, anahtar SHA1(parola[:29])[:16]); `.istirap` açılınca
+`ui_cache/istirap/<ad>.uif` olarak çözülür. `ko_vfs_test` sentetik paket ve istirap gidiş-dönüşünü doğrular;
+PC'de `scripts/ui_tool.py list|extract|istirap|info`.
+
 `ko_proto_test` (CTest) sunucu kaynağındaki `Packet <<` sırasını taklit eden paketlerle bu ayrıştırıcıları
 ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya/yükseltme, klan/kral/PUS,
 2369 arayüzü, 2369 veri uyumluluğu (bölge numaraları, `UI` klasörü, NPC ad tablosu).

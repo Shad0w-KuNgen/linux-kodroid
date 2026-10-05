@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <cstdio>
 #undef fopen
+#include "ko_vfs.h"
 
 #include <dirent.h>
 #include <sys/stat.h>
@@ -154,7 +155,16 @@ std::string KoResolvePath(const std::string& input)
 {
 	std::string r = ResolveOnce(input);
 	if (Exists(r))
+	{
+		// .istirap (şifreli UIF): çözülmüş önbellek kopyasını döndür
+		if (r.size() > 8 && Lower(r.substr(r.size() - 8)) == ".istirap")
+		{
+			std::string d = KoVfsResolve(r);
+			if (!d.empty())
+				return d;
+		}
 		return r;
+	}
 	std::string low = Lower(input);
 	for (char& c : low)
 		if (c == '\\')
@@ -174,7 +184,21 @@ std::string KoResolvePath(const std::string& input)
 	std::string alt = swapDir("ui_us/", "ui/");
 	if (alt.empty())
 		alt = swapDir("ui/", "ui_us/");
-	return alt.empty() ? r : alt;
+	if (!alt.empty())
+		return alt;
+	// 2369: UI paketi (ui.hdr/ui.src) içinden çıkar
+	{
+		std::string norm = input;
+		for (char& c : norm)
+			if (c == '\\')
+				c = '/';
+		if (norm.size() >= 2 && isalpha((unsigned char) norm[0]) && norm[1] == ':')
+			norm = norm.substr(2);
+		std::string v = KoVfsResolve(norm);
+		if (!v.empty())
+			return v;
+	}
+	return r;
 }
 
 FILE* ko_fopen(const char* path, const char* mode)
