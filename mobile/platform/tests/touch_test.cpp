@@ -11,6 +11,13 @@
 #include "KoTouchOverlay.h"
 
 #include <windows.h>
+#include <d3d9.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <GLES3/gl3.h>
+#include <N3Base/N3Base.h>
+#include <cstring>
+#include <string>
 
 #include <cstdio>
 #include <cstdlib>
@@ -182,6 +189,91 @@ static void TestLongPressOnUIStickyDrag()
 	delete mgr; // cocuklari da siler
 }
 
+// Düğmeler birbirine binmemeli (ekranda yanlış tuş algılanıyordu). minTouchPx farklı DPI'ları temsil eder.
+static void TestNoOverlap(float minTouchPx, int w, int h)
+{
+	std::printf("[test] dugmeler ust uste binmiyor (minTouch=%.0f, %dx%d)\n", minTouchPx, w, h);
+	KoTouchOverlay::Tuning t = KoTouch().GetTuning();
+	t.minTouchPx            = minTouchPx;
+	KoTouch().SetTuning(t);
+	KoTouch().Layout(w, h);
+	size_t n = KoTouch().ButtonCount();
+	for (size_t i = 0; i < n; ++i)
+	{
+		float ax0, ay0, ax1, ay1;
+		std::string al;
+		KoTouch().ButtonBox(i, &ax0, &ay0, &ax1, &ay1, &al);
+		CHECK(ax0 >= -1 && ay0 >= -1 && ax1 <= w + 1 && ay1 <= h + 1, "%s ekran disina tasiyor (%.0f,%.0f)-(%.0f,%.0f)", al.c_str(), ax0, ay0, ax1, ay1);
+		for (size_t j = i + 1; j < n; ++j)
+		{
+			float bx0, by0, bx1, by1;
+			std::string bl;
+			KoTouch().ButtonBox(j, &bx0, &by0, &bx1, &by1, &bl);
+			bool overlap = ax0 < bx1 - 1 && bx0 < ax1 - 1 && ay0 < by1 - 1 && by0 < ay1 - 1;
+			CHECK(!overlap, "%s ile %s cakisiyor", al.c_str(), bl.c_str());
+		}
+	}
+	t.minTouchPx = 0;
+	KoTouch().SetTuning(t);
+	KoTouch().Layout(1366, 768);
+}
+
+// --render cikti.ppm [minTouchPx]: kaplamayi bassiz cizip PPM olarak kaydet (duzen gozle denetimi)
+static int RenderOverlay(const char* out, float minTouchPx)
+{
+	const int W = 1366, H = 768;
+	PFNEGLGETPLATFORMDISPLAYEXTPROC getPlat = (PFNEGLGETPLATFORMDISPLAYEXTPROC) eglGetProcAddress("eglGetPlatformDisplayEXT");
+	EGLDisplay dpy = getPlat ? getPlat(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, nullptr) : eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	if (dpy == EGL_NO_DISPLAY || !eglInitialize(dpy, nullptr, nullptr))
+	{
+		std::printf("EGL yok\n");
+		return 1;
+	}
+	EGLint attr[] = {EGL_SURFACE_TYPE, EGL_PBUFFER_BIT, EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT, EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_ALPHA_SIZE, 8, EGL_DEPTH_SIZE, 24, EGL_STENCIL_SIZE, 8, EGL_NONE};
+	EGLConfig cfg;
+	EGLint n = 0;
+	eglChooseConfig(dpy, attr, &cfg, 1, &n);
+	eglBindAPI(EGL_OPENGL_ES_API);
+	EGLint ca[]     = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+	EGLContext ctx  = eglCreateContext(dpy, cfg, EGL_NO_CONTEXT, ca);
+	EGLint pa[]     = {EGL_WIDTH, W, EGL_HEIGHT, H, EGL_NONE};
+	EGLSurface surf = eglCreatePbufferSurface(dpy, cfg, pa);
+	eglMakeCurrent(dpy, surf, surf, ctx);
+	d3d9gles::PlatformHooks hooks;
+	hooks.getDrawableSize = [](void*, int* w, int* h) { *w = 1366; *h = 768; };
+	hooks.present         = [](void*) { glFinish(); };
+	d3d9gles::SetPlatformHooks(hooks);
+	IDirect3D9* d3d = Direct3DCreate9(D3D_SDK_VERSION);
+	D3DPRESENT_PARAMETERS pp {};
+	pp.Windowed = TRUE; pp.BackBufferWidth = W; pp.BackBufferHeight = H; pp.BackBufferFormat = D3DFMT_X8R8G8B8;
+	pp.EnableAutoDepthStencil = TRUE; pp.AutoDepthStencilFormat = D3DFMT_D24S8; pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+	IDirect3DDevice9* dev = nullptr;
+	if (FAILED(d3d->CreateDevice(0, D3DDEVTYPE_HAL, nullptr, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &dev)) || !dev)
+		return 1;
+	CN3Base::s_lpD3DDev = dev;
+	dev->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(60, 80, 60), 1.0f, 0);
+	KoTouchOverlay::Tuning t = KoTouch().GetTuning();
+	t.minTouchPx            = minTouchPx;
+	KoTouch().SetTuning(t);
+	KoTouch().Layout(W, H);
+	KoTouch().SetEnabled(true);
+	KoTouch().SetForceVisible(true);
+	KoTouch().Render(dev);
+	glFinish();
+	std::vector<unsigned char> rgba((size_t) W * H * 4);
+	glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+	FILE* f = std::fopen(out, "wb");
+	if (!f)
+		return 1;
+	std::fprintf(f, "P6\n%d %d\n255\n", W, H);
+	for (int y = H - 1; y >= 0; --y)
+		for (int x = 0; x < W; ++x)
+			std::fwrite(&rgba[((size_t) y * W + x) * 4], 1, 3, f);
+	std::fclose(f);
+	std::printf("kaplama cizildi: %s\n", out);
+	return 0;
+}
+
 static void TestMenuKeys()
 {
 	std::printf("[test] alt cubuk: MENU=H, KAPAT=ESC, YARDIM=F10; beceri sayfasi dugmesi F1..F8\n");
@@ -191,9 +283,11 @@ static void TestMenuKeys()
 	CHECK(KM_SKILL_PAGE_1 + 7 == KM_SKILL_PAGE_8, "F1..F8 ardisik olmali");
 }
 
-int main()
+int main(int argc, char** argv)
 {
 	KoWin32GetHooks().getClientSize = ClientSize;
+	if (argc >= 3 && std::strcmp(argv[1], "--render") == 0)
+		return RenderOverlay(argv[2], argc >= 4 ? (float) std::atof(argv[3]) : 0.0f);
 	CLocalInput li;
 	li.Init(nullptr, nullptr);
 	g_li = &li;
@@ -206,6 +300,10 @@ int main()
 	TestLongPressWorld();
 	TestLongPressOnUIStickyDrag();
 	TestMenuKeys();
+	TestNoOverlap(0.0f, 1366, 768);
+	TestNoOverlap(86.0f, 1366, 768);   // ~400 dpi telefon
+	TestNoOverlap(64.0f, 1024, 768);   // tablet 4:3
+	TestNoOverlap(100.0f, 1366, 768);  // çok yüksek dpi
 
 	std::printf(g_fail ? "SONUC: %d hata\n" : "SONUC: tum testler gecti\n", g_fail);
 	return g_fail ? 1 : 0;

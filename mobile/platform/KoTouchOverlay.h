@@ -60,6 +60,10 @@ public:
 
 	bool IsInGame() const;
 
+	/// Test: düğme sayısı ve i. düğmenin sınır kutusu (üst üste binme denetimi)
+	size_t ButtonCount() const { return m_buttons.size(); }
+	void ButtonBox(size_t i, float* x0, float* y0, float* x1, float* y1, std::string* label) const;
+
 private:
 	enum class Action { Key, Yaw180, ZoomIn, ZoomOut, SkillPage };
 	enum class Shape { Circle, Ring, Rect };
@@ -110,6 +114,7 @@ private:
 	bool m_forceVisible = false;
 	int m_w = 1024, m_h = 768;
 	float m_u = 1.0f; // 768p'ye göre ölçek
+	float m_barH = 0.0f; // alt çubuk yüksekliği (Layout belirler)
 	// Joystick (yüzen)
 	float m_joyR = 0, m_joyHomeX = 0, m_joyHomeY = 0;
 	float m_joyCx = 0, m_joyCy = 0, m_knobX = 0, m_knobY = 0;

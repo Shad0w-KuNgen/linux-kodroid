@@ -73,9 +73,17 @@ void KoTouchOverlay::Layout(int w, int h)
 	m_h = h;
 	float u = (float) h / 768.0f;
 	m_u     = u;
-	m_joyR  = 80.0f * u;
-	m_joyHomeX = m_joyR + 70.0f * u;
-	m_joyHomeY = h - m_joyR - 120.0f * u;
+
+	// Tüm aralıklar tek bir "dokunma birimi"ne göre: en az ~48dp (DPI'dan) ya da 56 mantıksal px.
+	// Düğmeler bu birime göre yerleşir, böylece büyütme üst üste binmeye yol açmaz.
+	const float t   = std::max(56.0f * u, m_tuning.minTouchPx); // bir düğmenin kapladığı kare
+	const float gap = std::max(8.0f * u, t * 0.14f);
+	const float r   = t * 0.46f;                                 // yuvarlak düğme yarıçapı
+
+	// Joystick: sol alt
+	m_joyR     = std::max(80.0f * u, t * 1.3f);
+	m_joyHomeX = m_joyR + 60.0f * u;
+	m_joyHomeY = h - m_joyR - 110.0f * u;
 	m_joyCx = m_joyHomeX;
 	m_joyCy = m_joyHomeY;
 	m_knobX = m_joyCx;
@@ -83,9 +91,14 @@ void KoTouchOverlay::Layout(int w, int h)
 	m_joyFinger = -1;
 
 	m_buttons.clear();
-	auto circle = [&](Action a, int dik, const char* label, float cx, float cy, float r, uint32_t col) {
+	auto circle = [&](Action a, int dik, const char* label, float cx, float cy, float rr, uint32_t col) {
 		Button b;
-		b.action = a; b.dik = dik; b.label = label; b.cx = cx; b.cy = cy; b.r = r; b.color = col;
+		b.action = a; b.dik = dik; b.label = label; b.cx = cx; b.cy = cy; b.r = rr; b.color = col;
+		m_buttons.push_back(b);
+	};
+	auto ring = [&](Action a, int dik, const std::string& label, float cx, float cy, float rr, uint32_t col) {
+		Button b;
+		b.action = a; b.shape = Shape::Ring; b.dik = dik; b.label = label; b.cx = cx; b.cy = cy; b.r = rr; b.color = col;
 		m_buttons.push_back(b);
 	};
 	auto rect = [&](int dik, const char* label, float cx, float cy, float bw, float bh) {
@@ -94,96 +107,97 @@ void KoTouchOverlay::Layout(int w, int h)
 		m_buttons.push_back(b);
 	};
 
-	// --- Sağ alt: saldırı + beceri yayı + hedef (KO Mobile düzeni) ---
-	float atkR  = 46.0f * u;
-	float atkCx = w - 110.0f * u, atkCy = h - 170.0f * u;
+	// --- Alt çubuk (en altta): CANTA ... KAPAT; yüksekliği dokunma birimine göre ---
+	const float barH = std::max(40.0f * u, t * 0.7f);
+	m_barH           = barH;
+	{
+		const struct { int dik; const char* label; } bar[] = {
+			{KM_TOGGLE_INVENTORY, "CANTA"}, {KM_TOGGLE_STATE, "KARAKTER"}, {KM_TOGGLE_SKILL, "BECERI"},
+			{KM_TOGGLE_SITDOWN, "OTUR"}, {KM_TOGGLE_MINIMAP, "HARITA"}, {KM_DROPPED_ITEM_OPEN, "AL"},
+			{DIK_RETURN, "SOHBET"}, {KM_TOGGLE_CMDLIST, "MENU"}, {KM_TOGGLE_HELP, "YARDIM"}, {DIK_ESCAPE, "KAPAT"}};
+		int n = (int) (sizeof(bar) / sizeof(bar[0]));
+		float bgap = 6.0f * u;
+		float bw   = std::min(110.0f * u, (w - 16.0f * u - (n - 1) * bgap) / n);
+		float total = n * bw + (n - 1) * bgap;
+		float x0 = (w - total) / 2.0f + bw / 2.0f, y0 = h - barH / 2.0f;
+		for (int i = 0; i < n; ++i)
+			rect(bar[i].dik, bar[i].label, x0 + i * (bw + bgap), y0, bw, barH - 8.0f * u);
+	}
+
+	// --- Sağ alt küme (çubuğun üstünde), sağdan sola: SALDIR | beceri ızgarası 2x4 | HP/MP ---
+	const float bottom = h - barH - gap;          // kümenin alt kenarı
+	const float atkR   = std::max(46.0f * u, t * 0.62f);
+	const float atkCx  = w - gap - atkR, atkCy = bottom - atkR;
 	circle(Action::Key, KM_TOGGLE_ATTACK, "SALDIR", atkCx, atkCy, atkR, COL_ATTACK);
-	circle(Action::Key, KM_TARGET_NEAREST_ENEMY, "HEDEF", atkCx + 58.0f * u, atkCy - 70.0f * u, 24.0f * u, COL_TARGET);
-	// 8 beceri yuvası: iç yay 4, dış yay 4 (sol-üst çeyrek)
+
+	// Beceri ızgarası: üst sıra 1-4, alt sıra 5-8; sağ kenarı SALDIR'ın solunda
 	const int hotkeys[8] = {KM_HOTKEY1, KM_HOTKEY2, KM_HOTKEY3, KM_HOTKEY4, KM_HOTKEY5, KM_HOTKEY6, KM_HOTKEY7, KM_HOTKEY8};
 	const char* names[8] = {"1", "2", "3", "4", "5", "6", "7", "8"};
-	float slotR = 28.0f * u;
+	const float gridRight = atkCx - atkR - gap * 1.5f;
+	const float rowY1     = bottom - t / 2.0f;            // alt sıra (5-8)
+	const float rowY0     = rowY1 - t - gap;              // üst sıra (1-4)
 	for (int i = 0; i < 4; ++i)
 	{
-		float a = DegreesToRadians(185.0f + i * 28.0f);
-		float rr = atkR + slotR + 26.0f * u;
-		Button b;
-		b.shape = Shape::Ring; b.dik = hotkeys[i]; b.label = names[i];
-		b.cx = atkCx + std::cos(a) * rr; b.cy = atkCy + std::sin(a) * rr; b.r = slotR; b.color = COL_SLOT;
-		m_buttons.push_back(b);
+		float cx = gridRight - (3 - i) * (t + gap) - t / 2.0f;
+		ring(Action::Key, hotkeys[i], names[i], cx, rowY0, r, COL_SLOT);
+		ring(Action::Key, hotkeys[4 + i], names[4 + i], cx, rowY1, r, COL_SLOT);
 	}
-	for (int i = 0; i < 4; ++i)
-	{
-		float a = DegreesToRadians(190.0f + i * 26.0f);
-		float rr = atkR + slotR * 3.0f + 46.0f * u;
-		Button b;
-		b.shape = Shape::Ring; b.dik = hotkeys[4 + i]; b.label = names[4 + i];
-		b.cx = atkCx + std::cos(a) * rr; b.cy = atkCy + std::sin(a) * rr; b.r = slotR; b.color = COL_SLOT;
-		m_buttons.push_back(b);
-	}
+	const float gridLeft = gridRight - 4 * (t + gap) + gap;
 
-	// --- Sağ üst: kamera kümesi ---
-	float camR = 22.0f * u, camY = 70.0f * u, camX0 = w - 40.0f * u, step = 56.0f * u;
-	circle(Action::Key, KM_CAMERA_CHANGE, "KAM", camX0, camY, camR, COL_CAM);
-	circle(Action::Yaw180, 0, "180", camX0 - step, camY, camR, COL_CAM);
-	circle(Action::ZoomIn, 0, "+", camX0 - 2 * step, camY, camR, COL_CAM);
-	circle(Action::ZoomOut, 0, "-", camX0 - 3 * step, camY, camR, COL_CAM);
-	circle(Action::Key, KM_TOGGLE_RUN, "KOS", camX0 - 4 * step, camY, camR, COL_CAM);
+	// Beceri sayfası (F1..F8): ızgaranın üstünde, sağa yaslı küçük düğme
+	ring(Action::SkillPage, 0, "S" + std::to_string(m_skillPage), gridRight - t * 0.5f, rowY0 - t * 0.5f - gap - r * 0.7f, r * 0.7f, COL_SLOT);
 
-	// --- Alt çubuk ---
-	// MENU = H (komut listesi, PC'deki pencere); KAPAT = ESC (pencere kapat / çıkış menüsü)
-	const struct { int dik; const char* label; } bar[] = {
-		{KM_TOGGLE_INVENTORY, "CANTA"}, {KM_TOGGLE_STATE, "KARAKTER"}, {KM_TOGGLE_SKILL, "BECERI"},
-		{KM_TOGGLE_SITDOWN, "OTUR"}, {KM_TOGGLE_MINIMAP, "HARITA"}, {KM_DROPPED_ITEM_OPEN, "AL"},
-		{DIK_RETURN, "SOHBET"}, {KM_TOGGLE_CMDLIST, "MENU"}, {KM_TOGGLE_HELP, "YARDIM"}, {DIK_ESCAPE, "KAPAT"}};
-	int n = (int) (sizeof(bar) / sizeof(bar[0]));
-	float gap = 8.0f * u, bh = 26.0f * u;
-	float bw  = std::min(96.0f * u, (w - 16.0f * u - (n - 1) * gap) / n);
-	float total = n * bw + (n - 1) * gap;
-	float x0 = (w - total) / 2.0f + bw / 2.0f, y0 = h - 20.0f * u;
-	for (int i = 0; i < n; ++i)
-		rect(bar[i].dik, bar[i].label, x0 + i * (bw + gap), y0, bw, bh);
-
-	// --- Hedef seçimi: parti (X), dost (V), NPC (B) — HEDEF'in sağında ---
-	circle(Action::Key, KM_TARGET_NEAREST_PARTY, "PARTI", atkCx + 58.0f * u, atkCy - 126.0f * u, 20.0f * u, COL_TARGET);
-	circle(Action::Key, KM_TARGET_NEAREST_FRIEND, "DOST", atkCx + 8.0f * u, atkCy - 150.0f * u, 20.0f * u, COL_TARGET);
-	circle(Action::Key, KM_TARGET_NEAREST_NPC, "NPC", atkCx + 100.0f * u, atkCy - 90.0f * u, 20.0f * u, COL_TARGET);
-
-	// --- Beceri sayfası (F1..F8): halkanın altında döngü düğmesi ---
-	{
-		Button b;
-		b.action = Action::SkillPage; b.shape = Shape::Ring; b.dik = 0;
-		b.label = "S" + std::to_string(m_skillPage);
-		b.cx = atkCx - 130.0f * u; b.cy = atkCy + 70.0f * u; b.r = 22.0f * u; b.color = COL_SLOT;
-		m_buttons.push_back(b);
-	}
-
-	// --- Sürekli yürüme (E): joystick'in üstünde küçük düğme ---
-	circle(Action::Key, KM_TOGGLE_MOVE_CONTINOUS, "OTO", m_joyHomeX + m_joyR + 30.0f * u, m_joyHomeY - m_joyR - 10.0f * u, 20.0f * u, COL_CAM);
-
-	// --- HP / MP pot düğmeleri (kısayol yuvası ayarlanabilir) ---
+	// HP / MP: ızgaranın solunda, iki sıraya hizalı
 	const int slotKeys[8] = {KM_HOTKEY1, KM_HOTKEY2, KM_HOTKEY3, KM_HOTKEY4, KM_HOTKEY5, KM_HOTKEY6, KM_HOTKEY7, KM_HOTKEY8};
 	int hp = std::clamp(m_tuning.hpSlot, 1, 8) - 1, mp = std::clamp(m_tuning.mpSlot, 1, 8) - 1;
-	circle(Action::Key, slotKeys[hp], "HP", w - 300.0f * u, h - 150.0f * u, 24.0f * u, 0x90A02828);
-	circle(Action::Key, slotKeys[mp], "MP", w - 300.0f * u, h - 92.0f * u, 24.0f * u, 0x902848A0);
+	const float potX = gridLeft - gap * 1.5f - t / 2.0f;
+	circle(Action::Key, slotKeys[hp], "HP", potX, rowY0, r, 0x90A02828);
+	circle(Action::Key, slotKeys[mp], "MP", potX, rowY1, r, 0x902848A0);
 
-	// --- En az dokunma boyutu (~48dp): küçük düğmeleri büyüt ---
-	if (m_tuning.minTouchPx > 0.0f)
+	// --- Hedef sütunu: SALDIR'ın üstünde, sağ kenara yaslı, aşağıdan yukarı HEDEF, NPC, PARTI, DOST ---
 	{
-		float minR = m_tuning.minTouchPx / 2.0f;
-		for (Button& b : m_buttons)
-		{
-			if (b.shape == Shape::Rect)
-				b.h = std::max(b.h, m_tuning.minTouchPx);
-			else
-				b.r = std::max(b.r, minR);
-		}
-		m_joyR = std::max(m_joyR, m_tuning.minTouchPx * 1.4f);
+		const float tr = r * 0.8f, step = tr * 2.0f + gap;
+		const float cx = w - gap - tr;
+		float cy       = atkCy - atkR - gap - tr;
+		circle(Action::Key, KM_TARGET_NEAREST_ENEMY, "HEDEF", cx, cy, tr, COL_TARGET); cy -= step;
+		circle(Action::Key, KM_TARGET_NEAREST_NPC, "NPC", cx, cy, tr, COL_TARGET); cy -= step;
+		circle(Action::Key, KM_TARGET_NEAREST_PARTY, "PARTI", cx, cy, tr, COL_TARGET); cy -= step;
+		circle(Action::Key, KM_TARGET_NEAREST_FRIEND, "DOST", cx, cy, tr, COL_TARGET);
 	}
+
+	// --- Sağ üst: kamera kümesi (KAM, 180, +, -, KOS), sağdan sola ---
+	{
+		const float cr = r * 0.8f, step = cr * 2.0f + gap;
+		const float cy = gap + cr + 40.0f * u; // durum çubuğu/mini harita altı
+		float cx       = w - gap - cr;
+		circle(Action::Key, KM_CAMERA_CHANGE, "KAM", cx, cy, cr, COL_CAM); cx -= step;
+		circle(Action::Yaw180, 0, "180", cx, cy, cr, COL_CAM); cx -= step;
+		circle(Action::ZoomIn, 0, "+", cx, cy, cr, COL_CAM); cx -= step;
+		circle(Action::ZoomOut, 0, "-", cx, cy, cr, COL_CAM); cx -= step;
+		circle(Action::Key, KM_TOGGLE_RUN, "KOS", cx, cy, cr, COL_CAM);
+	}
+
+	// --- Sürekli yürüme (E): joystick'in sağ üstünde ---
+	circle(Action::Key, KM_TOGGLE_MOVE_CONTINOUS, "OTO", m_joyHomeX + m_joyR + r + gap, m_joyHomeY - m_joyR * 0.6f, r * 0.8f, COL_CAM);
 
 	for (CDFont* f : m_fonts)
 		delete f;
 	m_fonts.clear();
+}
+
+void KoTouchOverlay::ButtonBox(size_t i, float* x0, float* y0, float* x1, float* y1, std::string* label) const
+{
+	const Button& b = m_buttons[i];
+	if (b.shape == Shape::Rect)
+	{
+		*x0 = b.cx - b.w / 2; *x1 = b.cx + b.w / 2; *y0 = b.cy - b.h / 2; *y1 = b.cy + b.h / 2;
+	}
+	else
+	{
+		*x0 = b.cx - b.r; *x1 = b.cx + b.r; *y0 = b.cy - b.r; *y1 = b.cy + b.r;
+	}
+	if (label)
+		*label = b.label;
 }
 
 KoTouchOverlay::Finger* KoTouchOverlay::Find(int64_t id)
@@ -217,7 +231,7 @@ int KoTouchOverlay::HitButton(int x, int y) const
 bool KoTouchOverlay::InJoystickZone(int x, int y) const
 {
 	// Sol %45, üst %20'nin altı, alt çubuğun üstü
-	return x < m_w * 0.45f && y > m_h * 0.2f && y < m_h - 45.0f * m_u;
+	return x < m_w * 0.45f && y > m_h * 0.2f && y < m_h - (m_barH > 0 ? m_barH + 4.0f * m_u : 45.0f * m_u);
 }
 
 void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
@@ -666,7 +680,7 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 	DrawCircle(dev, m_knobX, m_knobY, m_joyR * 0.38f, joyActive ? COL_KNOB : (COL_KNOB & 0x00FFFFFF) | 0x40000000);
 
 	// Alt çubuk arka planı
-	float barH = 40.0f * u;
+	float barH = m_barH > 0 ? m_barH : 40.0f * u;
 	DrawRect(dev, 0, m_h - barH, (float) m_w, barH, COL_BAR);
 	DrawRect(dev, 0, m_h - barH, (float) m_w, 2.0f * u, COL_SLOT_RING);
 
