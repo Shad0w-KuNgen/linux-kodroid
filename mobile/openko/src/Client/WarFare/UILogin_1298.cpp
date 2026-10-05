@@ -9,6 +9,8 @@
 #include <N3Base/N3UIEdit.h>
 #include <N3Base/N3UIButton.h>
 #include <N3Base/N3UIString.h>
+#include <N3Base/N3UIList.h>
+#include <N3Base/N3UIImage.h>
 
 #include <algorithm>
 #include <cctype>
@@ -71,6 +73,59 @@ CUILogIn_1298::~CUILogIn_1298()
 {
 }
 
+static std::string LowerID(const CN3UIBase* p)
+{
+	std::string sz = p ? p->m_szID : std::string();
+	for (char& c : sz)
+		c = (char) tolower((unsigned char) c);
+	return sz;
+}
+
+static bool IDHasAny(const std::string& szLower, std::initializer_list<const char*> parts)
+{
+	for (const char* sz : parts)
+		if (szLower.find(sz) != std::string::npos)
+			return true;
+	return false;
+}
+
+static void CollectDescendants(CN3UIBase* p, std::vector<CN3UIBase*>& out)
+{
+	for (CN3UIBase* pChild : p->GetChildren())
+	{
+		if (pChild == nullptr)
+			continue;
+		out.push_back(pChild);
+		CollectDescendants(pChild, out);
+	}
+}
+
+static bool IsDescendantOf(const CN3UIBase* p, const CN3UIBase* pAncestor)
+{
+	for (const CN3UIBase* q = p ? p->GetParent() : nullptr; q != nullptr; q = q->GetParent())
+		if (q == pAncestor)
+			return true;
+	return false;
+}
+
+static void DumpUITree(const CN3UIBase* p, int depth, int maxDepth, std::string& out)
+{
+	for (const CN3UIBase* pChild : p->GetChildren())
+	{
+		if (pChild == nullptr)
+			continue;
+		RECT rc = pChild->GetRegion();
+		out += std::string(depth * 2, ' ') + std::to_string((int) pChild->UIType()) + ":" + pChild->m_szID + "["
+			   + std::to_string(rc.left) + "," + std::to_string(rc.top) + "," + std::to_string(rc.right) + ","
+			   + std::to_string(rc.bottom) + "]";
+		if (pChild->UIType() == UI_TYPE_STRING)
+			out += "{" + static_cast<const CN3UIString*>(pChild)->GetString() + "}";
+		out += "\n";
+		if (depth + 1 < maxDepth)
+			DumpUITree(pChild, depth + 1, maxDepth, out);
+	}
+}
+
 bool CUILogIn_1298::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 {
 	if (pSender == nullptr)
@@ -111,6 +166,31 @@ bool CUILogIn_1298::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 		else if (pSender == m_pBtn_NoticeOK_1 || pSender == m_pBtn_NoticeOK_2 || pSender == m_pBtn_NoticeOK_3)
 		{
 			OpenServerList();
+			return true;
+		}
+		else if (m_pGroup_ServerList != nullptr && IsDescendantOf(pSender, m_pGroup_ServerList))
+		{
+			// 2369/ISTIRAP: eşlenmemiş düğme; ada göre bağlan/iptal, her durumda Log.txt
+			std::string sz = LowerID(pSender);
+			CLogWriter::Write("CUILogIn_1298: sunucu listesinde düğme '{}' tıklandı", pSender->m_szID);
+			if (IDHasAny(sz, { "connect", "ok", "enter", "start", "login", "select" }))
+			{
+				CGameProcedure::s_pProcLogIn->ConnectToGameServer();
+				return true;
+			}
+		}
+		else if (m_pGroup_LogIn != nullptr && IsDescendantOf(pSender, m_pGroup_LogIn))
+		{
+			CLogWriter::Write("CUILogIn_1298: giriş grubunda eşlenmemiş düğme '{}' tıklandı", pSender->m_szID);
+		}
+	}
+	else if (dwMsg == UIMSG_LIST_SELCHANGE || dwMsg == UIMSG_LIST_DBLCLK)
+	{
+		if (m_pListCtrl_Servers != nullptr && pSender == m_pListCtrl_Servers)
+		{
+			SelectServer(m_pListCtrl_Servers->GetCurSel());
+			if (dwMsg == UIMSG_LIST_DBLCLK)
+				CGameProcedure::s_pProcLogIn->ConnectToGameServer();
 			return true;
 		}
 	}
@@ -196,6 +276,121 @@ static T* FindChildAlias(const CN3UIBase* pParent, std::initializer_list<const c
 			return p;
 	}
 	return nullptr;
+}
+
+void CUILogIn_1298::BindServerListHeuristic()
+{
+	if (m_pGroup_ServerList == nullptr)
+		return;
+
+	std::string szTree;
+	DumpUITree(m_pGroup_ServerList, 1, 4, szTree);
+	CLogWriter::Write("CUILogIn_1298: sunucu listesi grubu '{}' alt ağacı (tür:ID[bölge]{{metin}}):\n{}", m_pGroup_ServerList->m_szID, szTree);
+
+	std::vector<CN3UIBase*> all;
+	CollectDescendants(m_pGroup_ServerList, all);
+
+	// Bağlan düğmesi
+	if (m_pBtn_Connect == nullptr)
+	{
+		CN3UIButton* pFirst = nullptr;
+		for (CN3UIBase* p : all)
+		{
+			if (p->UIType() != UI_TYPE_BUTTON)
+				continue;
+			std::string sz = LowerID(p);
+			if (IDHasAny(sz, { "connect", "ok", "enter", "start", "login", "select" }))
+			{
+				m_pBtn_Connect = static_cast<CN3UIButton*>(p);
+				break;
+			}
+			if (pFirst == nullptr && !IDHasAny(sz, { "cancel", "exit", "close", "back", "arrow", "scroll" }))
+				pFirst = static_cast<CN3UIButton*>(p);
+		}
+		if (m_pBtn_Connect == nullptr)
+			m_pBtn_Connect = pFirst;
+	}
+
+	if (m_pServer_Group[0] == nullptr)
+	{
+		// a) CN3UIList denetimi
+		for (CN3UIBase* p : all)
+		{
+			if (p->UIType() == UI_TYPE_LIST)
+			{
+				m_pListCtrl_Servers = static_cast<CN3UIList*>(p);
+				break;
+			}
+		}
+
+		// b) "server<N>" grupları → ilk string çocuğu
+		std::vector<std::pair<int, CN3UIBase*>> groups;
+		for (CN3UIBase* p : all)
+		{
+			if (p->UIType() != UI_TYPE_BASE)
+				continue;
+			std::string sz = LowerID(p);
+			size_t pos     = sz.find("server");
+			if (pos == std::string::npos)
+				continue;
+			size_t d = sz.find_first_of("0123456789", pos);
+			if (d == std::string::npos)
+				continue;
+			groups.emplace_back(atoi(sz.c_str() + d), p);
+		}
+		std::sort(groups.begin(), groups.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
+		if (!groups.empty())
+		{
+			int i = 0;
+			for (auto& [num, pGroup] : groups)
+			{
+				if (i >= MAX_SERVERS)
+					break;
+				std::vector<CN3UIBase*> kids;
+				CollectDescendants(pGroup, kids);
+				CN3UIString* pStr = nullptr;
+				for (CN3UIBase* k : kids)
+					if (k->UIType() == UI_TYPE_STRING && (pStr == nullptr || IDHasAny(LowerID(k), { "list", "server", "name" })))
+						pStr = static_cast<CN3UIString*>(k);
+				if (pStr == nullptr)
+					continue;
+				m_pServer_Group[i] = pGroup;
+				m_pList_Group[i]   = pStr;
+				i++;
+			}
+		}
+		else if (m_pListCtrl_Servers == nullptr)
+		{
+			// c) string satırları (ID'de server/list/name geçenler, yoksa hepsi), yukarıdan aşağıya
+			std::vector<CN3UIString*> strs, named;
+			for (CN3UIBase* p : all)
+			{
+				if (p->UIType() != UI_TYPE_STRING)
+					continue;
+				strs.push_back(static_cast<CN3UIString*>(p));
+				if (IDHasAny(LowerID(p), { "server", "list", "name" }) && !IDHasAny(LowerID(p), { "title", "select" }))
+					named.push_back(static_cast<CN3UIString*>(p));
+			}
+			std::vector<CN3UIString*>& use = named.empty() ? strs : named;
+			std::sort(use.begin(), use.end(), [](CN3UIString* a, CN3UIString* b) {
+				RECT ra = a->GetRegion(), rb = b->GetRegion();
+				return ra.top != rb.top ? ra.top < rb.top : ra.left < rb.left;
+			});
+			for (size_t i = 0; i < use.size() && i < MAX_SERVERS; i++)
+			{
+				m_pList_Group[i]   = use[i];
+				m_pServer_Group[i] = use[i]; // ortak üst grup gizlenmesin: satırın kendisi gösterilip gizlenir
+			}
+		}
+	}
+
+	std::string szSel;
+	for (int i = 0; i < MAX_SERVERS; i++)
+		if (m_pList_Group[i] != nullptr)
+			szSel += m_pList_Group[i]->m_szID + " ";
+	CLogWriter::Write("CUILogIn_1298: sezgisel eşleme: connect={} liste={} satırlar: {}", m_pBtn_Connect ? m_pBtn_Connect->m_szID : "YOK",
+		m_pListCtrl_Servers ? m_pListCtrl_Servers->m_szID : "yok", szSel.empty() ? "YOK" : szSel);
 }
 
 bool CUILogIn_1298::Load(File& file)
@@ -318,7 +513,10 @@ bool CUILogIn_1298::Load(File& file)
 	}
 
 	if (m_pGroup_ServerList != nullptr)
-		N3_VERIFY_UI_COMPONENT(m_pBtn_Connect, m_pGroup_ServerList->GetChildByID<CN3UIButton>("Btn_Connect"));
+		N3_VERIFY_UI_COMPONENT(m_pBtn_Connect, FindChildAlias<CN3UIButton>(m_pGroup_ServerList, { "Btn_Connect", "btn_ok", "btn_login", "btn_enter" }));
+
+	if (m_pGroup_ServerList != nullptr && (m_pServer_Group[0] == nullptr || m_pBtn_Connect == nullptr))
+		BindServerListHeuristic();
 
 	if (m_pGroup_LogIn == nullptr || m_pGroup_ServerList == nullptr)
 	{
@@ -431,6 +629,13 @@ void CUILogIn_1298::ServerInfoUpdate()
 		return;
 
 	// sort(m_ListServerInfos.begin(), m_ListServerInfos.end(), not2(__GameServerInfo()));
+
+	if (m_pListCtrl_Servers != nullptr)
+	{
+		m_pListCtrl_Servers->ResetContent();
+		for (const __GameServerInfo& GSI : m_ListServerInfos)
+			m_pListCtrl_Servers->AddString(GSI.szName);
+	}
 
 	// show ui of existing servers
 	constexpr int NumUserForLine = 3000 / 12;

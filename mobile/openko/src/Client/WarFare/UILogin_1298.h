@@ -8,6 +8,8 @@
 
 #include <N3Base/N3UIBase.h>
 
+class CN3UIList;
+
 class CUILogIn_1298 : public CN3UIBase
 {
 public:
@@ -84,6 +86,7 @@ protected:
 	CN3UIBase* m_pServer_Group[MAX_SERVERS];
 	CN3UIBase* m_pArrow_Group[MAX_SERVERS];
 	CN3UIString* m_pList_Group[MAX_SERVERS];
+	CN3UIList* m_pListCtrl_Servers = nullptr; // 2369/ISTIRAP: sunucu listesi CN3UIList ise (satırlar yerine)
 
 	std::vector<__GameServerInfo> m_ListServerInfos;
 
@@ -109,6 +112,9 @@ public:
 	void FocusToID();
 	bool Load(File& file) override;
 	void PositionGroups();
+	// 2369/ISTIRAP sunucu listesi: 1.298 ID'leri (server_N/List_Server/Btn_Connect) yoksa alt ağacı Log.txt'ye döküp
+	// tür/ad sezgisiyle eşle (Connect düğmesi, sunucu satırları ya da CN3UIList)
+	void BindServerListHeuristic();
 	// Giriş için gerekli denetimler (Group_LogIn, Edit_ID/PW, btn_ok) bulundu mu? (2369/ISTIRAP özel arayüzünde eksik olabilir)
 	bool HasLogInControls() const
 	{
