@@ -14,9 +14,18 @@ def koVersionCode() {
     def env = System.getenv("KO_VERSION_CODE")
     return (env != null && env.isInteger()) ? env.toInteger() : koGitCount()
 }
+def koGitShort() {
+    try {
+        def p = ["git", "rev-parse", "--short=7", "HEAD"].execute(null, project.rootDir)
+        p.waitFor()
+        return p.text.trim()
+    } catch (Exception e) {
+        return "local"
+    }
+}
 def koVersionName() {
     def env = System.getenv("KO_VERSION_NAME")
-    return env != null ? env : "0.1." + koGitCount()
+    return env != null ? env : "0.1." + koGitCount() + "+" + koGitShort()
 }
 
 android {
@@ -27,8 +36,8 @@ android {
         applicationId "online.knight.mobile"
         minSdkVersion 24          // OpenGL ES 3.0 + iconv (API 28 için) — 24 ile ES3 garanti
         targetSdkVersion 34
-        // Sürüm: KO_VERSION_CODE/KO_VERSION_NAME ortam değişkeni, yoksa git commit sayısı
-        // (her CI derlemesi artan versionCode alır; APK güncelleyici bununla karşılaştırır)
+        // Sürüm: KO_VERSION_CODE/KO_VERSION_NAME ortam değişkeni (CI: 100 + GITHUB_RUN_NUMBER,
+        // 0.1.<no>+<commit>), yoksa git commit sayısı (tam klon gerekir; shallow klonda 1 döner)
         versionCode koVersionCode()
         versionName koVersionName()
         externalNativeBuild {

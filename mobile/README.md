@@ -117,7 +117,8 @@ süre) ve **OYUNA BAŞLA**. Açılış sırası:
    devam eden indiriciyle önbelleğe alınır, `sha256` doğrulanır ve paket yükleyicisi açılır
    (Android 8+ "bilinmeyen uygulama" izni istenir). CI her derlemede artifact içine
    `KnightOnline.apk` + `apk.json` koyar; ikisi sunucuda aynı dizine kopyalanır.
-   `versionCode` = git commit sayısı (`KO_VERSION_CODE` ile ezilebilir).
+   CI'da `versionCode = 100 + GITHUB_RUN_NUMBER`, `versionName = 0.1.<no>+<commit>`
+   (`KO_VERSION_CODE`/`KO_VERSION_NAME`); yerel derlemede git commit sayısı.
 2. **Veri kurulumu** (ilk sefer / "Veriyi onar"): adresten ya da seçilen zip'ten.
 3. **Veri yaması**: `PatchClient` (aşağıda).
 4. Hazır → OYUNA BAŞLA. "Ayarlar": sunucu IP (Server.ini), veri/APK adresleri, dokunmatik kontroller,
