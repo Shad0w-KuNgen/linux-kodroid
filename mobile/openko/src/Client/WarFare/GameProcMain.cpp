@@ -1,4 +1,4 @@
-﻿// GameProcMain.cpp: implementation of the CGameProcMain class.
+// GameProcMain.cpp: implementation of the CGameProcMain class.
 //
 //////////////////////////////////////////////////////////////////////
 #include "StdAfx.h"
@@ -9,6 +9,7 @@
 
 #include "APISocket.h"
 #include "PacketDef.h"
+#include "KoProtocol.h"
 
 #include "PlayerMySelf.h"
 #include "PlayerOtherMgr.h"
@@ -825,15 +826,10 @@ bool CGameProcMain::ProcessPacket(Packet& pkt)
 
 		case WIZ_GAMESTART:
 		{
-			// NOTE(srmeier): send for the second half of the gamestart process
-
-			uint8_t byBuff[32];
-			int iOffset = 0;
-
-			CAPISocket::MP_AddByte(byBuff, iOffset, WIZ_GAMESTART);
-			CAPISocket::MP_AddByte(byBuff, iOffset, 0x02);
-
-			s_pSocket->Send(byBuff, iOffset);
+			// NOTE(srmeier): send for the second half of the gamestart process (2369: + karakter adı)
+			std::vector<uint8_t> buff;
+			KoProto::BuildGameStart(buff, 0x02, s_pPlayer->IDString());
+			s_pSocket->Send(buff.data(), (int) buff.size());
 		}
 			return true;
 
@@ -1512,16 +1508,12 @@ void CGameProcMain::MsgSend_Move(bool bMove, bool bContinous)
 		byMoveFlag |= 0x02;
 	}
 
-	uint8_t byBuff[64];                                                // 버퍼 설정..
-	int iOffset = 0;                                                   // 옵셋..
-
-	CAPISocket::MP_AddByte(byBuff, iOffset, WIZ_MOVE);                 // 커멘드..
-	CAPISocket::MP_AddWord(byBuff, iOffset, (uint16_t) (vPos.x * 10)); // 다음 위치
-	CAPISocket::MP_AddWord(byBuff, iOffset, (uint16_t) (vPos.z * 10));
-	CAPISocket::MP_AddShort(byBuff, iOffset, (int16_t) (vPos.y * 10));
-	CAPISocket::MP_AddWord(byBuff, iOffset, (uint16_t) (fSpeed * 10)); // 속도
-	CAPISocket::MP_AddByte(byBuff, iOffset, byMoveFlag);               // 움직임 플래그..
-	s_pSocket->Send(byBuff, iOffset);                                  // 패킷을 보냄..
+	// 1298: hedef x,z,y, hız, bayrak — 2369: + mevcut konum x,z,y (sunucu hız/konum tutarlılığı denetler)
+	__Vector3 vCur = s_pPlayer->Position();
+	std::vector<uint8_t> buff;
+	KoProto::BuildMove(buff, (uint16_t) (vPos.x * 10), (uint16_t) (vPos.z * 10), (int16_t) (vPos.y * 10),
+		(int16_t) (fSpeed * 10), byMoveFlag, (uint16_t) (vCur.x * 10), (uint16_t) (vCur.z * 10), (int16_t) (vCur.y * 10));
+	s_pSocket->Send(buff.data(), (int) buff.size());                   // 패킷을 보냄..
 
 	m_vPlayerPosSended = s_pPlayer->Position();                        // 최근에 보낸 위치 세팅..
 
@@ -1841,22 +1833,212 @@ bool CGameProcMain::MsgRecv_MyInfo_All(Packet& pkt)
 	s_pPlayer->Release(); // 일단 몽창 다 해제 하고....
 	s_pPlayer->m_InfoExt.iZoneCur = iZone;
 
-	int iID                       = pkt.read<int16_t>();
-	int iLen                      = pkt.read<uint8_t>();
-
+	// ---- Paketten okunan değerler (1298 ve 2369 düzenleri aynı yerel değişkenleri doldurur) ----
+	int iID = 0;
 	std::string szID;
-	pkt.readString(szID, iLen);
+	float fX = 0, fZ = 0, fY = 0;
+	e_Nation eNation = NATION_UNKNOWN;
+	e_Race eRace     = RACE_UNKNOWN;
+	e_Class eClass   = CLASS_UNKNOWN;
+	int iFace = 0, iHair = 0, iRank = 0, iTitle = 0, iLevel = 1, iBonusPointRemain = 0;
+	int64_t iExpNext = 0, iExp = 0;
+	int iRealmPoint = 0, iRealmPointMonthly = 0, iCity = 0;
+	int iKnightsID             = 0;
+	e_KnightsDuty eKnightsDuty = KNIGHTS_DUTY_UNKNOWN;
+	std::string szKnightsName;
+	int iKnightsGrade = 0, iKnightsRank = 0;
+	int iHPMax = 0, iHP = 0, iMSPMax = 0, iMSP = 0, iWeightMax = 0, iWeight = 0;
+	int iStr = 0, iStrD = 0, iSta = 0, iStaD = 0, iDex = 0, iDexD = 0, iInt = 0, iIntD = 0, iMag = 0, iMagD = 0;
+	int iAttack = 0, iGuard = 0;
+	int iResist[6] = {};
+	uint32_t dwGold = 0;
+	int iAuthority  = 0;
+	uint8_t bySkillInfo[9] = {};
+
+	int iItemIDInSlots[ITEM_SLOT_COUNT];
+	memset(iItemIDInSlots, -1, sizeof(iItemIDInSlots));
+	int iItemDurabilityInSlots[ITEM_SLOT_COUNT];
+	memset(iItemDurabilityInSlots, -1, sizeof(iItemDurabilityInSlots));
+	int iItemCountInSlots[ITEM_SLOT_COUNT];
+	memset(iItemCountInSlots, -1, sizeof(iItemCountInSlots));
+	int iItemIDInInventorys[MAX_ITEM_INVENTORY];
+	memset(iItemIDInInventorys, -1, sizeof(iItemIDInInventorys));
+	int iItemCountInInventorys[MAX_ITEM_INVENTORY];
+	memset(iItemCountInInventorys, -1, sizeof(iItemCountInInventorys));
+	int iItemDurabilityInInventorys[MAX_ITEM_INVENTORY];
+	memset(iItemDurabilityInInventorys, -1, sizeof(iItemDurabilityInInventorys));
+
+	if (KoProto::Is2369())
+	{
+		KoProto::MyInfo2369 m;
+		if (!KoProto::ParseMyInfo2369(pkt, m))
+		{
+			CLogWriter::Write("WIZ_MYINFO (2369): bozuk paket ({} bayt)", pkt.size());
+			return false;
+		}
+		iID                = m.id;
+		szID               = m.name;
+		fX                 = m.x / 10.0f;
+		fZ                 = m.z / 10.0f;
+		fY                 = m.y / 10.0f;
+		eNation            = (e_Nation) m.nation;
+		eRace              = (e_Race) m.race;
+		eClass             = (e_Class) m.cls;
+		iFace              = m.face;
+		iHair              = (int) m.hair;
+		iRank              = m.rank;
+		iTitle             = m.title;
+		iLevel             = m.level;
+		iBonusPointRemain  = std::max<int>(0, m.points);
+		iExpNext           = m.maxExp;
+		iExp               = m.exp;
+		iRealmPoint        = (int) m.loyalty;
+		iRealmPointMonthly = (int) m.monthlyLoyalty;
+		iKnightsID         = m.clanID;
+		eKnightsDuty       = (e_KnightsDuty) m.fame; // sunucu fame: 1 lider, 2 yardımcı, 5 üye, 6 subay
+		szKnightsName      = m.clan.name;
+		iKnightsGrade      = m.clan.grade;
+		iKnightsRank       = m.clan.ranking;
+		iHPMax             = m.maxHp;
+		iHP                = m.hp;
+		iMSPMax            = m.maxMp;
+		iMSP               = m.mp;
+		iWeightMax         = (int) m.maxWeight;
+		iWeight            = (int) m.weight;
+		iStr               = m.str;
+		iStrD              = m.strBonus;
+		iSta               = m.sta;
+		iStaD              = m.staBonus;
+		iDex               = m.dex;
+		iDexD              = m.dexBonus;
+		iInt               = m.intel;
+		iIntD              = m.intelBonus;
+		iMag               = m.cha;
+		iMagD              = m.chaBonus;
+		iAttack            = m.totalHit;
+		iGuard             = m.totalAc;
+		for (int i = 0; i < 6; i++)
+			iResist[i] = m.resist[i];
+		dwGold     = m.gold;
+		iAuthority = m.authority;
+		memcpy(bySkillInfo, m.skill, sizeof(bySkillInfo));
+		for (int i = 0; i < ITEM_SLOT_COUNT; i++)
+		{
+			iItemIDInSlots[i]         = (int) m.items[i].num;
+			iItemDurabilityInSlots[i] = m.items[i].duration;
+			iItemCountInSlots[i]      = m.items[i].count;
+		}
+		for (int i = 0; i < MAX_ITEM_INVENTORY; i++)
+		{
+			const auto& it                 = m.items[KoProto::SLOT_MAX_2369 + i];
+			iItemIDInInventorys[i]         = (int) it.num;
+			iItemDurabilityInInventorys[i] = it.duration;
+			iItemCountInInventorys[i]      = it.count;
+		}
+		CLogWriter::Write("WIZ_MYINFO (2369): {} id {} seviye {} ırk {} sınıf {} konum ({:.1f},{:.1f},{:.1f}) altın {}", szID,
+			iID, iLevel, (int) eRace, (int) eClass, fX, fY, fZ, dwGold);
+	}
+	else
+	{
+		iID      = pkt.read<int16_t>();
+		int iLen = pkt.read<uint8_t>();
+		pkt.readString(szID, iLen);
+
+		fX = (pkt.read<uint16_t>()) / 10.0f;
+		fZ = (pkt.read<uint16_t>()) / 10.0f;
+		fY = (pkt.read<int16_t>()) / 10.0f;
+
+		eNation = (e_Nation) pkt.read<uint8_t>();
+		eRace   = (e_Race) pkt.read<uint8_t>();
+		eClass  = (e_Class) pkt.read<int16_t>();
+		iFace   = pkt.read<uint8_t>(); // 얼굴 모양..
+		iHair   = pkt.read<uint8_t>(); // 머리카락
+
+		iRank              = pkt.read<uint8_t>();
+		iTitle             = pkt.read<uint8_t>();
+		iLevel             = pkt.read<uint8_t>();
+		iBonusPointRemain  = pkt.read<uint8_t>(); // 남은 보너스 포인트..
+		iExpNext           = pkt.read<uint32_t>();
+		iExp               = pkt.read<uint32_t>();
+		iRealmPoint        = pkt.read<uint32_t>();
+		iRealmPointMonthly = pkt.read<uint32_t>(); // @Demircivi, monthly np
+		iCity              = pkt.read<uint8_t>();
+
+		iKnightsID   = pkt.read<int16_t>();                 // 소속 기사단 ID
+		eKnightsDuty = (e_KnightsDuty) pkt.read<uint8_t>(); // 기사단에서의 권한..
+		/*int iAllianceID =*/pkt.read<int16_t>();
+		/*uint8_t byFlag  =*/pkt.read<uint8_t>();
+		int iKnightNameLen = pkt.read<uint8_t>(); // 소속 기사단 이름 길이.
+		pkt.readString(szKnightsName, iKnightNameLen);
+		iKnightsGrade = pkt.read<uint8_t>(); // 소속 기사단 등급
+		iKnightsRank  = pkt.read<uint8_t>(); // 소속 기사단 순위
+		/*int16_t sMarkVersion =*/pkt.read<int16_t>();
+		/*int16_t sCapeID      =*/pkt.read<int16_t>();
+
+		iHPMax     = pkt.read<int16_t>();
+		iHP        = pkt.read<int16_t>();
+		iMSPMax    = pkt.read<int16_t>();
+		iMSP       = pkt.read<int16_t>();
+		iWeightMax = static_cast<int>(pkt.read<uint16_t>());
+		iWeight    = static_cast<int>(pkt.read<uint16_t>());
+
+		iStr  = pkt.read<uint8_t>();
+		iStrD = pkt.read<uint8_t>();
+		iSta  = pkt.read<uint8_t>();
+		iStaD = pkt.read<uint8_t>();
+		iDex  = pkt.read<uint8_t>();
+		iDexD = pkt.read<uint8_t>();
+		iInt  = pkt.read<uint8_t>();
+		iIntD = pkt.read<uint8_t>();
+		iMag  = pkt.read<uint8_t>();
+		iMagD = pkt.read<uint8_t>();
+
+		iAttack = pkt.read<int16_t>();
+		iGuard  = pkt.read<int16_t>();
+		for (int i = 0; i < 6; i++)
+			iResist[i] = pkt.read<uint8_t>();
+
+		dwGold     = pkt.read<uint32_t>();
+		iAuthority = pkt.read<uint8_t>(); //권한..
+
+		/*uint8_t bKnightsRank  =*/pkt.read<uint8_t>();
+		/*uint8_t bPersonalRank =*/pkt.read<uint8_t>();
+
+		for (int i = 0; i < 9; i++)
+			bySkillInfo[i] = pkt.read<uint8_t>();
+
+		for (int i = 0; i < ITEM_SLOT_COUNT; i++) // 슬롯 갯수마큼..
+		{
+			iItemIDInSlots[i]         = pkt.read<uint32_t>();
+			iItemDurabilityInSlots[i] = pkt.read<int16_t>();
+			iItemCountInSlots[i]      = pkt.read<int16_t>();
+			/*uint8_t bRentFlag          =*/pkt.read<uint8_t>();
+			/*int16_t sRemainingRentalTime =*/pkt.read<int16_t>();
+		}
+
+		for (int i = 0; i < MAX_ITEM_INVENTORY; i++) // 슬롯 갯수마큼..
+		{
+			iItemIDInInventorys[i]         = pkt.read<uint32_t>();
+			iItemDurabilityInInventorys[i] = pkt.read<int16_t>();
+			iItemCountInInventorys[i]      = pkt.read<int16_t>();
+			/*uint8_t bRentFlag            =*/pkt.read<uint8_t>();
+			/*int16_t sRemainingRentalTime =*/pkt.read<int16_t>();
+		}
+
+		pkt.read<uint8_t>();
+		pkt.read<uint8_t>();
+		pkt.read<int16_t>();
+		/*uint8_t bIsChicken =*/pkt.read<uint8_t>();
+		/*int iMannerPoints =*/pkt.read<uint32_t>();
+	}
+
+	// ---- Uygulama ----
 	s_pPlayer->IDSet(iID, szID, D3DCOLOR_XRGB(100, 210, 255)); // 밝은 파란색과 하늘색 중간..
-
-	float fX                      = (pkt.read<uint16_t>()) / 10.0f;
-	float fZ                      = (pkt.read<uint16_t>()) / 10.0f;
-	float fY                      = (pkt.read<int16_t>()) / 10.0f;
-
-	s_pPlayer->m_InfoBase.eNation = (e_Nation) pkt.read<uint8_t>();
-	s_pPlayer->m_InfoBase.eRace   = (e_Race) pkt.read<uint8_t>();
-	s_pPlayer->m_InfoBase.eClass  = (e_Class) pkt.read<int16_t>();
-	s_pPlayer->m_InfoExt.iFace    = pkt.read<uint8_t>();                                // 얼굴 모양..
-	s_pPlayer->m_InfoExt.iHair    = pkt.read<uint8_t>();                                // 머리카락
+	s_pPlayer->m_InfoBase.eNation = eNation;
+	s_pPlayer->m_InfoBase.eRace   = eRace;
+	s_pPlayer->m_InfoBase.eClass  = eClass;
+	s_pPlayer->m_InfoExt.iFace    = iFace;
+	s_pPlayer->m_InfoExt.iHair    = iHair;
 
 	__TABLE_PLAYER_LOOKS* pLooks  = s_pTbl_UPC_Looks.Find(s_pPlayer->m_InfoBase.eRace); // User Player Character Skin 구조체 포인터..
 	if (pLooks == nullptr)
@@ -1867,102 +2049,59 @@ bool CGameProcMain::MsgRecv_MyInfo_All(Packet& pkt)
 	__ASSERT(pLooks, "failed find character resource data");
 	s_pPlayer->InitChr(pLooks); // 관절 세팅..
 
-	s_pPlayer->m_InfoExt.iRank              = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iTitle             = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoBase.iLevel            = pkt.read<uint8_t>();
+	s_pPlayer->m_InfoExt.iRank              = iRank;
+	s_pPlayer->m_InfoExt.iTitle             = iTitle;
+	s_pPlayer->m_InfoBase.iLevel            = iLevel;
 	s_pPlayer->m_InfoExt.iLevelPrev         = s_pPlayer->m_InfoBase.iLevel;
-	s_pPlayer->m_InfoExt.iBonusPointRemain  = pkt.read<uint8_t>(); // 남은 보너스 포인트..
-
-	s_pPlayer->m_InfoExt.iExpNext           = pkt.read<uint32_t>();
-	s_pPlayer->m_InfoExt.iExp               = pkt.read<uint32_t>();
-	s_pPlayer->m_InfoExt.iRealmPoint        = pkt.read<uint32_t>();
-
-	// @Demircivi, implemented monthly np system.
-	s_pPlayer->m_InfoExt.iRealmPointMonthly = pkt.read<uint32_t>();
-
-	s_pPlayer->m_InfoExt.iCity              = pkt.read<uint8_t>();
-
-	std::string szKnightsName               = "";
-	int iKnightsID                          = pkt.read<int16_t>();                 // 소속 기사단 ID
-	e_KnightsDuty eKnightsDuty              = (e_KnightsDuty) pkt.read<uint8_t>(); // 기사단에서의 권한..
-
-																				   // NOTE(srmeier): adding alliance ID and knight's byFlag
-	/*int iAllianceID                       =*/pkt.read<int16_t>();
-	/*uint8_t byFlag                        =*/pkt.read<uint8_t>();
-
-	int iKnightNameLen = pkt.read<uint8_t>(); // 소속 기사단 이름 길이.
-	pkt.readString(szKnightsName, iKnightNameLen);
-	int iKnightsGrade = pkt.read<uint8_t>();  // 소속 기사단 등급
-	int iKnightsRank  = pkt.read<uint8_t>();  // 소속 기사단 순위
-
-	/*int16_t sMarkVersion            =*/pkt.read<int16_t>();
-	/*int16_t sCapeID                 =*/pkt.read<int16_t>();
+	s_pPlayer->m_InfoExt.iBonusPointRemain  = iBonusPointRemain; // 남은 보너스 포인트..
+	s_pPlayer->m_InfoExt.iExpNext           = iExpNext;
+	s_pPlayer->m_InfoExt.iExp               = iExp;
+	s_pPlayer->m_InfoExt.iRealmPoint        = iRealmPoint;
+	s_pPlayer->m_InfoExt.iRealmPointMonthly = iRealmPointMonthly;
+	s_pPlayer->m_InfoExt.iCity              = iCity;
 
 	// 기사단 관련 세팅..
 	s_pPlayer->m_InfoExt.eKnightsDuty = eKnightsDuty; // 기사단에서의 권한..
 	s_pPlayer->KnightsInfoSet(iKnightsID, szKnightsName, iKnightsGrade, iKnightsRank);
 	m_pUIVar->UpdateKnightsInfo();
 
-	s_pPlayer->m_InfoBase.iHPMax             = pkt.read<int16_t>();
-	s_pPlayer->m_InfoBase.iHP                = pkt.read<int16_t>();
-	s_pPlayer->m_InfoExt.iMSPMax             = pkt.read<int16_t>();
-	s_pPlayer->m_InfoExt.iMSP                = pkt.read<int16_t>();
-	s_pPlayer->m_InfoExt.iWeightMax          = static_cast<int>(pkt.read<uint16_t>());
-	s_pPlayer->m_InfoExt.iWeight             = static_cast<int>(pkt.read<uint16_t>());
+	s_pPlayer->m_InfoBase.iHPMax             = iHPMax;
+	s_pPlayer->m_InfoBase.iHP                = iHP;
+	s_pPlayer->m_InfoExt.iMSPMax             = iMSPMax;
+	s_pPlayer->m_InfoExt.iMSP                = iMSP;
+	s_pPlayer->m_InfoExt.iWeightMax          = iWeightMax;
+	s_pPlayer->m_InfoExt.iWeight             = iWeight;
 
-	s_pPlayer->m_InfoExt.iStrength           = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iStrength_Delta     = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iStamina            = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iStamina_Delta      = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iDexterity          = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iDexterity_Delta    = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iIntelligence       = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iIntelligence_Delta = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iMagicAttak         = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iMagicAttak_Delta   = pkt.read<uint8_t>();
+	s_pPlayer->m_InfoExt.iStrength           = iStr;
+	s_pPlayer->m_InfoExt.iStrength_Delta     = iStrD;
+	s_pPlayer->m_InfoExt.iStamina            = iSta;
+	s_pPlayer->m_InfoExt.iStamina_Delta      = iStaD;
+	s_pPlayer->m_InfoExt.iDexterity          = iDex;
+	s_pPlayer->m_InfoExt.iDexterity_Delta    = iDexD;
+	s_pPlayer->m_InfoExt.iIntelligence       = iInt;
+	s_pPlayer->m_InfoExt.iIntelligence_Delta = iIntD;
+	s_pPlayer->m_InfoExt.iMagicAttak         = iMag;
+	s_pPlayer->m_InfoExt.iMagicAttak_Delta   = iMagD;
 
-	s_pPlayer->m_InfoExt.iAttack             = pkt.read<int16_t>();
-	//	s_pPlayer->m_InfoExt.iAttack_Delta		= pkt.read<int16_t>();
-	s_pPlayer->m_InfoExt.iGuard              = pkt.read<int16_t>();
-	//	s_pPlayer->m_InfoExt.iGuard_Delta		= pkt.read<int16_t>();
-	s_pPlayer->m_InfoExt.iRegistFire         = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iRegistCold         = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iRegistLight        = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iRegistMagic        = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iRegistCurse        = pkt.read<uint8_t>();
-	s_pPlayer->m_InfoExt.iRegistPoison       = pkt.read<uint8_t>();
+	s_pPlayer->m_InfoExt.iAttack             = iAttack;
+	s_pPlayer->m_InfoExt.iGuard              = iGuard;
+	s_pPlayer->m_InfoExt.iRegistFire         = iResist[0];
+	s_pPlayer->m_InfoExt.iRegistCold         = iResist[1];
+	s_pPlayer->m_InfoExt.iRegistLight        = iResist[2];
+	s_pPlayer->m_InfoExt.iRegistMagic        = iResist[3];
+	s_pPlayer->m_InfoExt.iRegistCurse        = iResist[4];
+	s_pPlayer->m_InfoExt.iRegistPoison       = iResist[5];
 
-	s_pPlayer->m_InfoExt.iGold               = pkt.read<uint32_t>();
-	s_pPlayer->m_InfoBase.iAuthority         = pkt.read<uint8_t>(); //권한..
-
-	/*uint8_t bKnightsRank                   =*/pkt.read<uint8_t>();
-	/*uint8_t bPersonalRank                  =*/pkt.read<uint8_t>();
+	s_pPlayer->m_InfoExt.iGold               = dwGold;
+	s_pPlayer->m_InfoBase.iAuthority         = iAuthority; //권한..
 
 	// 스킬 UI 갱신..
 	for (int i = 0; i < 9; i++)
-		m_pUISkillTreeDlg->m_iSkillInfo[i] = pkt.read<uint8_t>();
+		m_pUISkillTreeDlg->m_iSkillInfo[i] = bySkillInfo[i];
 
 	m_pUISkillTreeDlg->InitIconUpdate();
 	m_pUIHotKeyDlg->ReleaseItem();
 	m_pUIHotKeyDlg->InitIconUpdate(); // 핫키가 유효한지 검사하고 유효하면 레지스트리에서 읽어온다..
-
-	// 장착하고 있는 거..
-	int iItemIDInSlots[ITEM_SLOT_COUNT];
-	memset(iItemIDInSlots, -1, sizeof(iItemIDInSlots));
-	int iItemDurabilityInSlots[ITEM_SLOT_COUNT];
-	memset(iItemDurabilityInSlots, -1, sizeof(iItemDurabilityInSlots));
-	int iItemCountInSlots[ITEM_SLOT_COUNT];
-	memset(iItemCountInSlots, -1, sizeof(iItemCountInSlots));
-
-	for (int i = 0; i < ITEM_SLOT_COUNT; i++) // 슬롯 갯수마큼..
-	{
-		iItemIDInSlots[i]         = pkt.read<uint32_t>();
-		iItemDurabilityInSlots[i] = pkt.read<int16_t>();
-		iItemCountInSlots[i]      = pkt.read<int16_t>();
-
-		/*uint8_t bRentFlag          =*/pkt.read<uint8_t>();
-		/*int16_t sRemainingRentalTime =*/pkt.read<int16_t>();
-	}
 
 	m_fMsgSendTimeMove = 0;                     // Network ReQuest 타이머 초기화..
 	m_fMsgSendTimeRot  = 0;
@@ -1974,9 +2113,6 @@ bool CGameProcMain::MsgRecv_MyInfo_All(Packet& pkt)
 		m_pUIVar->m_pPageState->UpdateID(szID); // 이름 적용.
 	m_pUIVar->UpdateAllStates(&(s_pPlayer->m_InfoBase), &(s_pPlayer->m_InfoExt));
 
-	//__KnightsInfoBase* pKIB = m_pUIKnightsOp->KnightsInfoFind(s_pPlayer->m_InfoBase.iKnightsID);
-	//if(pKIB) m_pUIVar->m_pPageKnights->UpdateKnightsName(pKIB->szName);
-
 	// 상태 바 갱신
 	m_pUIStateBarAndMiniMap->UpdateExp(s_pPlayer->m_InfoExt.iExp, s_pPlayer->m_InfoExt.iExpNext, true);
 	m_pUIStateBarAndMiniMap->UpdateHP(s_pPlayer->m_InfoBase.iHP, s_pPlayer->m_InfoBase.iHPMax, true);
@@ -1986,29 +2122,6 @@ bool CGameProcMain::MsgRecv_MyInfo_All(Packet& pkt)
 
 	__TABLE_ITEM_BASIC* pItem  = nullptr;  // 아이템 테이블 구조체 포인터..
 	__TABLE_ITEM_EXT* pItemExt = nullptr;  // 아이템 테이블 구조체 포인터..
-
-	int iItemIDInInventorys[MAX_ITEM_INVENTORY];
-	memset(iItemIDInInventorys, -1, sizeof(iItemIDInInventorys));
-	int iItemCountInInventorys[MAX_ITEM_INVENTORY];
-	memset(iItemCountInInventorys, -1, sizeof(iItemCountInInventorys));
-	int iItemDurabilityInInventorys[MAX_ITEM_INVENTORY];
-	memset(iItemDurabilityInInventorys, -1, sizeof(iItemDurabilityInInventorys));
-
-	for (int i = 0; i < MAX_ITEM_INVENTORY; i++) // 슬롯 갯수마큼..
-	{
-		iItemIDInInventorys[i]         = pkt.read<uint32_t>();
-		iItemDurabilityInInventorys[i] = pkt.read<int16_t>();
-		iItemCountInInventorys[i]      = pkt.read<int16_t>();
-
-		/*uint8_t bRentFlag            =*/pkt.read<uint8_t>();
-		/*int16_t sRemainingRentalTime =*/pkt.read<int16_t>();
-	}
-
-	pkt.read<uint8_t>();
-	pkt.read<uint8_t>();
-	pkt.read<int16_t>();
-	/*uint8_t bIsChicken =*/pkt.read<uint8_t>();
-	/*int iMannerPoints =*/pkt.read<uint32_t>();
 
 	m_pUIInventory->ReleaseItem();
 
@@ -2199,7 +2312,15 @@ bool CGameProcMain::MsgRecv_MyInfo_All(Packet& pkt)
 bool CGameProcMain::MsgRecv_Chat(Packet& pkt)
 {
 	std::string szChat;                                  // 버퍼..
-	e_ChatMode eCM   = (e_ChatMode) pkt.read<uint8_t>(); // 채팅 타입
+	uint8_t byChatType = pkt.read<uint8_t>();            // 채팅 타입
+	if (KoProto::Is2369())
+	{
+		// 2369 ChatType → N3 sohbet kipi (KoProtocol.cpp); 0 = gösterilmez
+		byChatType = KoProto::MapChatType2369(byChatType);
+		if (byChatType == 0)
+			return true;
+	}
+	e_ChatMode eCM   = (e_ChatMode) byChatType;
 	e_Nation eNation = (e_Nation) pkt.read<uint8_t>();   // 보낸사람 국가
 	int iID          = pkt.read<int16_t>();              // 보낸사람
 
@@ -2509,7 +2630,7 @@ bool CGameProcMain::MsgRecv_Weather(Packet& pkt)
 
 bool CGameProcMain::MsgRecv_UserInOut(Packet& pkt)
 {
-	int iType = pkt.read<uint8_t>();
+	int iType = KoProto::Is2369() ? (int) pkt.read<uint16_t>() : (int) pkt.read<uint8_t>(); // 2369: uint16 tür
 
 	// 유저 들어올때.(원래 게임상의 유저 지역 업뎃하면서 갱신..)
 	if (iType == 0x01
@@ -2530,33 +2651,106 @@ bool CGameProcMain::MsgRecv_UserIn(Packet& pkt, bool bWithFX)
 {
 	int iID = pkt.read<int16_t>();
 
-	std::string szName;
-	int iNameLen = pkt.read<uint8_t>();
-	pkt.readString(szName, iNameLen);
+	std::string szName, szKnightsName;
+	e_Nation eNation = NATION_UNKNOWN;
+	int iKnightsID = 0, iKnightsGrade = 0, iKnightsRank = 0;
+	int iLevel = 1;
+	e_Race eRace   = RACE_UNKNOWN;
+	e_Class eClass = CLASS_UNKNOWN;
+	float fXPos = 0, fZPos = 0, fYPos = 0;
+	int iFace = 0, iHair = 0;
+	int iStatus          = 1; // 1 - 서있기.. 2 - 앉아있기.. 3 ... 죽어있다..
+	uint32_t iStatusSize = 1; // 1 보통, 2 dev, 3 cüce, 4 yanıp sönme
+	int iRecruitParty    = 1; // 1 - 보통. 2 - 파티 구함..
+	uint8_t byAuthority  = 0;
+	uint32_t dwItemIDs[MAX_ITEM_SLOT_OPC] = {};    // 착용 아이템 - 다른 플레이어(NPC 포함) 0 ~ 4 상체,하체,헬멧,팔,발 5 망토 6 오른손 7 왼손
+	int iItemDurabilities[MAX_ITEM_SLOT_OPC] = {}; // 착용 아이템의 내구력..
+	uint8_t byItemFlags[MAX_ITEM_SLOT_OPC]   = {};
 
-	e_Nation eNation = (e_Nation) pkt.read<uint8_t>(); // 소속 국가. 0 이면 없다. 1
+	if (KoProto::Is2369())
+	{
+		// 2369 GetUserInfo düzeni (KoProtocol.h); ilk 8 eşya yuvası 1298 ile aynı sırada
+		KoProto::UserInfo2369 u;
+		if (!KoProto::ParseUserInfo2369(pkt, u))
+		{
+			CLogWriter::Write("User In (2369): bozuk paket, ID {}", iID);
+			return false;
+		}
+		szName        = u.name;
+		eNation       = (e_Nation) u.nation;
+		iKnightsID    = u.clanID;
+		szKnightsName = u.clan.name;
+		iKnightsGrade = u.clan.grade;
+		iKnightsRank  = u.clan.ranking;
+		iLevel        = u.level;
+		eRace         = (e_Race) u.race;
+		eClass        = (e_Class) u.cls;
+		fXPos         = u.x / 10.0f;
+		fZPos         = u.z / 10.0f;
+		fYPos         = u.y / 10.0f;
+		iFace         = u.face;
+		iHair         = (int) u.hair;
+		iStatus       = u.resHpType;
+		iStatusSize   = u.abnormalType;
+		iRecruitParty = u.needParty;
+		byAuthority   = u.authority;
+		for (int i = 0; i < MAX_ITEM_SLOT_OPC; i++)
+		{
+			dwItemIDs[i]         = u.items[i].num;
+			iItemDurabilities[i] = u.items[i].duration;
+			byItemFlags[i]       = u.items[i].flag;
+		}
+	}
+	else
+	{
+		int iNameLen = pkt.read<uint8_t>();
+		pkt.readString(szName, iNameLen);
 
-	// 기사단 관련
-	int iKnightsID   = pkt.read<int16_t>();                               // 기사단 ID
-	/*e_KnightsDuty eKnightsDuty = (e_KnightsDuty)*/ pkt.read<uint8_t>(); // 소속 국가. 0 이면 없다. 1
+		eNation = (e_Nation) pkt.read<uint8_t>(); // 소속 국가. 0 이면 없다. 1
 
-	/*int16_t sAllianceID      =*/pkt.read<int16_t>();
+		// 기사단 관련
+		iKnightsID = pkt.read<int16_t>();                                     // 기사단 ID
+		/*e_KnightsDuty eKnightsDuty = (e_KnightsDuty)*/ pkt.read<uint8_t>(); // 소속 국가. 0 이면 없다. 1
 
-	int iKnightNameLen = pkt.read<uint8_t>(); // 소속 기사단 이름 길이.
-	std::string szKnightsName;
-	pkt.readString(szKnightsName, iKnightNameLen);
-	int iKnightsGrade = pkt.read<uint8_t>();  // 등급
-	int iKnightsRank  = pkt.read<uint8_t>();  // 순위
+		/*int16_t sAllianceID      =*/pkt.read<int16_t>();
 
-	/*int16_t sMarkVersion =*/pkt.read<int16_t>();
-	/*int16_t sCapeID    =*/pkt.read<int16_t>();
+		int iKnightNameLen = pkt.read<uint8_t>(); // 소속 기사단 이름 길이.
+		pkt.readString(szKnightsName, iKnightNameLen);
+		iKnightsGrade = pkt.read<uint8_t>();      // 등급
+		iKnightsRank  = pkt.read<uint8_t>();      // 순위
 
-	int iLevel      = pkt.read<uint8_t>(); // 레벨...
-	e_Race eRace    = (e_Race) pkt.read<uint8_t>();
-	e_Class eClass  = (e_Class) pkt.read<int16_t>();
-	float fXPos     = (pkt.read<uint16_t>()) / 10.0f;
-	float fZPos     = (pkt.read<uint16_t>()) / 10.0f;
-	float fYPos     = (pkt.read<int16_t>()) / 10.0f;
+		/*int16_t sMarkVersion =*/pkt.read<int16_t>();
+		/*int16_t sCapeID    =*/pkt.read<int16_t>();
+
+		iLevel = pkt.read<uint8_t>(); // 레벨...
+		eRace  = (e_Race) pkt.read<uint8_t>();
+		eClass = (e_Class) pkt.read<int16_t>();
+		fXPos  = (pkt.read<uint16_t>()) / 10.0f;
+		fZPos  = (pkt.read<uint16_t>()) / 10.0f;
+		fYPos  = (pkt.read<int16_t>()) / 10.0f;
+
+		iFace         = pkt.read<uint8_t>(); // 머리카락..
+		iHair         = pkt.read<uint8_t>(); // 얼굴 모양
+		iStatus       = pkt.read<uint8_t>(); // 1 - 서있기.. 2 - 앉아있기.. 3 ... 죽어있다..
+		iStatusSize   = pkt.read<uint32_t>();
+		iRecruitParty = pkt.read<uint8_t>(); // 1 - 보통. 2 - 파티 구함..
+		byAuthority   = pkt.read<uint8_t>(); // 권한...
+
+		/*bool bPartyLeader         =*/pkt.read<bool>();
+		/*uint8_t bInvisibilityType =*/pkt.read<uint8_t>();
+		/*int16_t sDirection        =*/pkt.read<int16_t>();
+		/*bool bIsChicken           =*/pkt.read<bool>();
+		/*uint8_t bRank             =*/pkt.read<uint8_t>();
+		/*uint8_t bKnightsRank      =*/pkt.read<uint8_t>();
+		/*uint8_t bPersonalRank     =*/pkt.read<uint8_t>();
+
+		for (int i = 0; i < MAX_ITEM_SLOT_OPC; i++)
+		{
+			dwItemIDs[i]         = pkt.read<uint32_t>(); // 착용하고 있는 아이템들의 ID
+			iItemDurabilities[i] = pkt.read<int16_t>();  // 착용하고 있는 아이템들의 현재 내구력
+			byItemFlags[i]       = pkt.read<uint8_t>();  // bFlag (kiralık vb.)
+		}
+	}
 
 	float fYTerrain = ACT_WORLD->GetHeightWithTerrain(fXPos, fZPos);                          // 지형의 높이값 얻기..
 	float fYObject  = ACT_WORLD->GetHeightNearstPosWithShape(__Vector3(fXPos, fYPos, fZPos)); // 오브젝트에서 가장 가까운 높이값 얻기..
@@ -2565,37 +2759,6 @@ bool CGameProcMain::MsgRecv_UserIn(Packet& pkt, bool bWithFX)
 	else
 		fYPos = fYTerrain;
 
-	int iFace           = pkt.read<uint8_t>(); // 머리카락..
-	int iHair           = pkt.read<uint8_t>(); // 얼굴 모양
-
-	int iStatus         = pkt.read<uint8_t>(); // 1 - 서있기.. 2 - 앉아있기.. 3 ... 죽어있다..
-
-	// NOTE(srmeier): updating status
-	//int iStatusSize = pkt.read<uint8_t>(); // 0 - 보통 크기, 1 - 커져 있다. 2 - 작아졌다..
-	int iStatusSize     = pkt.read<uint32_t>();
-
-	int iRecruitParty   = pkt.read<uint8_t>(); // 1 - 보통. 2 - 파티 구함..
-	uint8_t byAuthority = pkt.read<uint8_t>(); // 권한...
-
-	/*bool bPartyLeader         =*/pkt.read<bool>();
-	/*uint8_t bInvisibilityType =*/pkt.read<uint8_t>();
-	/*int16_t sDirection        =*/pkt.read<int16_t>();
-	/*bool bIsChicken           =*/pkt.read<bool>();
-	/*uint8_t bRank             =*/pkt.read<uint8_t>();
-	/*uint8_t bKnightsRank      =*/pkt.read<uint8_t>();
-	/*uint8_t bPersonalRank     =*/pkt.read<uint8_t>();
-
-	uint32_t dwItemIDs[MAX_ITEM_SLOT_OPC];    // 착용 아이템 - 다른 플레이어(NPC 포함) 0 ~ 4 상체,하체,헬멧,팔,발 5 망토 6 오른손 7 왼손
-	int iItemDurabilities[MAX_ITEM_SLOT_OPC]; // 착용 아이템의 내구력..
-	uint8_t byItemFlags[MAX_ITEM_SLOT_OPC];
-	for (int i = 0; i < MAX_ITEM_SLOT_OPC; i++)
-	{
-		dwItemIDs[i]         = pkt.read<uint32_t>(); // 착용하고 있는 아이템들의 ID
-		iItemDurabilities[i] = pkt.read<int16_t>();  // 착용하고 있는 아이템들의 현재 내구력
-
-		// NOTE(srmeier): adding bFlag, probably the rental thing
-		byItemFlags[i]       = pkt.read<uint8_t>();
-	}
 
 	if (iID == s_pPlayer->IDNumber())
 		return false; // 내 패킷이면 .. // 무시한다..
@@ -2719,6 +2882,13 @@ bool CGameProcMain::MsgRecv_UserOut(Packet& pkt)
 // 주위 영역의 모든 아이디를 카운트만큼 받는다... 글구.. 업데이트가 필요한 것만 서버에게 요청..
 bool CGameProcMain::MsgRecv_UserInAndRequest(Packet& pkt)
 {
+	if (KoProto::Is2369())
+	{
+		// 2369 WIZ_REGIONCHANGE: uint8 alt opcode (0 başla, 1 liste, 2 bitti); yalnız 1'de liste var
+		uint8_t sub = pkt.read<uint8_t>();
+		if (sub != 1)
+			return true;
+	}
 	int iUPCCountReceived = pkt.read<int16_t>();
 	//	TRACE("UPC region update : {}", iUPCCountReceived);
 
@@ -2830,7 +3000,11 @@ bool CGameProcMain::MsgRecv_UserInRequested(Packet& pkt)
 	}
 
 	for (int i = 0; i < iPlayerCount; i++)
-		MsgRecv_UserIn(pkt); // 플레이어 갯수 만큼 유저 인...
+	{
+		if (KoProto::Is2369())
+			pkt.read<uint8_t>(); // 2369: her kayıt önünde uint8 0
+		MsgRecv_UserIn(pkt);     // 플레이어 갯수 만큼 유저 인...
+	}
 
 	return true;
 }
@@ -2838,7 +3012,8 @@ bool CGameProcMain::MsgRecv_UserInRequested(Packet& pkt)
 bool CGameProcMain::MsgRecv_NPCInOut(Packet& pkt)
 {
 	uint8_t byType = pkt.read<uint8_t>();
-	if (byType == 0x01)                  // NPC 들어올때
+	if (byType == 0x01                                      // NPC 들어올때
+		|| (KoProto::Is2369() && byType != 0x02))           // 2369: 1 giriş, 2 çıkış, 3 yeniden doğma, 4 ışınlanma
 	{
 		return this->MsgRecv_NPCIn(pkt); // NPC In 처리
 	}
@@ -2852,30 +3027,74 @@ bool CGameProcMain::MsgRecv_NPCInOut(Packet& pkt)
 
 bool CGameProcMain::MsgRecv_NPCIn(Packet& pkt)
 {
-	int iID      = pkt.read<int16_t>();        // Server에서 관리하는 고유 ID
-	int iIDResrc = pkt.read<int16_t>();        // 리소스 ID
-	/*int iType       =*/pkt.read<uint8_t>();  // NPC Type - 0x05 : 상인
-	/*int iItemTrdeID =*/pkt.read<uint32_t>(); // 아이템 거래할 그룹 ID 서버에 요청할 ID
-	int iScale   = pkt.read<int16_t>();        // 스케일 100 은 1.0
-	int iItemID0 = pkt.read<uint32_t>();       // 리소스 ID
-	int iItemID1 = pkt.read<uint32_t>();       // 리소스 ID
-	int iNameLen = pkt.read<uint8_t>();
-	std::string szName;                        // NPC 아이디..
-	if (iNameLen > 0)
-		pkt.readString(szName, iNameLen);
+	int iID = pkt.read<int16_t>(); // Server에서 관리하는 고유 ID
+	int iIDResrc = 0;              // 리소스 ID
+	int iScale   = 100;            // 스케일 100 은 1.0
+	int iItemID0 = 0, iItemID1 = 0;
+	std::string szName;            // NPC 아이디..
+	e_Nation eNation  = NATION_UNKNOWN;
+	int iLevel        = 1;
+	float fXPos = 0, fZPos = 0, fYPos = 0;
+	uint32_t dwStatus = 0; // 상태... 여러가지로 or 연산해서 쓴다. 0 문 열림, 1 닫힘. 2, 4, 8, 16 ....
+	uint32_t dwType   = 0; // 타입... 0 이면 캐릭터 타입 NPC, 1 이면 오브젝트 타입 NPC
+
+	if (KoProto::Is2369())
+	{
+		// 2369 GetNpcInfo: ad paket içinde yok; görünüm tablosundaki model adı kullanılır
+		KoProto::NpcInfo2369 n;
+		if (!KoProto::ParseNpcInfo2369(pkt, n))
+		{
+			CLogWriter::Write("NPC In (2369): bozuk paket, ID {}", iID);
+			return false;
+		}
+		iIDResrc = n.protoID;
+		iScale   = n.size;
+		iItemID0 = (int) n.weapon1;
+		iItemID1 = (int) n.weapon2;
+		eNation  = (e_Nation) n.nation;
+		iLevel   = n.level;
+		fXPos    = n.x / 10.0f;
+		fZPos    = n.z / 10.0f;
+		fYPos    = n.y / 10.0f;
+		dwStatus = n.gateOpen;
+		dwType   = n.objectType;
+		if (__TABLE_PLAYER_LOOKS* pLooksName = s_pTbl_NPC_Looks.Find(iIDResrc))
+			szName = pLooksName->szName;
+		if (szName.empty())
+			szName = fmt::format("NPC {}", iIDResrc);
+	}
 	else
-		szName = "";
+	{
+		iIDResrc = pkt.read<int16_t>();            // 리소스 ID
+		/*int iType       =*/pkt.read<uint8_t>();  // NPC Type - 0x05 : 상인
+		/*int iItemTrdeID =*/pkt.read<uint32_t>(); // 아이템 거래할 그룹 ID 서버에 요청할 ID
+		iScale   = pkt.read<int16_t>();            // 스케일 100 은 1.0
+		iItemID0 = pkt.read<uint32_t>();           // 리소스 ID
+		iItemID1 = pkt.read<uint32_t>();           // 리소스 ID
+		int iNameLen = pkt.read<uint8_t>();
+		if (iNameLen > 0)
+			pkt.readString(szName, iNameLen);
+		else
+			szName = "";
+
+		eNation = (e_Nation) pkt.read<uint8_t>(); // 소속 국가. 0 이면 없다. 1
+		iLevel  = pkt.read<uint8_t>();
+
+		fXPos = (pkt.read<uint16_t>()) / 10.0f;
+		fZPos = (pkt.read<uint16_t>()) / 10.0f;
+		fYPos = (pkt.read<int16_t>()) / 10.0f;
+
+		dwStatus = pkt.read<uint32_t>(); // 상태... 여러가지로 or 연산해서 쓴다. 0 문 열림, 1 닫힘. 2, 4, 8, 16 ....
+		dwType   = pkt.read<uint8_t>();  // 타입... 0 이면 캐릭터 타입 NPC, 1 이면 오브젝트 타입 NPC
+
+		/*uint16_t sIDK0      =*/pkt.read<int16_t>();
+		/*int16_t sIDK1       =*/pkt.read<int16_t>();
+		/*uint8_t byDirection =*/pkt.read<uint8_t>();
+	}
 
 #ifdef _DEBUG
 	CLogWriter::Write("NPC In - ID({}) Name({}) Time({:.1f})", iID, szName, CN3Base::TimeGet()); // 캐릭 세팅..
 #endif
-
-	e_Nation eNation = (e_Nation) pkt.read<uint8_t>();                                           // 소속 국가. 0 이면 없다. 1
-	int iLevel       = pkt.read<uint8_t>();
-
-	float fXPos      = (pkt.read<uint16_t>()) / 10.0f;
-	float fZPos      = (pkt.read<uint16_t>()) / 10.0f;
-	float fYPos      = (pkt.read<int16_t>()) / 10.0f;
 
 	float fYTerrain  = ACT_WORLD->GetHeightWithTerrain(fXPos, fZPos);                          // 지형의 높이값 얻기..
 	float fYObject   = ACT_WORLD->GetHeightNearstPosWithShape(__Vector3(fXPos, fYPos, fZPos)); // 오브젝트에서 가장 가까운 높이값 얻기..
@@ -2884,12 +3103,6 @@ bool CGameProcMain::MsgRecv_NPCIn(Packet& pkt)
 	else
 		fYPos = fYTerrain;
 
-	uint32_t dwStatus = pkt.read<uint32_t>(); // 상태... 여러가지로 or 연산해서 쓴다. 0 문 열림, 1 닫힘. 2, 4, 8, 16 ....
-	uint32_t dwType   = pkt.read<uint8_t>();  // 타입... 0 이면 캐릭터 타입 NPC, 1 이면 오브젝트 타입 NPC
-
-	/*uint16_t sIDK0      =*/pkt.read<int16_t>();
-	/*int16_t sIDK1       =*/pkt.read<int16_t>();
-	/*uint8_t byDirection =*/pkt.read<uint8_t>();
 
 	CPlayerNPC* pNPC = s_pOPMgr->NPCGetByID(iID, false);
 	if (pNPC) // 이미 아이디 같은 캐릭이 있으면..
@@ -3187,6 +3400,8 @@ bool CGameProcMain::MsgRecv_NPCInRequested(Packet& pkt)
 
 bool CGameProcMain::MsgRecv_NPCMove(Packet& pkt)
 {
+	if (KoProto::Is2369())
+		pkt.read<uint8_t>(); // 2369: önde uint8 1
 	int iID     = pkt.read<int16_t>();
 	float fXPos = (pkt.read<uint16_t>()) / 10.0f;
 	float fZPos = (pkt.read<uint16_t>()) / 10.0f;
@@ -4523,17 +4738,10 @@ void CGameProcMain::InitZone(int iZone, const __Vector3& vPosPlayer)
 
 void CGameProcMain::MsgSend_GameStart()
 {
-	uint8_t byBuff[32];                                     // 패킷 버퍼..
-	int iOffset = 0;                                        // 패킷 오프셋..
-
-	CAPISocket::MP_AddByte(byBuff, iOffset, WIZ_GAMESTART); // 게임 스타트 패킷 커멘드..
-	//CAPISocket::MP_AddByte(byBuff, iOffset, s_pPlayer->IDString().size());		// 아이디 길이 패킷에 넣기..
-	//CAPISocket::MP_AddString(byBuff, iOffset, s_pPlayer->IDString());			// 아이디 문자열 패킷에 넣기..
-
-	// NOTE(srmeier): start the first part of the login process
-	CAPISocket::MP_AddByte(byBuff, iOffset, 0x01);
-
-	s_pSocket->Send(byBuff, iOffset);
+	// NOTE(srmeier): start the first part of the login process (2369: + karakter adı, uint8 uzunluk)
+	std::vector<uint8_t> buff;
+	KoProto::BuildGameStart(buff, 0x01, s_pPlayer->IDString());
+	s_pSocket->Send(buff.data(), (int) buff.size());
 }
 
 bool CGameProcMain::CommandToggleWalkRun()
@@ -4972,11 +5180,19 @@ void CGameProcMain::MsgRecv_ZoneChange(Packet& pkt)
 	{
 		case ZONE_CHANGE_TELEPORT:
 		{
-			int iZone = 10 * pkt.read<uint8_t>();
-			/*int iZoneSub   =*/pkt.read<uint8_t>();
+			int iZone = 0;
+			if (KoProto::Is2369())
+				iZone = 10 * pkt.read<uint16_t>(); // 2369: uint16 bölge, x, z, y, uint8 ulus, uint8 eski zafer
+			else
+			{
+				iZone = 10 * pkt.read<uint8_t>();
+				/*int iZoneSub   =*/pkt.read<uint8_t>();
+			}
 			float fX           = pkt.read<uint16_t>() / 10.0f;
 			float fZ           = pkt.read<uint16_t>() / 10.0f;
 			float fY           = pkt.read<int16_t>() / 10.0f;
+			if (KoProto::Is2369())
+				/*uint8_t byNation =*/pkt.read<uint8_t>();
 			int iVictoryNation = pkt.read<uint8_t>();
 
 			LoadingUIChange(iVictoryNation);
@@ -5119,20 +5335,66 @@ void CGameProcMain::MsgRecv_UserState(Packet& pkt)
 
 void CGameProcMain::MsgRecv_Notice(Packet& pkt)
 {
-	if (m_pUINotice)
-		m_pUINotice->RemoveNotice();
-
-	int iNoticeCount = pkt.read<uint8_t>();
-	for (int i = 0; i < iNoticeCount; i++)
+	int iNoticeCount = 0;
+	if (KoProto::Is2369())
 	{
-		int iStrLen = pkt.read<uint8_t>();
-		if (iStrLen <= 0)
-			continue;
-
-		std::string szNotice;
-		pkt.readString(szNotice, iStrLen);
+		// 2369: uint8 biçim (1 eski: uint8 adet, uint8 uzunluklu satırlar; 2 yeni: uint8 adet, uint16 uzunluklu
+		// başlık+mesaj çiftleri; 4: uint8 ekle/sil, başlık, mesaj — sağ üst başlık iletisi)
+		uint8_t byStyle = pkt.read<uint8_t>();
+		if (byStyle == 4)
+		{
+			uint8_t byOp = pkt.read<uint8_t>();
+			std::string szTitle, szMsg;
+			pkt.readString(szTitle);
+			pkt.readString(szMsg);
+			if (byOp == 1 && !szMsg.empty())
+				MsgOutput(szTitle.empty() ? szMsg : szTitle + ": " + szMsg, D3DCOLOR_ARGB(255, 255, 220, 120));
+			return;
+		}
 		if (m_pUINotice)
-			m_pUINotice->m_Texts.push_back(szNotice);
+			m_pUINotice->RemoveNotice();
+		iNoticeCount = pkt.read<uint8_t>();
+		for (int i = 0; i < iNoticeCount; i++)
+		{
+			std::string szTitle, szNotice;
+			if (byStyle == 2)
+			{
+				pkt.readString(szTitle);  // uint16 uzunluk
+				pkt.readString(szNotice); // uint16 uzunluk
+			}
+			else
+			{
+				int iStrLen = pkt.read<uint8_t>();
+				if (iStrLen > 0)
+					pkt.readString(szNotice, iStrLen);
+			}
+			if (szNotice.empty())
+				continue;
+			if (m_pUINotice)
+			{
+				if (!szTitle.empty())
+					m_pUINotice->m_Texts.push_back(szTitle);
+				m_pUINotice->m_Texts.push_back(szNotice);
+			}
+		}
+	}
+	else
+	{
+		if (m_pUINotice)
+			m_pUINotice->RemoveNotice();
+
+		iNoticeCount = pkt.read<uint8_t>();
+		for (int i = 0; i < iNoticeCount; i++)
+		{
+			int iStrLen = pkt.read<uint8_t>();
+			if (iStrLen <= 0)
+				continue;
+
+			std::string szNotice;
+			pkt.readString(szNotice, iStrLen);
+			if (m_pUINotice)
+				m_pUINotice->m_Texts.push_back(szNotice);
+		}
 	}
 
 	if (m_pUINotice && iNoticeCount > 0)

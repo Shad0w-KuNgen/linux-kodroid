@@ -1,4 +1,4 @@
-﻿// UILoading.cpp: implementation of the UILoading class.
+// UILoading.cpp: implementation of the UILoading class.
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -7,6 +7,7 @@
 #include "GameDef.h"
 #include "GameEng.h"
 #include "GameProcedure.h"
+#include "KoProtocol.h"
 #include "UIManager.h"
 
 #include <N3Base/N3UIProgress.h>
@@ -41,7 +42,7 @@ bool CUILoading::Load(File& file)
 	N3_VERIFY_UI_COMPONENT(m_pText_Version, GetChildByID<CN3UIString>("Text_Version"));
 	if (m_pText_Version != nullptr)
 	{
-		std::string version = fmt::format("Ver. {:.3f}", CURRENT_VERSION / 1000.0f);
+		std::string version = fmt::format("Ver. {:.3f}", KoProto::Version() / 1000.0f);
 		m_pText_Version->SetString(version);
 	}
 

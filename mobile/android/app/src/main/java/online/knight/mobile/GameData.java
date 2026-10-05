@@ -22,6 +22,44 @@ public final class GameData {
     public static final String DEFAULT_SERVER_IP = "86.105.4.195";
     /** Kurulum ekranında önerilen veri paketi adresi. */
     public static final String DEFAULT_DATA_URL = "http://" + DEFAULT_SERVER_IP + "/knightonline-mobile.zip";
+    /** 2369 istemci verisi (ISTIRAP sunucusu; ~3 GB, 14.115 dosya, Server.ini Files=2434). */
+    public static final String DEFAULT_DATA_URL_2369 = "http://" + DEFAULT_SERVER_IP + "/ko/client2369.zip";
+    public static final int PROTOCOL_1298 = 1298, PROTOCOL_2369 = 2369;
+    public static final int LOGIN_PORT_1298 = 15100, GAME_PORT_1298 = 15001;
+    public static final int LOGIN_PORT_2369 = 15200, GAME_PORT_2369 = 15301;
+
+    /**
+     * Sunucu protokolü: Server.ini [Server] Protocol; yoksa [Version] Files >= 2000 ise 2369, değilse 1298
+     * (yerel kod KoProto::LoadFromServerIni ile aynı kural).
+     */
+    public static int protocolOf(File serverIni) {
+        int files = parseIntOr(getIniValue(serverIni, "Version", "Files", "0"), 0);
+        int inferred = files >= 2000 ? PROTOCOL_2369 : PROTOCOL_1298;
+        int p = parseIntOr(getIniValue(serverIni, "Server", "Protocol", String.valueOf(inferred)), inferred);
+        return p == PROTOCOL_2369 ? PROTOCOL_2369 : PROTOCOL_1298;
+    }
+
+    /** Giriş sunucusu portu: [Server] LoginPort; yoksa protokole göre 15200 / 15100. */
+    public static int loginPortOf(File serverIni) {
+        int def = protocolOf(serverIni) == PROTOCOL_2369 ? LOGIN_PORT_2369 : LOGIN_PORT_1298;
+        int p = parseIntOr(getIniValue(serverIni, "Server", "LoginPort", "0"), 0);
+        return p > 0 && p < 65536 ? p : def;
+    }
+
+    /** Oyun sunucusu portu: [Server] GamePort; yoksa protokole göre 15301 / 15001. */
+    public static int gamePortOf(File serverIni) {
+        int def = protocolOf(serverIni) == PROTOCOL_2369 ? GAME_PORT_2369 : GAME_PORT_1298;
+        int p = parseIntOr(getIniValue(serverIni, "Server", "GamePort", "0"), 0);
+        return p > 0 && p < 65536 ? p : def;
+    }
+
+    static int parseIntOr(String s, int def) {
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (Exception e) {
+            return def;
+        }
+    }
 
     private static final String DEFAULT_SERVER_INI = "[Server]\r\nCount=1\r\nIP0=" + DEFAULT_SERVER_IP
             + "\r\n\r\n[Version]\r\nFiles=1299\r\n\r\n[Join]\r\nRegistration site=https://github.com/Open-KO/KnightOnline\r\n";

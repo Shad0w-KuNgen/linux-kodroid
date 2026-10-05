@@ -121,8 +121,53 @@ süre) ve **OYUNA BAŞLA**. Açılış sırası:
    (`KO_VERSION_CODE`/`KO_VERSION_NAME`); yerel derlemede git commit sayısı.
 2. **Veri kurulumu** (ilk sefer / "Veriyi onar"): adresten ya da seçilen zip'ten.
 3. **Veri yaması**: `PatchClient` (aşağıda).
-4. Hazır → OYUNA BAŞLA. "Ayarlar": sunucu IP (Server.ini), veri/APK adresleri, dokunmatik kontroller,
+4. Hazır → OYUNA BAŞLA. "Ayarlar": sunucu IP, protokol (1.298/2369) ve portlar (Server.ini), veri/APK adresleri, dokunmatik kontroller,
    mantıksal yükseklik, girdi hata ayıklama (Option.ini `[Mobile]`).
+
+### Sunucu protokolü: 1.298 (OpenKO) ve 2369 (ISTIRAP)
+
+İstemci iki sunucu protokolüyle konuşabilir; seçim çalışma zamanında `Server.ini`'den okunur
+(`KoProtocol.h`, hem yerel kod hem Launcher aynı kuralı uygular):
+
+```ini
+[Server]
+Count=1
+IP0=86.105.4.195
+Protocol=2369     ; yoksa [Version] Files >= 2000 ise 2369, değilse 1298
+LoginPort=15200   ; yoksa protokole göre 15200 / 15100
+GamePort=15301    ; yoksa protokole göre 15301 / 15001
+```
+
+Launcher Ayarlar'ında "Sunucu protokolü" (1.298 / 2369), giriş/oyun portu ve veri adresi vardır;
+2369 seçilince varsayılan veri adresi `http://86.105.4.195/ko/client2369.zip` olur (~3 GB,
+14.115 dosya, `Files=2434`). Sunucu durumu/yama sorguları (`LS_SERVERLIST`, `LS_VERSION_REQ`,
+`LS_DOWNLOADINFO_REQ`, `LS_NEWS`) protokole göre ayrıştırılır.
+
+2369 düzenleri depodaki `1 - Login & Game Source` sunucu kaynağından türetildi (`__VERSION 2369`,
+şifreleme yok, anti-cheat sunucuda zorunlu değil). Aşama 1'de uygulanan paketler:
+
+| Paket | 2369 farkı |
+|---|---|
+| `LS_SERVERLIST` | istek `uint16 echo`; yanıt lanIP/IP/ad, kullanıcı, sunucu/grup ID, kapasite, ekran tipi, 4 kral/duyuru dizgesi |
+| `LS_LOGIN_REQ` | `uint16 0` + sonuç (1 başarı, 2 hesap yok, 3 şifre, 4 yasaklı, 5 oyunda, 0xF sözleşme, 0x10 OTP) |
+| `WIZ_VERSION_CHECK` | `uint8, uint16 sürüm, uint8, uint64, uint64, uint8`; sürüm 2369 ile karşılaştırılır |
+| `WIZ_COMPRESS_PACKET` | başlık `uint32 × 3` (1298: `uint16, uint16, uint32`) |
+| `WIZ_ALLCHAR_INFO_REQ` | istek alt opcode 1; yanıt 4 karakter, `uint32` saç (arayüzde 3 yuva gösterilir) |
+| `WIZ_SEL_CHAR` | zoneCur baytı gönderilmez |
+| `WIZ_GAMESTART` | adımlar 1/2 + karakter adı (`uint8` uzunluk) |
+| `WIZ_MYINFO` | genişletilmiş düzen: `int64` exp, klan/pelerin bloğu, 75 envanter yuvası, premium/manner/rebirth kuyruğu |
+| `WIZ_USER_INOUT` / `WIZ_REQ_USERIN` | `uint16` tür; `uint32` saç, abnormal, yön, 15 eşya yuvası; REQ_USERIN kayıtları önünde `uint8 0` |
+| `WIZ_REGIONCHANGE` | alt opcode 0/1/2; liste yalnız 1'de |
+| `WIZ_NPC_INOUT` / `WIZ_REQ_NPCIN` | ad paket içinde yok (görünüm tablosundaki model adı kullanılır); `int16` yön; tür 3/4 = giriş |
+| `WIZ_NPC_MOVE` | önde `uint8 1` |
+| `WIZ_MOVE` | gönderimde mevcut konum eklenir; echo 0 dur / 1 başla / 3 devam |
+| `WIZ_CHAT` | ChatType → N3 sohbet kipi eşlemesi (`MapChatType2369`) |
+| `WIZ_NOTICE` | biçim 1 (eski), 2 (başlık+mesaj çiftleri), 4 (sağ üst başlık iletisi) |
+| `WIZ_ZONE_CHANGE` | ışınlanma: `uint16` bölge, x, z, y, ulus, eski zafer |
+
+`ko_proto_test` (CTest) sunucu kaynağındaki `Packet <<` sırasını taklit eden paketlerle bu ayrıştırıcıları
+ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya/yükseltme, klan/kral/PUS,
+2369 arayüzü, 2369 veri uyumluluğu (bölge numaraları, `UI` klasörü, NPC ad tablosu).
 
 ### Oyun verisini telefona kurma
 
@@ -215,6 +260,7 @@ sonra kapatılır. `SDL_HINT_ENABLE_SCREEN_KEYBOARD=1`, oyun etkinliğinde `wind
 
 1. Android'de ilk derleme ve cihazda login ekranı.
 2. OpenKO sunucusu (Ebenezer/Aujard) ile giriş, karakter seçimi, Moradon'a giriş testi.
+   2369: ISTIRAP sunucusu (86.105.4.195:15200/15301) ile aynı akış; veri `client2369.zip`.
 3. Dokunmatik oyun arayüzü: sanal joystick, hedef seçme, beceri çubuğu, sohbet için sanal klavye.
 4. Performans: shader/uniform önbelleği, doku belleği (CPU gölge kopyalarını serbest bırakma), ETC2/ASTC doku ön dönüşümü.
 5. Ses testleri, BMP/JPG doku yükleme, iOS (aynı kod + SDL iOS projesi).

@@ -168,4 +168,10 @@ if(KO_BUILD_TESTS AND NOT ANDROID)
   ko_openko_target(ko_touch_test)
   target_include_directories(ko_touch_test PRIVATE platform)
   add_test(NAME ko_touch_test COMMAND ko_touch_test)
+
+  # Protokol katmanı (1298/2369): sunucu kaynağından türetilen paketler ↔ istemci ayrıştırıcıları
+  add_executable(ko_proto_test platform/tests/proto_test.cpp)
+  target_link_libraries(ko_proto_test PRIVATE ko_warfare ko::sdl2 GLESv2 EGL)
+  ko_openko_target(ko_proto_test)
+  add_test(NAME ko_proto_test COMMAND ko_proto_test)
 endif()

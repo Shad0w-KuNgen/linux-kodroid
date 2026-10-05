@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Orijinal Knight Online başlatıcı (Launcher) protokolünün istemci tarafı; VersionManager
- * (giriş sunucusu, port 15100) ile konuşur.
+ * (giriş sunucusu; 1298: port 15100, 2369/ISTIRAP: port 15200) ile konuşur.
  *
  * Çerçeve: AA 55 | int16 LE uzunluk | payload | 55 AA.  str2 = int16 LE uzunluk + baytlar.
  *  - LS_VERSION_REQ (0x01)            → [0x01][int16 sonSürüm]
@@ -55,6 +55,10 @@ public final class PatchClient implements AutoCloseable {
         public String name = "";
         /** Oyuncu sayısı; -1 = dolu/erişilemez. */
         public int users;
+        // 2369 ek alanları
+        public String lanIp = "";
+        public int serverId, groupId, playerCap, freePlayerCap, screenType;
+        public String karusKing = "", karusNotice = "", elmoradKing = "", elmoradNotice = "";
     }
 
     public static final class NewsItem {
@@ -103,21 +107,57 @@ public final class PatchClient implements AutoCloseable {
         return info;
     }
 
-    /** Sunucu listesi: [0xF5][byte adet][adet × (str2 ip, str2 ad, int16 oyuncu)]. */
+    /** Sunucu listesi: [0xF5][byte adet][adet × (str2 ip, str2 ad, int16 oyuncu)] (1298). */
     public List<ServerInfo> queryServerList() throws IOException {
-        send(new byte[] { LS_SERVERLIST });
+        return queryServerList(GameData.PROTOCOL_1298);
+    }
+
+    /**
+     * Sunucu listesi. 1298: yukarıdaki düzen. 2369 (ISTIRAP): istek [0xF5][int16 echo]; yanıt
+     * [0xF5][int16 echo][byte adet][adet × (str2 lanIp, str2 ip, str2 ad, int16 oyuncu, int16 sunucuId, int16 grupId,
+     * int16 kapasite, int16 serbestKapasite, byte 0, byte ekranTipi, str2 karusKral, str2 karusDuyuru,
+     * str2 elmoradKral, str2 elmoradDuyuru)].
+     */
+    public List<ServerInfo> queryServerList(int protocol) throws IOException {
+        boolean v2369 = protocol == GameData.PROTOCOL_2369;
+        send(v2369 ? new byte[] { LS_SERVERLIST, 0, 0 } : new byte[] { LS_SERVERLIST });
         byte[] p = receive();
-        if (p.length < 2 || p[0] != LS_SERVERLIST)
+        if (p.length < (v2369 ? 4 : 2) || p[0] != LS_SERVERLIST)
             throw new IOException("Beklenmeyen sunucu listesi yanıtı");
-        int count = p[1] & 0xff;
-        int[] pos = { 2 };
+        int[] pos = { 1 };
+        if (v2369)
+            pos[0] += 2; // echo
+        int count = p[pos[0]++] & 0xff;
         List<ServerInfo> list = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             ServerInfo si = new ServerInfo();
-            si.ip = readStr2(p, pos);
-            si.name = readStr2(p, pos);
-            si.users = readShort(p, pos[0]);
-            pos[0] += 2;
+            if (v2369) {
+                si.lanIp = readStr2(p, pos);
+                si.ip = readStr2(p, pos);
+                si.name = readStr2(p, pos);
+                si.users = readShort(p, pos[0]);
+                pos[0] += 2;
+                si.serverId = readShort(p, pos[0]);
+                pos[0] += 2;
+                si.groupId = readShort(p, pos[0]);
+                pos[0] += 2;
+                si.playerCap = readShort(p, pos[0]);
+                pos[0] += 2;
+                si.freePlayerCap = readShort(p, pos[0]);
+                pos[0] += 2;
+                pos[0] += 1; // byte 0
+                si.screenType = pos[0] < p.length ? p[pos[0]] & 0xff : 0;
+                pos[0] += 1;
+                si.karusKing = readStr2(p, pos);
+                si.karusNotice = readStr2(p, pos);
+                si.elmoradKing = readStr2(p, pos);
+                si.elmoradNotice = readStr2(p, pos);
+            } else {
+                si.ip = readStr2(p, pos);
+                si.name = readStr2(p, pos);
+                si.users = readShort(p, pos[0]);
+                pos[0] += 2;
+            }
             list.add(si);
         }
         return list;

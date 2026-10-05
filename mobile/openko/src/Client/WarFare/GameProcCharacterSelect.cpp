@@ -7,6 +7,7 @@
 #include "GameProcedure.h"
 #include "text_resources.h"
 #include "PacketDef.h"
+#include "KoProtocol.h"
 #include "GameEng.h"
 #include "LocalInput.h"
 #include "APISocket.h"
@@ -723,7 +724,7 @@ void CGameProcCharacterSelect::MsgRecv_DeleteChr(Packet& pkt)
 int CGameProcCharacterSelect::MsgRecv_VersionCheck(Packet& pkt) // virtual
 {
 	int iVersion = CGameProcedure::MsgRecv_VersionCheck(pkt);
-	if (iVersion == CURRENT_VERSION)
+	if (iVersion == KoProto::Version())
 	{
 		if (s_bIsRestarting)
 			MsgSend_GameServerLogIn();
@@ -1424,6 +1425,67 @@ void CGameProcCharacterSelect::DecreseLightFactor()
 
 void CGameProcCharacterSelect::MsgRecv_AllCharacterInfo(Packet& pkt)
 {
+	if (KoProto::Is2369())
+	{
+		// uint8 alt opcode (1 = liste), uint8 sonuç, 4 karakter (uint16 uzunluklu ad, u8 ırk, u16 sınıf, u8 seviye,
+		// u8 yüz, u32 saç, u8 bölge, 8 × (u32 eşya, u16 dayanıklılık)). Arayüzde 3 yuva var; 4. karakter atlanır.
+		uint8_t sub = 0;
+		std::vector<KoProto::CharInfo2369> chars;
+		bool ok = KoProto::ParseAllCharInfo2369(pkt, chars, &sub);
+		if (sub != 1)
+		{
+			CLogWriter::Write("WIZ_ALLCHAR_INFO_REQ (2369): alt opcode {} yok sayıldı", sub);
+			return;
+		}
+		if (!ok)
+		{
+			CLogWriter::Write("WIZ_ALLCHAR_INFO_REQ (2369): sonuç/düzen hatası ({} karakter okundu)", chars.size());
+			MsgSend_RequestAllCharacterInfo(); // 다시 정보 요청..
+			return;
+		}
+		for (int i = 0; i < MAX_AVAILABLE_CHARACTER && i < (int) chars.size(); i++)
+		{
+			const auto& c                = chars[i];
+			auto& chr                    = m_InfoChrs[i];
+			chr.szID                     = c.id;
+			chr.eRace                    = (e_Race) c.race;
+			chr.eClass                   = (e_Class) c.cls;
+			chr.iLevel                   = c.level;
+			chr.iFace                    = c.face;
+			chr.iHair                    = (int) c.hair;
+			chr.iZone                    = c.zone;
+			// Sunucu sırası: HEAD, BREAST, SHOULDER, RIGHTHAND, LEFTHAND, LEG, GLOVE, FOOT
+			chr.dwItemHelmet             = c.itemID[0];
+			chr.iItemHelmetDurability    = c.itemDur[0];
+			chr.dwItemUpper              = c.itemID[1];
+			chr.iItemUpperDurability     = c.itemDur[1];
+			chr.dwItemCloak              = c.itemID[2];
+			chr.iItemCloakDurability     = c.itemDur[2];
+			chr.dwRightHand              = c.itemID[3];
+			chr.iItemRightHandDurability = c.itemDur[3];
+			chr.dwLeftHand               = c.itemID[4];
+			chr.iItemLeftHandDurability  = c.itemDur[4];
+			chr.dwItemLower              = c.itemID[5];
+			chr.iItemLowerDurability     = c.itemDur[5];
+			chr.dwItemGloves             = c.itemID[6];
+			chr.iItemGlovesDurability    = c.itemDur[6];
+			chr.dwItemShoes              = c.itemID[7];
+			chr.iItemShoesDurability     = c.itemDur[7];
+			CLogWriter::Write("Karakter {}: '{}' ırk {} sınıf {} seviye {} bölge {} saç {}", i, c.id, c.race, c.cls, c.level,
+				c.zone, c.hair);
+		}
+		if (chars.size() > MAX_AVAILABLE_CHARACTER && !chars[MAX_AVAILABLE_CHARACTER].id.empty())
+			CLogWriter::Write("4. karakter '{}' arayüzde gösterilemiyor (3 yuva)", chars[MAX_AVAILABLE_CHARACTER].id);
+
+		if (!m_InfoChrs[0].szID.empty())
+			AddChr(POS_CENTER, &m_InfoChrs[0]);
+		if (!m_InfoChrs[1].szID.empty())
+			AddChr(POS_LEFT, &m_InfoChrs[1]);
+		if (!m_InfoChrs[2].szID.empty())
+			AddChr(POS_RIGHT, &m_InfoChrs[2]);
+		return;
+	}
+
 	int iResult = pkt.read<uint8_t>(); // 결과..
 	if (0x1 == iResult)
 	{
@@ -1479,10 +1541,9 @@ void CGameProcCharacterSelect::MsgRecv_AllCharacterInfo(Packet& pkt)
 
 void CGameProcCharacterSelect::MsgSend_RequestAllCharacterInfo()
 {
-	uint8_t byBuff[4];
-	int iOffset = 0;
-	CAPISocket::MP_AddByte(byBuff, iOffset, WIZ_ALLCHAR_INFO_REQ); // 커멘드.
-	s_pSocket->Send(byBuff, iOffset);                              // 보낸다
+	std::vector<uint8_t> buff;
+	KoProto::BuildAllCharInfoReq(buff);              // 2369: alt opcode 1 eklenir
+	s_pSocket->Send(buff.data(), (int) buff.size()); // 보낸다
 }
 
 void CGameProcCharacterSelect::MsgSend_CharacterSelect()           // virtual

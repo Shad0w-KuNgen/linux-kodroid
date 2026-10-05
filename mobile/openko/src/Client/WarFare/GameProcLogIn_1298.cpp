@@ -9,6 +9,7 @@
 #include "LocalInput.h"
 #include "APISocket.h"
 #include "PacketDef.h"
+#include "KoProtocol.h"
 #include "text_resources.h"
 
 #include <N3Base/N3SndObj.h>
@@ -102,7 +103,8 @@ void CGameProcLogIn_1298::Init()
 	if (iServer >= 0 && lstrlen(szIPs[iServer]) > 0)
 	{
 		const char* ip                = szIPs[iServer];
-		int port                      = SOCKET_PORT_LOGIN;
+		int port                      = KoProto::LoginPort(); // Server.ini [Server] LoginPort / protokol varsayılanı
+		CLogWriter::Write("LogIn: {}:{} protokol {}", ip, port, KoProto::Version());
 
 		s_bNeedReportConnectionClosed = false; // Should I report that the server connection was lost?
 		int iErr                      = s_pSocket->Connect(s_hWndBase, ip, port);
@@ -123,11 +125,10 @@ void CGameProcLogIn_1298::Init()
 		{
 			m_pUILogIn->FocusToID(); // Focus on the ID input box..
 
-			// 게임 서버 리스트 요청..
-			int iOffset = 0;
-			uint8_t byBuffs[4];
-			CAPISocket::MP_AddByte(byBuffs, iOffset, LS_SERVERLIST); // 커멘드.
-			s_pSocket->Send(byBuffs, iOffset);                       // 보낸다
+			// 게임 서버 리스트 요청.. (2369: uint16 echo eklenir)
+			std::vector<uint8_t> buff;
+			KoProto::BuildServerListReq(buff);
+			s_pSocket->Send(buff.data(), (int) buff.size());        // 보낸다
 		}
 	}
 	else
@@ -252,6 +253,25 @@ void CGameProcLogIn_1298::MsgRecv_News(Packet& pkt)
 
 void CGameProcLogIn_1298::MsgRecv_GameServerGroupList(Packet& pkt)
 {
+	if (KoProto::Is2369())
+	{
+		std::vector<KoProto::ServerInfo2369> servers;
+		if (!KoProto::ParseServerList2369(pkt, servers))
+			CLogWriter::Write("LS_SERVERLIST (2369): bozuk paket, {} sunucu okundu", servers.size());
+		for (const auto& s : servers)
+		{
+			__GameServerInfo GSI;
+			GSI.szIP                 = s.ip;
+			GSI.szName               = s.name;
+			GSI.iConcurrentUserCount = s.users;
+			m_pUILogIn->ServerInfoAdd(GSI);
+			CLogWriter::Write("Sunucu: {} ({} / lan {}) kullanıcı {} id {} grup {}", s.name, s.ip, s.lanIP, s.users, s.serverID,
+				s.groupID);
+		}
+		m_pUILogIn->ServerInfoUpdate();
+		return;
+	}
+
 	int iServerCount = pkt.read<uint8_t>(); // 서버 갯수
 	for (int i = 0; i < iServerCount; i++)
 	{
@@ -273,7 +293,17 @@ void CGameProcLogIn_1298::MsgRecv_AccountLogIn(int iCmd, Packet& pkt)
 {
 	// Recv - b1 (0: Failure, 1: Success, 2: ID Not Found, 3: Incorrect Password,
 	// 4: Server Under Maintenance)
-	int iResult = pkt.read<uint8_t>();
+	// 2369: uint16 0, uint8 sonuç (1 başarı, 2 hesap yok, 3 şifre, 4 yasaklı, 5 oyunda, 6 hata, 0xF sözleşme,
+	// 0x10 OTP, 0xFF başarısız); 5 için str ip, uint16 port, str hesap (1298 ile aynı baytlar)
+	int iResult = 0;
+	if (KoProto::Is2369())
+	{
+		pkt.read<uint16_t>();
+		iResult = pkt.read<uint8_t>();
+		CLogWriter::Write("LS_LOGIN_REQ (2369): sonuç {}", iResult);
+	}
+	else
+		iResult = pkt.read<uint8_t>();
 
 	// Connection successful
 	if (1 == iResult)
@@ -289,7 +319,12 @@ void CGameProcLogIn_1298::MsgRecv_AccountLogIn(int iCmd, Packet& pkt)
 	// ID not found
 	else if (2 == iResult)
 	{
-		if (iCmd == LS_LOGIN_REQ)
+		if (KoProto::Is2369())
+		{
+			std::string szTmp = fmt::format_text_resource(IDS_CONNECT_FAIL);
+			MessageBoxPost("Account not found.", szTmp, MB_OK);
+		}
+		else if (iCmd == LS_LOGIN_REQ)
 		{
 			std::string szMsg = fmt::format_text_resource(IDS_NOACCOUNT_RETRY_MGAMEID);
 			std::string szTmp = fmt::format_text_resource(IDS_CONNECT_FAIL);
@@ -310,11 +345,20 @@ void CGameProcLogIn_1298::MsgRecv_AccountLogIn(int iCmd, Packet& pkt)
 		std::string szTmp = fmt::format_text_resource(IDS_CONNECT_FAIL);
 		MessageBoxPost(szMsg, szTmp, MB_OK); // MGame ID 로 접속할거냐고 물어본다.
 	}
-	else if (4 == iResult)                   // 서버 점검 중??
+	else if (4 == iResult)                   // 서버 점검 중?? (2369: hesap yasaklı)
 	{
-		std::string szMsg = fmt::format_text_resource(IDS_SERVER_CONNECT_FAIL);
+		std::string szMsg = KoProto::Is2369() ? std::string("This account is banned.")
+											  : fmt::format_text_resource(IDS_SERVER_CONNECT_FAIL);
 		std::string szTmp = fmt::format_text_resource(IDS_CONNECT_FAIL);
 		MessageBoxPost(szMsg, szTmp, MB_OK); // MGame ID 로 접속할거냐고 물어본다.
+	}
+	else if (KoProto::Is2369() && (0x0F == iResult || 0x10 == iResult))
+	{
+		// Kullanıcı sözleşmesi / OTP doğrulaması: mobil istemcide desteklenmiyor
+		std::string szTmp = fmt::format_text_resource(IDS_CONNECT_FAIL);
+		MessageBoxPost(0x10 == iResult ? "This account requires OTP verification (not supported on mobile yet)."
+									   : "Please accept the user agreement on the PC client first.",
+			szTmp, MB_OK);
 	}
 	else if (5 == iResult)                   // 어떤 넘이 접속해 있다. 서버에게 끊어버리라고 하자..
 	{
@@ -369,7 +413,7 @@ void CGameProcLogIn_1298::MsgRecv_AccountLogIn(int iCmd, Packet& pkt)
 int CGameProcLogIn_1298::MsgRecv_VersionCheck(Packet& pkt) // virtual
 {
 	int iVersion = CGameProcedure::MsgRecv_VersionCheck(pkt);
-	if (iVersion == CURRENT_VERSION)
+	if (iVersion == KoProto::Version())
 	{
 		CGameProcedure::MsgSend_GameServerLogIn(); // 게임 서버에 로그인..
 		m_pUILogIn->ConnectButtonSetEnable(false);
@@ -455,7 +499,8 @@ void CGameProcLogIn_1298::ConnectToGameServer() // 고른 게임 서버에 접�
 	if (!m_pUILogIn->ServerInfoGetCur(GSI))
 		return; // 서버를 고른다음..
 
-	int port                      = SOCKET_PORT_GAME;
+	int port                      = KoProto::GamePort(); // Server.ini [Server] GamePort / protokol varsayılanı
+	CLogWriter::Write("GameServer: {}:{} ({})", GSI.szIP, port, GSI.szName);
 
 	s_bNeedReportConnectionClosed = false;                                          // 서버접속이 끊어진걸 보고해야 하는지..
 	int iErr                      = s_pSocket->Connect(s_hWndBase, GSI.szIP, port); // 게임서버 소켓 연결

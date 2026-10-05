@@ -1,8 +1,9 @@
-﻿// UIStateBar.cpp: implementation of the CUIStateBar class.
+// UIStateBar.cpp: implementation of the CUIStateBar class.
 //
 //////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
+#include "KoProtocol.h"
 #include "UIStateBar.h"
 #include "GameDef.h"
 #include "LocalInput.h"
@@ -134,7 +135,7 @@ bool CUIStateBar::Load(File& file)
 	N3_VERIFY_UI_COMPONENT(pText, GetChildByID<CN3UIString>("Text_Version"));
 	if (pText != nullptr)
 	{
-		std::string version = fmt::format("Ver. {:.3f}", CURRENT_VERSION / 1000.0f);
+		std::string version = fmt::format("Ver. {:.3f}", KoProto::Version() / 1000.0f);
 		pText->SetString(version);
 	}
 

@@ -8,6 +8,7 @@
 #include "GameProcLogIn.h"
 #include "GameEng.h"
 #include "APISocket.h"
+#include "KoProtocol.h"
 #include "UIManager.h"
 #include "UIMessageBoxManager.h"
 #include "UIMessageBox.h"
@@ -470,6 +471,9 @@ int main(int argc, char** argv)
 	KoRegistrySetDirectory(clientDir.c_str());
 	SetCurrentDirectory(clientDir.c_str());
 	LoadOptions(clientDir + "Option.ini");
+	// Sunucu protokolü (1298 / 2369) ve portlar: Server.ini [Server] Protocol/LoginPort/GamePort
+	KoProto::LoadFromServerIni(clientDir + "Server.ini");
+	SDL_Log("KO: protokol %d, giriş portu %d, oyun portu %d", KoProto::Version(), KoProto::LoginPort(), KoProto::GamePort());
 
 	SDL_SetHint(SDL_HINT_ENABLE_SCREEN_KEYBOARD, "1");  // Android: odaklanınca ekran klavyesi açılsın
 	SDL_SetHint(SDL_HINT_RETURN_KEY_HIDES_IME, "0");     // Enter tuşu oyuna gitsin (klavyeyi kapatmasın)

@@ -322,8 +322,8 @@ public class LauncherActivity extends Activity {
         boolean has = GameData.hasGameData(dataDir);
         File ini = GameData.findServerIni(dataDir);
         String files = GameData.getIniValue(ini, "Version", "Files", "-");
-        versionLabel.setText("Veri sürümü " + (has ? files : "-") + "\nAPK " + ApkUpdater.installedVersionName(this)
-                + " (" + ApkUpdater.installedVersionCode(this) + ")");
+        versionLabel.setText("Veri sürümü " + (has ? files : "-") + " · protokol " + GameData.protocolOf(ini) + "\nAPK "
+                + ApkUpdater.installedVersionName(this) + " (" + ApkUpdater.installedVersionCode(this) + ")");
         if (apkPending)
             btnStart.setText("APK GÜNCELLEMESİNİ KUR");
         else
@@ -351,17 +351,19 @@ public class LauncherActivity extends Activity {
     private void fetchServerInfo() {
         final File ini = GameData.findServerIni(dataDir);
         final String host = GameData.getIniValue(ini, "Server", "IP0", GameData.DEFAULT_SERVER_IP);
+        final int protocol = GameData.protocolOf(ini);
+        final int loginPort = GameData.loginPortOf(ini);
         new Thread(() -> {
             List<PatchClient.ServerInfo> servers = null;
             List<PatchClient.NewsItem> news = null;
             String err = null;
-            try (PatchClient pc = new PatchClient(host, PatchClient.DEFAULT_PORT, 6000)) {
+            try (PatchClient pc = new PatchClient(host, loginPort, 6000)) {
                 try {
                     news = pc.queryNews();
                 } catch (IOException e) {
                     err = e.getMessage();
                 }
-                servers = pc.queryServerList();
+                servers = pc.queryServerList(protocol);
             } catch (IOException e) {
                 err = e.getMessage();
             }
@@ -390,16 +392,18 @@ public class LauncherActivity extends Activity {
                 // Sunucu listesi
                 serverList.removeAllViews();
                 if (fs == null) {
-                    serverList.addView(serverRow("Giriş sunucusu " + host + ":" + PatchClient.DEFAULT_PORT, 0xFFD9534F,
+                    serverList.addView(serverRow("Giriş sunucusu " + host + ":" + loginPort + " (v" + protocol + ")", 0xFFD9534F,
                             "çevrimdışı" + (ferr != null ? " (" + ferr + ")" : "")));
                 } else if (fs.isEmpty()) {
                     serverList.addView(serverRow("Giriş sunucusu", 0xFF5CB85C, "çevrimiçi, oyun sunucusu listesi boş"));
                 } else {
                     for (PatchClient.ServerInfo si : fs) {
                         boolean full = si.users < 0;
-                        serverList.addView(serverRow(si.name.isEmpty() ? si.ip : si.name,
-                                full ? 0xFFF0AD4E : 0xFF5CB85C,
-                                full ? "dolu" : "çevrimiçi · " + si.users + " oyuncu"));
+                        String state = full ? "dolu" : "çevrimiçi · " + si.users + " oyuncu";
+                        if (protocol == GameData.PROTOCOL_2369 && si.playerCap > 0 && !full)
+                            state += " / " + si.playerCap;
+                        serverList.addView(serverRow((si.name.isEmpty() ? si.ip : si.name) + " (v" + protocol + ")",
+                                full ? 0xFFF0AD4E : 0xFF5CB85C, state));
                     }
                 }
             });
@@ -591,8 +595,43 @@ public class LauncherActivity extends Activity {
 
         final EditText ip = settingField(box, "Giriş sunucusu (Server.ini IP0)",
                 GameData.getIniValue(serverIni, "Server", "IP0", GameData.DEFAULT_SERVER_IP));
+        TextView protoLabel = new TextView(this);
+        protoLabel.setText("Sunucu protokolü (Server.ini [Server] Protocol)");
+        protoLabel.setTextSize(12);
+        protoLabel.setPadding(0, dp(8), 0, 0);
+        box.addView(protoLabel);
+        final android.widget.RadioGroup proto = new android.widget.RadioGroup(this);
+        proto.setOrientation(LinearLayout.HORIZONTAL);
+        final int curProto = GameData.protocolOf(serverIni);
+        int[] protos = { GameData.PROTOCOL_1298, GameData.PROTOCOL_2369 };
+        String[] protoNames = { "1.298 (OpenKO)", "2369 (ISTIRAP)" };
+        for (int k = 0; k < protos.length; k++) {
+            android.widget.RadioButton rb = new android.widget.RadioButton(this);
+            rb.setText(protoNames[k]);
+            rb.setId(3000 + protos[k]);
+            proto.addView(rb);
+            if (protos[k] == curProto)
+                rb.setChecked(true);
+        }
+        box.addView(proto);
+        final EditText loginPort = settingField(box, "Giriş sunucusu portu (1298: 15100, 2369: 15200)",
+                String.valueOf(GameData.loginPortOf(serverIni)));
+        final EditText gamePort = settingField(box, "Oyun sunucusu portu (1298: 15001, 2369: 15301)",
+                String.valueOf(GameData.gamePortOf(serverIni)));
         final EditText dataUrl = settingField(box, "Veri paketi adresi (.zip)",
                 prefs.getString(PREF_URL, GameData.DEFAULT_DATA_URL));
+        proto.setOnCheckedChangeListener((g, id) -> {
+            // Protokol değişince portları ve varsayılan veri adresini eşle (elle girilmiş değerlere dokunma)
+            boolean to2369 = id == 3000 + GameData.PROTOCOL_2369;
+            int lp = parseIntOr(loginPort.getText().toString(), 0), gp = parseIntOr(gamePort.getText().toString(), 0);
+            if (lp == GameData.LOGIN_PORT_1298 || lp == GameData.LOGIN_PORT_2369 || lp == 0)
+                loginPort.setText(String.valueOf(to2369 ? GameData.LOGIN_PORT_2369 : GameData.LOGIN_PORT_1298));
+            if (gp == GameData.GAME_PORT_1298 || gp == GameData.GAME_PORT_2369 || gp == 0)
+                gamePort.setText(String.valueOf(to2369 ? GameData.GAME_PORT_2369 : GameData.GAME_PORT_1298));
+            String u = dataUrl.getText().toString().trim();
+            if (u.isEmpty() || u.equals(GameData.DEFAULT_DATA_URL) || u.equals(GameData.DEFAULT_DATA_URL_2369))
+                dataUrl.setText(to2369 ? GameData.DEFAULT_DATA_URL_2369 : GameData.DEFAULT_DATA_URL);
+        });
         final EditText apkUrl = settingField(box, "APK güncelleme bildirimi (apk.json)",
                 prefs.getString(PREF_APK_MANIFEST, ApkUpdater.DEFAULT_MANIFEST_URL));
         final EditText logical = settingField(box, "Mantıksal yükseklik (0 = ekran, 768 = ölçekle)",
@@ -684,6 +723,13 @@ public class LauncherActivity extends Activity {
                         GameData.setIniValue(sIni, "Server", "IP0", newIp);
                         GameData.setIniValue(sIni, "Server", "Count", "1");
                     }
+                    int newProto = proto.getCheckedRadioButtonId() == 3000 + GameData.PROTOCOL_2369
+                            ? GameData.PROTOCOL_2369 : GameData.PROTOCOL_1298;
+                    GameData.setIniValue(sIni, "Server", "Protocol", String.valueOf(newProto));
+                    GameData.setIniValue(sIni, "Server", "LoginPort", String.valueOf(parseIntOr(loginPort.getText().toString(),
+                            newProto == GameData.PROTOCOL_2369 ? GameData.LOGIN_PORT_2369 : GameData.LOGIN_PORT_1298)));
+                    GameData.setIniValue(sIni, "Server", "GamePort", String.valueOf(parseIntOr(gamePort.getText().toString(),
+                            newProto == GameData.PROTOCOL_2369 ? GameData.GAME_PORT_2369 : GameData.GAME_PORT_1298)));
                     prefs.edit().putString(PREF_URL, dataUrl.getText().toString().trim())
                             .putString(PREF_APK_MANIFEST, apkUrl.getText().toString().trim()).apply();
                     File oIni = optionIni != null ? optionIni : new File(dataDir, "Option.ini");
@@ -956,10 +1002,12 @@ public class LauncherActivity extends Activity {
         final File ini = GameData.findServerIni(dataDir);
         final String host = GameData.getIniValue(ini, "Server", "IP0", GameData.DEFAULT_SERVER_IP);
         final int clientVersion = parseIntOr(GameData.getIniValue(ini, "Version", "Files", "0"), 0);
-        stage("Sürüm denetleniyor (" + host + ":" + PatchClient.DEFAULT_PORT + ", veri " + clientVersion + ")...");
+        final int loginPort = GameData.loginPortOf(ini);
+        stage("Sürüm denetleniyor (" + host + ":" + loginPort + ", veri " + clientVersion + ", protokol "
+                + GameData.protocolOf(ini) + ")...");
         int latest;
         PatchClient.DownloadInfo info;
-        try (PatchClient pc = new PatchClient(host, PatchClient.DEFAULT_PORT, PATCH_TIMEOUT_MS)) {
+        try (PatchClient pc = new PatchClient(host, loginPort, PATCH_TIMEOUT_MS)) {
             latest = pc.queryLatestVersion();
             if (latest <= clientVersion) {
                 stage("Veri güncel (sürüm " + clientVersion + ").");
@@ -967,7 +1015,7 @@ public class LauncherActivity extends Activity {
             }
             info = pc.queryDownloadInfo(clientVersion);
         } catch (IOException e) {
-            throw new IOException("Sürüm sunucusuna ulaşılamadı (" + host + ":" + PatchClient.DEFAULT_PORT + "): " + e.getMessage());
+            throw new IOException("Sürüm sunucusuna ulaşılamadı (" + host + ":" + loginPort + "): " + e.getMessage());
         }
         int n = info.files.size();
         for (int k = 0; k < n && !cancelRequested; k++) {

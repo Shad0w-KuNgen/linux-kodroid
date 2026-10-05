@@ -9,6 +9,7 @@
 #include "PacketDef.h"
 #include "LocalInput.h"
 #include "APISocket.h"
+#include "KoProtocol.h"
 #include "N3FXMgr.h"
 #include "PlayerMySelf.h"
 #include "GameProcLogIn.h"
@@ -863,25 +864,25 @@ void CGameProcedure::MsgSend_VersionCheck()                                  // 
 
 void CGameProcedure::MsgSend_CharacterSelect()                   // virtual
 {
-	uint8_t byBuff[64];
-	int iOffset = 0;
-	CAPISocket::MP_AddByte(byBuff, iOffset, WIZ_SEL_CHAR);                            // 커멘드.
-	CAPISocket::MP_AddShort(byBuff, iOffset, (int16_t) s_szAccount.size());           // 계정 길이..
-	CAPISocket::MP_AddString(byBuff, iOffset, s_szAccount);                           // 계정 문자열..
-	CAPISocket::MP_AddShort(byBuff, iOffset, (int16_t) s_pPlayer->IDString().size()); // 캐릭 아이디 길이..
-	CAPISocket::MP_AddString(byBuff, iOffset, s_pPlayer->IDString());                 // 캐릭 아이디 문자열..
-	CAPISocket::MP_AddByte(byBuff, iOffset, s_pPlayer->m_InfoExt.iZoneInit);          // 처음 접속인지 아닌지 0x01:처음 접속
-	CAPISocket::MP_AddByte(byBuff, iOffset, s_pPlayer->m_InfoExt.iZoneCur);           // 캐릭터 선택창에서의 캐릭터 존 번호
-	s_pSocket->Send(byBuff, iOffset);                                                 // 보낸다
+	// 1298: hesap, karakter, zoneInit, zoneCur — 2369: hesap, karakter, init (KoProtocol)
+	std::vector<uint8_t> buff;
+	KoProto::BuildSelectCharacter(buff, s_szAccount, s_pPlayer->IDString(), (uint8_t) s_pPlayer->m_InfoExt.iZoneInit,
+		(uint8_t) s_pPlayer->m_InfoExt.iZoneCur);
+	s_pSocket->Send(buff.data(), (int) buff.size());                                  // 보낸다
 
 	CLogWriter::Write("MsgSend_CharacterSelect - name({}) zone({})", s_pPlayer->IDString(), s_pPlayer->m_InfoExt.iZoneCur); // 디버깅 로그..
 }
 
 void CGameProcedure::MsgRecv_CompressedPacket(Packet& pkt) // 압축된 데이터 이다... 한번 더 파싱해야 한다!!!
 {
-	uint16_t compressedLength = pkt.read<uint16_t>();
-	uint16_t originalLength   = pkt.read<uint16_t>();
-	uint32_t originalChecksum = pkt.read<uint32_t>();
+	// 1298: uint16 sıkıştırılmış, uint16 özgün, uint32 crc — 2369: uint32, uint32, uint32
+	uint32_t compressedLength = 0, originalLength = 0, originalChecksum = 0;
+	if (!KoProto::ParseCompressedHeader(pkt, compressedLength, originalLength, originalChecksum) || originalLength == 0
+		|| originalLength > 10 * 1024 * 1024)
+	{
+		CLogWriter::Write("MsgRecv_CompressedPacket: bozuk başlık (sıkıştırılmış {}, özgün {})", compressedLength, originalLength);
+		return;
+	}
 
 	std::vector<uint8_t> decompressedBuffer(originalLength);
 
@@ -914,14 +915,24 @@ void CGameProcedure::MsgRecv_CompressedPacket(Packet& pkt) // 압축된 데이�
 
 int CGameProcedure::MsgRecv_VersionCheck(Packet& pkt) // virtual
 {
-	int iVersion = pkt.read<int16_t>();               // 버전
+	int iVersion = 0;
+	if (KoProto::Is2369())
+	{
+		// 2369: uint8 0, uint16 sürüm, uint8, uint64, uint64, uint8 (şifreleme anahtarı yok)
+		if (!KoProto::ParseVersionCheck2369(pkt, iVersion))
+			iVersion = -1;
+	}
+	else
+	{
+		iVersion = pkt.read<int16_t>();               // 버전
 #ifdef _CRYPTION
-	uint64_t iPublicKey = pkt.read<uint64_t>();       // 암호화 공개키
-	CAPISocket::InitCrypt(iPublicKey);
-	s_pSocket->m_bEnableSend = TRUE;                  // 보내기 가능..?
+		uint64_t iPublicKey = pkt.read<uint64_t>();   // 암호화 공개키
+		CAPISocket::InitCrypt(iPublicKey);
+		s_pSocket->m_bEnableSend = TRUE;              // 보내기 가능..?
 #endif                                                // #ifdef _CRYPTION
+	}
 
-	if (iVersion != CURRENT_VERSION)
+	if (iVersion != KoProto::Version())
 	{
 		std::string szMsg;
 
@@ -934,8 +945,9 @@ int CGameProcedure::MsgRecv_VersionCheck(Packet& pkt) // virtual
 		}
 		else
 		{
-			szMsg = fmt::format_text_resource(IDS_VERSION_CONFIRM, CURRENT_VERSION / 1000.0f, iVersion / 1000.0f);
+			szMsg = fmt::format_text_resource(IDS_VERSION_CONFIRM, KoProto::Version() / 1000.0f, iVersion / 1000.0f);
 		}
+		CLogWriter::Write("MsgRecv_VersionCheck: sunucu {} / istemci protokolü {}", iVersion, KoProto::Version());
 
 		MessageBoxPost(szMsg, "", MB_OK, BEHAVIOR_EXIT);
 	}
