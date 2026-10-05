@@ -537,7 +537,7 @@ void BuildNewChar(std::vector<uint8_t>& out, uint8_t index, const std::string& n
 	out.clear();
 	AddByte(out, WIZ_NEW_CHAR);
 	AddByte(out, index);
-	AddStrS(out, name);
+	AddStrD(out, name); // sunucu: pkt >> strUserID (uint16 uzunluk; SByte yok)
 	AddByte(out, race);
 	AddU16(out, cls);
 	AddByte(out, face);
