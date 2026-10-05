@@ -203,7 +203,13 @@ void CGameProcedure::StaticMemberInit(HINSTANCE hInstance, HWND hWndMain)
 	__TABLE_UI_RESRC* pTblUI = s_pTbl_UI.Find(NATION_ELMORAD); // 기본은 엘모라드 UI 로 한다..
 	if (pTblUI == nullptr)
 	{
-		CLogWriter::Write("UI resources not found for {}", static_cast<int>(NATION_ELMORAD));
+		std::string szKeys;
+		for (const auto& kv : s_pTbl_UI.GetMap())
+			szKeys += std::to_string(kv.first) + " ";
+		std::string szMsg = fmt::format("UI resources not found for {} (Data\\UIs_us.tbl: {} satir, anahtarlar: {})",
+			static_cast<int>(NATION_ELMORAD), s_pTbl_UI.GetSize(), szKeys.empty() ? "yok" : szKeys);
+		CLogWriter::Write("{}", szMsg);
+		MessageBox(nullptr, szMsg.c_str(), "Knight Online Mobile", MB_OK | MB_ICONERROR);
 		exit(-1);
 	}
 

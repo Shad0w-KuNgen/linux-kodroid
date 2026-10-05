@@ -86,3 +86,11 @@ jobs:
           path: |
             mobile/android/app/build/outputs/apk/debug/KnightOnline.apk
             mobile/android/app/build/outputs/apk/debug/apk.json
+      - name: Sembollü yerel kitaplıklar (çökme adreslerini çözmek için; llvm-addr2line / ndk-stack)
+        uses: actions/upload-artifact@v4
+        with:
+          name: KnightOnline-android-native-symbols
+          path: |
+            mobile/android/app/build/intermediates/cmake/debug/obj/**/libKnightOnLine.so
+            mobile/android/app/build/intermediates/merged_native_libs/debug/**/libKnightOnLine.so
+          if-no-files-found: warn

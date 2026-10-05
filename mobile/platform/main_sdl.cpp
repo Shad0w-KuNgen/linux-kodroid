@@ -34,6 +34,7 @@
 #include "KoPlatformInput.h"
 #include <ko_fopen.h>
 #include "KoTouchOverlay.h"
+#include "KoCrashHandler.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -470,6 +471,7 @@ int main(int argc, char** argv)
 		clientDir += '/';
 	CN3Base::PathSet(clientDir);
 	KoRegistrySetDirectory(clientDir.c_str());
+	KoInstallCrashHandler(clientDir + "Log.txt"); // çökmede geri izleme Log.txt + logcat
 	SetCurrentDirectory(clientDir.c_str());
 	LoadOptions(clientDir + "Option.ini");
 	// Sunucu protokolü (1298 / 2369) ve portlar: Server.ini [Server] Protocol/LoginPort/GamePort
