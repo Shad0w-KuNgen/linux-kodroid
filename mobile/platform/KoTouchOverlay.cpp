@@ -668,11 +668,53 @@ void KoTouchOverlay::RenderFps(IDirect3DDevice9* dev)
 	m_fpsFont->DrawText(8.0f * u, 6.0f * u, m_fpsValue < 20.0f ? 0xFFFF6060 : 0xFFB0FFB0, 0);
 }
 
+namespace
+{
+// Kaplamanın değiştirdiği çizim durumlarını sakla/geri yükle: giriş ekranında UI çizimi (dokulu
+// alfa) bu durumları her kare yeniden kurmuyor; sızan ALPHAOP/ALPHAARG/doku durumu beyaz kutular
+// (alfa=0 bölgeler opak) çiziyordu
+struct KoRenderStateGuard
+{
+	IDirect3DDevice9* dev;
+	static constexpr D3DRENDERSTATETYPE RS[] = { D3DRS_ALPHABLENDENABLE, D3DRS_SRCBLEND, D3DRS_DESTBLEND, D3DRS_ZENABLE,
+		D3DRS_LIGHTING, D3DRS_FOGENABLE, D3DRS_CULLMODE, D3DRS_ALPHATESTENABLE };
+	static constexpr D3DTEXTURESTAGESTATETYPE TS[] = { D3DTSS_COLOROP, D3DTSS_COLORARG1, D3DTSS_ALPHAOP, D3DTSS_ALPHAARG1 };
+	DWORD rs[8] = {}, ts0[4] = {}, ts1 = 0, fvf = 0;
+	IDirect3DBaseTexture9* tex0 = nullptr;
+	explicit KoRenderStateGuard(IDirect3DDevice9* d) : dev(d)
+	{
+		for (int i = 0; i < 8; i++)
+			dev->GetRenderState(RS[i], &rs[i]);
+		for (int i = 0; i < 4; i++)
+			dev->GetTextureStageState(0, TS[i], &ts0[i]);
+		dev->GetTextureStageState(1, D3DTSS_COLOROP, &ts1);
+		dev->GetFVF(&fvf);
+		dev->GetTexture(0, &tex0);
+	}
+	~KoRenderStateGuard()
+	{
+		for (int i = 0; i < 8; i++)
+			dev->SetRenderState(RS[i], rs[i]);
+		for (int i = 0; i < 4; i++)
+			dev->SetTextureStageState(0, TS[i], ts0[i]);
+		dev->SetTextureStageState(1, D3DTSS_COLOROP, ts1);
+		dev->SetFVF(fvf);
+		dev->SetTexture(0, tex0);
+		if (tex0)
+			tex0->Release();
+	}
+};
+} // namespace
+
 void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 {
 	RenderFps(dev);
 	if (!dev)
 		return;
+	if (!IsServerSelect() && (!m_enabled || (!IsInGame() && !m_forceVisible)))
+		return;
+
+	KoRenderStateGuard guard(dev);
 
 	auto setup = [&]() {
 		dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);

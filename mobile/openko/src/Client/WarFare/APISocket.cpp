@@ -26,6 +26,10 @@ const uint16_t PACKET_TAIL   = 0X55AA;
 
 #ifdef _N3GAME
 #include <N3Base/LogWriter.h>
+#include <poll.h>
+#include <cstring>
+
+static constexpr int CONNECT_TIMEOUT_MS = 10000; // mobil: bağlantı zaman aşımı
 #endif
 
 CAPISocket::CAPISocket() : m_SendBuf(SEND_BUF_SIZE), m_RecvBuf(RECV_BUF_SIZE), m_CB(RECV_BUF_SIZE)
@@ -137,15 +141,48 @@ int CAPISocket::Connect(HWND hWnd, const std::string& szIP, uint32_t dwPort)
 	int iRecvBufferLen = RECV_BUF_SIZE;
 	setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char*) &iRecvBufferLen, 4);
 
-	if (connect(sock, (struct sockaddr*) &server, sizeof(server)) != 0)
+	// Mobil: bloklamayan connect + zaman aşımı (ana iş parçacığı donmasın); sonuç Log.txt'ye
+	uint32_t dwT0        = timeGetTime();
+	unsigned long ulOn   = 1;
+	ioctlsocket(sock, FIONBIO, &ulOn);
+	int iRet     = connect(sock, (struct sockaddr*) &server, sizeof(server));
+	int iErrCode = (iRet != 0) ? ::WSAGetLastError() : 0;
+	if (iRet != 0 && (iErrCode == EINPROGRESS || iErrCode == WSAEWOULDBLOCK))
 	{
-		int iErrCode = ::WSAGetLastError();
+		struct pollfd pfd = { (int) sock, POLLOUT, 0 };
+		int iPoll         = poll(&pfd, 1, CONNECT_TIMEOUT_MS);
+		if (iPoll > 0)
+		{
+			int iSoErr       = 0;
+			socklen_t len    = sizeof(iSoErr);
+			getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*) &iSoErr, &len);
+			iErrCode = iSoErr;
+		}
+		else
+			iErrCode = (iPoll == 0) ? ETIMEDOUT : ::WSAGetLastError();
+	}
+	unsigned long ulOff = 0;
+	ioctlsocket(sock, FIONBIO, &ulOff);
 
+	if (iErrCode != 0)
+	{
+#ifdef _N3GAME
+		CLogWriter::Write("socket connect {}:{} BAŞARISIZ: errno {} ({}) {} ms", szIP, dwPort, iErrCode, strerror(iErrCode),
+			timeGetTime() - dwT0);
+#endif
 		closesocket(sock);
 		m_hSocket = INVALID_SOCKET;
-
 		return iErrCode;
 	}
+
+#ifdef _N3GAME
+	{
+		struct sockaddr_in local {};
+		socklen_t llen = sizeof(local);
+		int iLocalPort = getsockname(sock, (struct sockaddr*) &local, &llen) == 0 ? ntohs(local.sin_port) : 0;
+		CLogWriter::Write("socket connect {}:{} OK ({} ms, yerel port {}, fd {})", szIP, dwPort, timeGetTime() - dwT0, iLocalPort, (int) sock);
+	}
+#endif
 
 	WSAAsyncSelect(sock, hWnd, WM_SOCKETMSG, FD_CONNECT | FD_READ | FD_CLOSE);
 

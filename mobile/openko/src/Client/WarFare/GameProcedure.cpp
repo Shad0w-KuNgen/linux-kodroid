@@ -853,6 +853,7 @@ void CGameProcedure::MsgSend_GameServerLogIn()
 	CAPISocket::MP_AddString(byBuff, iOffset, s_szPassWord);                 // 실제 패스워드
 
 	s_pSocket->Send(byBuff, iOffset);                                        // 보낸다
+	CLogWriter::Write("MsgSend_GameServerLogIn: WIZ_LOGIN gönderildi ({} bayt, hesap {})", iOffset, s_szAccount);
 }
 
 void CGameProcedure::MsgSend_VersionCheck()                                  // virtual
@@ -862,6 +863,8 @@ void CGameProcedure::MsgSend_VersionCheck()                                  // 
 	uint8_t byBuffs[4];
 	CAPISocket::MP_AddByte(byBuffs, iOffset, WIZ_VERSION_CHECK); // 커멘드.
 	s_pSocket->Send(byBuffs, iOffset);                           // 보낸다
+	CLogWriter::Write("MsgSend_VersionCheck: WIZ_VERSION_CHECK gönderildi ({} bayt, bağlı {}, gönderim {})", iOffset,
+		s_pSocket->IsConnected() ? "evet" : "HAYIR", s_pSocket->m_bEnableSend ? "açık" : "KAPALI");
 
 #ifdef _CRYPTION
 	s_pSocket->m_bEnableSend = FALSE;                            // 보내기 가능..?

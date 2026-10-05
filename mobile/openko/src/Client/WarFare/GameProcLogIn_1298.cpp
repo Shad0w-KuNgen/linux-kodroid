@@ -533,19 +533,33 @@ bool CGameProcLogIn_1298::ProcessPacket(Packet& pkt)
 
 void CGameProcLogIn_1298::ConnectToGameServer() // 고른 게임 서버에 접속
 {
-	if (m_fTimeUntilNextGameConnectionAttempt > 0.0f)
+	int port = KoProto::GamePort(); // Server.ini [Server] GamePort / protokol varsayılanı
+
+	// Zaten oyun sunucusuna bağlı ve yanıt bekleniyorsa (tekrarlanan BAĞLAN basışları) yut
+	if (s_pSocket != nullptr && s_pSocket->IsConnected() && s_pSocket->GetCurrentPort() == (uint32_t) port)
+	{
+		CLogWriter::Write("ConnectToGameServer: zaten bağlı ({}:{}), sunucu yanıtı bekleniyor", s_pSocket->GetCurrentIP(), port);
 		return;
+	}
+	if (m_fTimeUntilNextGameConnectionAttempt > 0.0f)
+	{
+		CLogWriter::Write("ConnectToGameServer: zaten bağlanıyor ({:.1f} sn sonra yeniden denenebilir)", m_fTimeUntilNextGameConnectionAttempt);
+		return;
+	}
 
 	__GameServerInfo GSI;
 	if (!m_pUILogIn->ServerInfoGetCur(GSI))
+	{
+		CLogWriter::Write("ConnectToGameServer: seçili sunucu yok");
 		return; // 서버를 고른다음..
+	}
 
-	int port                      = KoProto::GamePort(); // Server.ini [Server] GamePort / protokol varsayılanı
-	CLogWriter::Write("GameServer: {}:{} ({})", GSI.szIP, port, GSI.szName);
+	CLogWriter::Write("GameServer: {}:{} ({}) bağlanılıyor", GSI.szIP, port, GSI.szName);
 
 	s_bNeedReportConnectionClosed = false;                                          // 서버접속이 끊어진걸 보고해야 하는지..
 	int iErr                      = s_pSocket->Connect(s_hWndBase, GSI.szIP, port); // 게임서버 소켓 연결
 	s_bNeedReportConnectionClosed = true;                                           // 서버접속이 끊어진걸 보고해야 하는지..
+	CLogWriter::Write("GameServer: connect sonucu {} ({})", iErr, iErr == 0 ? "OK" : "HATA");
 
 	if (iErr != 0)
 	{

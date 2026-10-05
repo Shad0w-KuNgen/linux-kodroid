@@ -168,6 +168,23 @@ bool CUILogIn_1298::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 			OpenServerList();
 			return true;
 		}
+		else if (m_pGroup_ServerList != nullptr && IsDescendantOf(pSender, m_pGroup_ServerList)
+				 && [&] { for (int i = 0; i < MAX_SERVERS; i++) if (m_pServer_Group[i] == pSender) return true; return false; }())
+		{
+			// ISTIRAP: sunucu satırı düğmesi (Btn_list_N) → o sunucuyu seç
+			for (int i = 0; i < MAX_SERVERS; i++)
+			{
+				if (m_pServer_Group[i] == pSender)
+				{
+					if (i < static_cast<int>(m_ListServerInfos.size()))
+					{
+						SelectServer(i);
+						CLogWriter::Write("CUILogIn_1298: sunucu satırı {} seçildi ({})", i, m_ListServerInfos[i].szName);
+					}
+					return true;
+				}
+			}
+		}
 		else if (m_pGroup_ServerList != nullptr && IsDescendantOf(pSender, m_pGroup_ServerList))
 		{
 			// 2369/ISTIRAP: eşlenmemiş düğme; ada göre bağlan/iptal, her durumda Log.txt
@@ -313,6 +330,48 @@ void CUILogIn_1298::BindServerListHeuristic()
 
 	if (m_pServer_Group[0] == nullptr)
 	{
+		// 0) ISTIRAP: sunucu satırları "Btn_list_<N>" düğmeleri (metin dokuda); sunucu adı için düğmenin
+		//    üstüne aynı bölgede bir CN3UIString oluşturulur, tıklanınca o sunucu seçilir
+		std::vector<std::pair<int, CN3UIButton*>> rowBtns;
+		for (CN3UIBase* p : all)
+		{
+			if (p->UIType() != UI_TYPE_BUTTON)
+				continue;
+			std::string sz = LowerID(p);
+			size_t pos     = sz.find("list");
+			if (pos == std::string::npos)
+				continue;
+			size_t d = sz.find_first_of("0123456789", pos);
+			if (d == std::string::npos)
+				continue;
+			rowBtns.emplace_back(atoi(sz.c_str() + d), static_cast<CN3UIButton*>(p));
+		}
+		std::sort(rowBtns.begin(), rowBtns.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+		int iRow = 0;
+		for (auto& [num, pBtn] : rowBtns)
+		{
+			if (iRow >= MAX_SERVERS)
+				break;
+			CN3UIString* pStr = nullptr;
+			for (CN3UIBase* k : pBtn->GetChildren())
+				if (k && k->UIType() == UI_TYPE_STRING)
+					pStr = static_cast<CN3UIString*>(k);
+			if (pStr == nullptr)
+			{
+				pStr = new CN3UIString();
+				pStr->Init(m_pGroup_ServerList);
+				pStr->m_szID = "srv_name_" + std::to_string(num);
+				RECT rc      = pBtn->GetRegion();
+				pStr->SetRegion(rc);
+				pStr->SetStyle(UISTYLE_STRING_SINGLELINE | UISTYLE_STRING_ALIGNCENTER | UISTYLE_STRING_ALIGNVCENTER);
+				pStr->SetFont("Arial", std::max(10, (int) ((rc.bottom - rc.top) * 0.45f)), TRUE, FALSE);
+				pStr->SetString("");
+			}
+			m_pServer_Group[iRow] = pBtn;
+			m_pList_Group[iRow]   = pStr;
+			iRow++;
+		}
+
 		// a) CN3UIList denetimi
 		for (CN3UIBase* p : all)
 		{
