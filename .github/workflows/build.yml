@@ -56,7 +56,25 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
+      - name: apk.json (APK güncelleyici bildirimi)
+        run: |
+          APK=$(ls mobile/android/app/build/outputs/apk/debug/*.apk | head -1)
+          CODE=$(git rev-list --count HEAD)
+          SHA=$(sha256sum "$APK" | cut -d' ' -f1)
+          cp "$APK" mobile/android/app/build/outputs/apk/debug/KnightOnline.apk
+          cat > mobile/android/app/build/outputs/apk/debug/apk.json <<EOF
+          {
+            "versionCode": $CODE,
+            "versionName": "0.1.$CODE",
+            "url": "KnightOnline.apk",
+            "sha256": "$SHA",
+            "notes": "$(git log -1 --pretty=%s | sed 's/"/\\"/g')"
+          }
+          EOF
+          cat mobile/android/app/build/outputs/apk/debug/apk.json
       - uses: actions/upload-artifact@v4
         with:
           name: KnightOnline-android-debug-apk
-          path: mobile/android/app/build/outputs/apk/debug/*.apk
+          path: |
+            mobile/android/app/build/outputs/apk/debug/KnightOnline.apk
+            mobile/android/app/build/outputs/apk/debug/apk.json

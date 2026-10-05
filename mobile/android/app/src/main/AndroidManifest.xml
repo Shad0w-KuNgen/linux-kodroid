@@ -48,6 +48,9 @@
     <!-- Allow access to the vibrator -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- APK kendini güncelleme: indirilen APK'yı paket yükleyicisine vermek için -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- if you want to capture audio, uncomment this. -->
     <!-- <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
@@ -67,16 +70,28 @@
         android:usesCleartextTraffic="true"
         android:hardwareAccelerated="true" >
 
-        <!-- Başlatıcı: oyun verisi yoksa zip içe aktarma ekranı, varsa doğrudan oyun -->
-        <activity android:name="online.knight.mobile.SetupActivity"
+        <!-- Launcher: haberler, sunucu durumu, APK güncelleme, veri kurulumu/yaması, OYUNA BAŞLA -->
+        <activity android:name="online.knight.mobile.LauncherActivity"
             android:label="@string/app_name"
-            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Example of setting SDL hints from AndroidManifest.xml:
         <meta-data android:name="SDL_ENV.SDL_ACCELEROMETER_AS_JOYSTICK" android:value="0"/>
@@ -89,6 +104,7 @@
             android:launchMode="singleInstance"
             android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:preferMinimalPostProcessing="true"
+            android:windowSoftInputMode="adjustPan"
             android:exported="true"
             >
             <!-- Let Android know that we can handle some USB devices and should receive this event -->

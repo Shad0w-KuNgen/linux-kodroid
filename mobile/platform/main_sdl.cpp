@@ -390,18 +390,47 @@ void PumpEvents()
 	// Sanal klavye / metin girişi yönetimi. SDL_StopTextInput SDL_TEXTINPUT olaylarını da kapatır
 	// ve Android'de IME bağlantısını yeniden başlatır; odak bir kare için bile kaybolsa harfler
 	// düşmesin diye kapatma birkaç kare gecikmeli (histerezis) yapılır.
+	// NOT: SDL 2.30 SDL_VideoInit içinde metin girişini zaten "aktif" başlatır (ekran klavyesi
+	// gösterilmeden); bu yüzden SDL_IsTextInputActive()'e güvenilmez. Açılışta bir kez Stop
+	// çağrılır (aşağıda, pencere oluşturulunca) ve burada odak kazanma KENARINDA koşulsuz
+	// SDL_StartTextInput + SDL_SetTextInputRect yapılır; aksi halde telefonda klavye hiç açılmıyordu.
 	bool wants = CN3UIEdit::WantsTextInput();
-	static int noEditFrames = 0;
+	static int noEditFrames   = 0;
+	static bool textInputOn   = false;
+	static CN3UIEdit* lastEdit = nullptr;
+	CN3UIEdit* focused        = CN3UIBase::GetFocusedEdit();
 	if (wants)
 	{
 		noEditFrames = 0;
-		if (!SDL_IsTextInputActive())
+		if (!textInputOn || focused != lastEdit)
+		{
+			// Klavye kutuyu örtmesin: edit bölgesini fiziksel pencere koordinatına çevir
+			if (focused)
+			{
+				RECT rc = focused->GetRegion();
+				SDL_Rect r;
+				r.x = g_presentX + (int) ((long long) rc.left * g_presentW / std::max(1, g_logicalW));
+				r.y = g_presentY + (int) ((long long) rc.top * g_presentH / std::max(1, g_logicalH));
+				r.w = std::max(1, (int) ((long long) (rc.right - rc.left) * g_presentW / std::max(1, g_logicalW)));
+				r.h = std::max(1, (int) ((long long) (rc.bottom - rc.top) * g_presentH / std::max(1, g_logicalH)));
+				SDL_SetTextInputRect(&r);
+			}
 			SDL_StartTextInput();
+			textInputOn = true;
+			lastEdit    = focused;
+			if (g_inputDebug)
+				std::fprintf(stderr, "[ko-input] StartTextInput edit=%p screenKeyboard=%d\n", (void*) focused,
+					(int) SDL_IsScreenKeyboardShown(g_window));
+		}
 	}
-	else if (SDL_IsTextInputActive() && ++noEditFrames > 15)
+	else if (textInputOn && ++noEditFrames > 15)
 	{
 		SDL_StopTextInput();
+		textInputOn  = false;
+		lastEdit     = nullptr;
 		noEditFrames = 0;
+		if (g_inputDebug)
+			std::fprintf(stderr, "[ko-input] StopTextInput\n");
 	}
 }
 } // namespace
@@ -416,6 +445,8 @@ int main(int argc, char** argv)
 	SetCurrentDirectory(clientDir.c_str());
 	LoadOptions(clientDir + "Option.ini");
 
+	SDL_SetHint(SDL_HINT_ENABLE_SCREEN_KEYBOARD, "1");  // Android: odaklanınca ekran klavyesi açılsın
+	SDL_SetHint(SDL_HINT_RETURN_KEY_HIDES_IME, "0");     // Enter tuşu oyuna gitsin (klavyeyi kapatmasın)
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0)
 	{
 		std::fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
@@ -449,6 +480,9 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	SDL_GL_SetSwapInterval(CN3Base::s_Options.bVSyncEnabled ? 1 : 0);
+	// SDL 2.30 metin girişini açılışta (klavye göstermeden) aktif bırakır; kapat ki ilk odakta
+	// SDL_StartTextInput gerçekten ekran klavyesini açsın (PumpEvents sonundaki mantık).
+	SDL_StopTextInput();
 
 	// Mantıksal çözünürlük (mobilde ekran yüksekliği 768'e ölçeklenir; d3d9gles FBO ile büyütür)
 	KoTouch().SetEnabled(g_touchControls);

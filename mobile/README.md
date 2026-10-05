@@ -104,9 +104,29 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 Debug APK depodaki sabit `debug.keystore` ile imzalanır; böylece her CI derlemesi bir öncekinin
 üzerine kurulabilir (farklı anahtar → `INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
 
+### Launcher (LauncherActivity)
+
+Uygulama PC'deki KO Launcher gibi tam ekran yatay bir başlatıcıyla açılır: arka plan (veri dizinine
+`launcher_bg.png/jpg` konursa o kullanılır), haberler (VersionManager `LS_NEWS`, sunucudaki
+`Version.ini [NEWS]`), sunucu durumu (`LS_SERVERLIST`: çevrimiçi/dolu + oyuncu sayısı), sürüm etiketi
+(veri sürümü = `Server.ini [Version] Files`, APK sürümü), tek ilerleme çubuğu (yüzde, MB, hız, kalan
+süre) ve **OYUNA BAŞLA**. Açılış sırası:
+
+1. **APK güncellemesi**: `apk.json` bildirimi (varsayılan `http://86.105.4.195/ko/mobile/apk.json`,
+   Ayarlar'dan değişir) okunur; `versionCode` kurulu olandan büyükse sorulur, APK kaldığı yerden
+   devam eden indiriciyle önbelleğe alınır, `sha256` doğrulanır ve paket yükleyicisi açılır
+   (Android 8+ "bilinmeyen uygulama" izni istenir). CI her derlemede artifact içine
+   `KnightOnline.apk` + `apk.json` koyar; ikisi sunucuda aynı dizine kopyalanır.
+   `versionCode` = git commit sayısı (`KO_VERSION_CODE` ile ezilebilir).
+2. **Veri kurulumu** (ilk sefer / "Veriyi onar"): adresten ya da seçilen zip'ten.
+3. **Veri yaması**: `PatchClient` (aşağıda).
+4. Hazır → OYUNA BAŞLA. "Ayarlar": sunucu IP (Server.ini), veri/APK adresleri, dokunmatik kontroller,
+   mantıksal yükseklik, girdi hata ayıklama (Option.ini `[Mobile]`).
+
 ### Oyun verisini telefona kurma
 
-Uygulama açılınca `SetupActivity` oyun verisini arar; yoksa iki seçenek sunar:
+Launcher oyun verisini arar; yoksa "Veriyi indir ve kur" (varsayılan adres) ya da "Veriyi onar /
+yeniden kur" menüsünden zip seçimi sunar:
 
 1. **Zip dosyası seç**: istemci klasörünü (`UI/`, `Data/`, `Misc/`, `Server.ini`, `Option.ini`, ...)
    tek bir `.zip` yapıp telefona atın (Download klasörü yeterli) ve seçin. Zip tek bir üst klasörle
@@ -134,6 +154,14 @@ adb shell run-as online.knight.mobile sh -c 'mkdir -p files && cd files && unzip
 ```
 
 Yazı tipi için `<veri>/fonts/default.ttf` koyun (yoksa `/system/fonts/` denenir).
+
+### Ekran klavyesi
+
+SDL 2.30 metin girişini açılışta "aktif" bırakır (klavye göstermeden); bu yüzden `SDL_IsTextInputActive()`
+ile koşullanan `SDL_StartTextInput` hiç çalışmıyor ve telefonda klavye açılmıyordu. Pencere
+oluşturulunca bir kez `SDL_StopTextInput()` çağrılır; bir edit odak kazandığında koşulsuz
+`SDL_SetTextInputRect` (kutunun ekrandaki yeri) + `SDL_StartTextInput` yapılır, odak gidince 15 kare
+sonra kapatılır. `SDL_HINT_ENABLE_SCREEN_KEYBOARD=1`, oyun etkinliğinde `windowSoftInputMode=adjustPan`.
 
 ## Nasıl çalışıyor (kısa)
 

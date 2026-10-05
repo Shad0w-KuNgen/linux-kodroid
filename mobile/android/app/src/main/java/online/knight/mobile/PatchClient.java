@@ -47,6 +47,21 @@ public final class PatchClient implements AutoCloseable {
         }
     }
 
+    private static final byte LS_SERVERLIST = (byte) 0xF5;
+    private static final byte LS_NEWS = (byte) 0xF6;
+
+    public static final class ServerInfo {
+        public String ip = "";
+        public String name = "";
+        /** Oyuncu sayısı; -1 = dolu/erişilemez. */
+        public int users;
+    }
+
+    public static final class NewsItem {
+        public String title = "";
+        public String message = "";
+    }
+
     private final Socket socket;
     private final DataInputStream in;
     private final OutputStream out;
@@ -86,6 +101,71 @@ public final class PatchClient implements AutoCloseable {
         for (int i = 0; i < count; i++)
             info.files.add(readStr2(p, pos));
         return info;
+    }
+
+    /** Sunucu listesi: [0xF5][byte adet][adet × (str2 ip, str2 ad, int16 oyuncu)]. */
+    public List<ServerInfo> queryServerList() throws IOException {
+        send(new byte[] { LS_SERVERLIST });
+        byte[] p = receive();
+        if (p.length < 2 || p[0] != LS_SERVERLIST)
+            throw new IOException("Beklenmeyen sunucu listesi yanıtı");
+        int count = p[1] & 0xff;
+        int[] pos = { 2 };
+        List<ServerInfo> list = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            ServerInfo si = new ServerInfo();
+            si.ip = readStr2(p, pos);
+            si.name = readStr2(p, pos);
+            si.users = readShort(p, pos[0]);
+            pos[0] += 2;
+            list.add(si);
+        }
+        return list;
+    }
+
+    /**
+     * Haberler: [0xF6][str2 başlık][str2 içerik]. İçerik: başlık + "#\0\n" + mesaj + "\0\n#\0\n\0\n"
+     * blokları (VersionManager Version.ini [NEWS]); "<empty>" = haber yok.
+     */
+    public List<NewsItem> queryNews() throws IOException {
+        send(new byte[] { LS_NEWS });
+        byte[] p = receive();
+        if (p.length < 1 || p[0] != LS_NEWS)
+            throw new IOException("Beklenmeyen haber yanıtı");
+        int[] pos = { 1 };
+        readStr2(p, pos); // "Login Notice"
+        String content = readStr2(p, pos);
+        return parseNews(content);
+    }
+
+    static List<NewsItem> parseNews(String content) {
+        List<NewsItem> items = new ArrayList<>();
+        if (content == null || content.isEmpty() || content.equals("<empty>"))
+            return items;
+        final String START = "#\u0000\n";
+        final String END = "\u0000\n#\u0000\n\u0000\n";
+        int i = 0;
+        while (i < content.length()) {
+            int s = content.indexOf(START, i);
+            if (s < 0)
+                break;
+            int e = content.indexOf(END, s + START.length());
+            NewsItem n = new NewsItem();
+            n.title = content.substring(i, s).trim();
+            n.message = (e < 0 ? content.substring(s + START.length()) : content.substring(s + START.length(), e)).trim();
+            items.add(n);
+            if (e < 0)
+                break;
+            i = e + END.length();
+        }
+        if (items.isEmpty()) {
+            NewsItem n = new NewsItem();
+            n.title = "";
+            n.message = content.replace("\u0000", "").trim();
+            if (!n.message.isEmpty())
+                items.add(n);
+        }
+        return items;
     }
 
     // ---- çerçeveleme ---------------------------------------------------------------------

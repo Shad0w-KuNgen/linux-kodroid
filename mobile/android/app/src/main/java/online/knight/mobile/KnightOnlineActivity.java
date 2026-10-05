@@ -9,7 +9,7 @@ import java.io.File;
 
 /**
  * Knight Online Mobile oyun etkinliği. SDL'in Android köprüsü libKnightOnLine.so içindeki
- * SDL_main'i (mobile/platform/main_sdl.cpp) çağırır. Oyun verisi yoksa önce SetupActivity
+ * SDL_main'i (mobile/platform/main_sdl.cpp) çağırır. Oyun verisi yoksa önce LauncherActivity
  * (zip içe aktarma) açılır. Veri dizini "--client-dir" argümanıyla yerel koda iletilir.
  */
 public class KnightOnlineActivity extends SDLActivity {
@@ -21,7 +21,7 @@ public class KnightOnlineActivity extends SDLActivity {
         if (GameData.hasGameData(dataDir))
             GameData.ensureServerIni(dataDir); // Server.ini yoksa / 127.0.0.1 ise varsayılan sunucu
         else {
-            Intent i = new Intent(this, SetupActivity.class);
+            Intent i = new Intent(this, LauncherActivity.class);
             i.putExtra("setup", true);
             startActivity(i);
             finish();

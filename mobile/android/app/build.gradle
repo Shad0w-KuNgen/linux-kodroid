@@ -1,5 +1,24 @@
 apply plugin: 'com.android.application'
 
+def koGitCount() {
+    try {
+        def p = ["git", "rev-list", "--count", "HEAD"].execute(null, project.rootDir)
+        p.waitFor()
+        def out = p.text.trim()
+        return out.isInteger() ? out.toInteger() : 1
+    } catch (Exception e) {
+        return 1
+    }
+}
+def koVersionCode() {
+    def env = System.getenv("KO_VERSION_CODE")
+    return (env != null && env.isInteger()) ? env.toInteger() : koGitCount()
+}
+def koVersionName() {
+    def env = System.getenv("KO_VERSION_NAME")
+    return env != null ? env : "0.1." + koGitCount()
+}
+
 android {
     namespace "online.knight.mobile"
     compileSdkVersion 34
@@ -8,8 +27,10 @@ android {
         applicationId "online.knight.mobile"
         minSdkVersion 24          // OpenGL ES 3.0 + iconv (API 28 için) — 24 ile ES3 garanti
         targetSdkVersion 34
-        versionCode 1
-        versionName "0.1"
+        // Sürüm: KO_VERSION_CODE/KO_VERSION_NAME ortam değişkeni, yoksa git commit sayısı
+        // (her CI derlemesi artan versionCode alır; APK güncelleyici bununla karşılaştırır)
+        versionCode koVersionCode()
+        versionName koVersionName()
         externalNativeBuild {
             cmake {
                 arguments "-DANDROID_STL=c++_shared", "-DANDROID_PLATFORM=android-24", "-DCMAKE_BUILD_TYPE=Release"
@@ -46,4 +67,8 @@ android {
     lint {
         abortOnError false
     }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.12.0'   // FileProvider (APK güncelleyici)
 }
