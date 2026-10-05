@@ -59,6 +59,8 @@ public:
 	void Render(IDirect3DDevice9* dev);
 
 	bool IsInGame() const;
+	/// Giriş: sunucu seçme ekranı açık mı? (büyük BAĞLAN düğmesi çizilir; Enter yerine geçer)
+	bool IsServerSelect() const;
 
 	/// Test: düğme sayısı ve i. düğmenin sınır kutusu (üst üste binme denetimi)
 	size_t ButtonCount() const { return m_buttons.size(); }
@@ -113,6 +115,9 @@ private:
 	CDFont* m_fpsFont      = nullptr;
 	bool m_forceVisible = false;
 	int m_w = 1024, m_h = 768;
+	// Sunucu seçme ekranındaki BAĞLAN düğmesi (alt orta)
+	float m_connCx = 0, m_connCy = 0, m_connW = 0, m_connH = 0;
+	bool m_connDown = false;
 	float m_u = 1.0f; // 768p'ye göre ölçek
 	float m_barH = 0.0f; // alt çubuk yüksekliği (Layout belirler)
 	// Joystick (yüzen)

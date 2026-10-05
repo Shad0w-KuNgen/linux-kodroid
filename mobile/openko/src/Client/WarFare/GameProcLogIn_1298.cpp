@@ -187,6 +187,21 @@ void CGameProcLogIn_1298::Tick()
 		if (m_fTimeUntilNextGameConnectionAttempt < 0.0f)
 			m_fTimeUntilNextGameConnectionAttempt = 0.0f;
 	}
+
+	if (m_bConnectRequested)
+	{
+		m_bConnectRequested = false;
+		if (IsServerListOpen())
+		{
+			CLogWriter::Write("Dokunmatik BAĞLAN: seçili sunucuya bağlanılıyor");
+			ConnectToGameServer();
+		}
+	}
+}
+
+bool CGameProcLogIn_1298::IsServerListOpen() const
+{
+	return m_pUILogIn != nullptr && m_pUILogIn->IsServerListVisible();
 }
 
 void CGameProcLogIn_1298::Render()

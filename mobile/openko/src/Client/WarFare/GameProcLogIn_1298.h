@@ -43,6 +43,10 @@ protected:
 
 public:
 	void ConnectToGameServer(); // 고른 게임 서버에 접속
+	// Mobil: dokunmatik "BAĞLAN" düğmesi (KoTouchOverlay) seçili sunucuya bağlanma isteği bırakır; Tick işler
+	void RequestConnectSelected() { m_bConnectRequested = true; }
+	bool IsServerListOpen() const;
+	bool m_bConnectRequested = false;
 	CGameProcLogIn_1298();
 	~CGameProcLogIn_1298() override;
 };

@@ -101,6 +101,8 @@ public:
 		m_bLogIn = bLogIn;
 	}
 	void SelectServer(int iServerListIndex);
+	bool IsServerListVisible() const { return m_pGroup_ServerList != nullptr && m_pGroup_ServerList->IsVisible(); }
+	int GetServerCount() const { return static_cast<int>(m_ListServerInfos.size()); }
 	bool OnKeyPress(int iKey) override;
 	void SetVisibleLogInUIs(bool bEnable); // 계정 LogIn 에 필요한 UI 들을 숨긴다..
 	void OpenServerList();

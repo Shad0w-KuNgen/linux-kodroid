@@ -8,6 +8,7 @@
 
 #include "GameProcedure.h"
 #include "GameProcMain.h"
+#include "GameProcLogIn_1298.h"
 #include "GameEng.h"
 #include "GameDef.h"
 
@@ -68,12 +69,24 @@ bool KoTouchOverlay::IsInGame() const
 		   && CGameProcedure::s_pPlayer != nullptr;
 }
 
+bool KoTouchOverlay::IsServerSelect() const
+{
+	return CGameProcedure::s_pProcLogIn != nullptr && CGameProcedure::s_pProcActive == CGameProcedure::s_pProcLogIn
+		   && CGameProcedure::s_pProcLogIn->IsServerListOpen();
+}
+
 void KoTouchOverlay::Layout(int w, int h)
 {
 	m_w = w;
 	m_h = h;
 	float u = (float) h / 768.0f;
 	m_u     = u;
+
+	// Sunucu seçme ekranı: alt ortada büyük BAĞLAN düğmesi (dokunmatik "Enter")
+	m_connW  = std::max(300.0f * u, m_tuning.minTouchPx * 5.0f);
+	m_connH  = std::max(72.0f * u, m_tuning.minTouchPx * 1.4f);
+	m_connCx = w / 2.0f;
+	m_connCy = h - m_connH / 2.0f - 24.0f * u;
 
 	// Tüm aralıklar tek bir "dokunma birimi"ne göre: en az ~48dp (DPI'dan) ya da 56 mantıksal px.
 	// Düğmeler bu birime göre yerleşir, böylece büyütme üst üste binmeye yol açmaz.
@@ -261,6 +274,14 @@ void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
 		in.pendingLbUpFrames = 2;
 		in.stickyDrag        = false;
 		f.role               = Role::Done;
+		m_fingers.push_back(f);
+		return;
+	}
+	if (IsServerSelect() && std::fabs(x - m_connCx) <= m_connW / 2 + 8 && std::fabs(y - m_connCy) <= m_connH / 2 + 8)
+	{
+		m_connDown = true;
+		CGameProcedure::s_pProcLogIn->RequestConnectSelected();
+		f.role = Role::Done;
 		m_fingers.push_back(f);
 		return;
 	}
@@ -650,12 +671,8 @@ void KoTouchOverlay::RenderFps(IDirect3DDevice9* dev)
 void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 {
 	RenderFps(dev);
-	if (!m_enabled || !dev)
+	if (!dev)
 		return;
-	if (!IsInGame() && !m_forceVisible)
-		return;
-	if (CN3UIBase::GetFocusedEdit() != nullptr && !m_forceVisible)
-		return; // sohbet yazarken kaplamayı gizle
 
 	auto setup = [&]() {
 		dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -674,6 +691,26 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 		dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
 		dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
 	};
+	if (IsServerSelect())
+	{
+		// Sunucu seçme ekranı: yalnızca BAĞLAN düğmesi (kaplama ayarından bağımsız)
+		setup();
+		float x0 = m_connCx - m_connW / 2, y0 = m_connCy - m_connH / 2;
+		DrawRect(dev, x0, y0, m_connW, m_connH, m_connDown ? 0xE0C09040 : 0xC0805020);
+		DrawRect(dev, x0, y0, m_connW, 3.0f * m_u, COL_SLOT_RING);
+		DrawRect(dev, x0, y0 + m_connH - 3.0f * m_u, m_connW, 3.0f * m_u, COL_SLOT_RING);
+		DrawLabel(dev, (int) m_buttons.size() + 2, "BAGLAN  (Enter)", m_connCx, m_connCy, 0xFFFFFFFF, (int) (26.0f * m_u));
+		m_connDown = false;
+		return;
+	}
+
+	if (!m_enabled)
+		return;
+	if (!IsInGame() && !m_forceVisible)
+		return;
+	if (CN3UIBase::GetFocusedEdit() != nullptr && !m_forceVisible)
+		return; // sohbet yazarken kaplamayı gizle
+
 	setup();
 	float u = m_u;
 

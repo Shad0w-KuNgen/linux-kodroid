@@ -848,6 +848,13 @@ void CUILogIn_1298::OpenServerList()
 	// Select first server by default.
 	SelectServer(0);
 
+	// 2369/ISTIRAP: UIF'teki Connect düğmesi varsayılan olarak devre dışı olabilir; sunucu seçimi
+	// (varsayılan 0) yapıldığı için düğmeyi zorla etkinleştir
+	ConnectButtonSetEnable(true);
+	CLogWriter::Write("CUILogIn_1298: sunucu listesi açıldı ({} sunucu, seçili {}, connect düğmesi {}, satır {})",
+		m_ListServerInfos.size(), m_iSelectedServerIndex, m_pBtn_Connect ? m_pBtn_Connect->m_szID : "YOK",
+		m_pList_Group[0] ? m_pList_Group[0]->m_szID : "YOK");
+
 	m_bIsNewsVisible = false;
 }
 
@@ -916,7 +923,11 @@ bool CUILogIn_1298::OnKeyPress(int iKey)
 			case DIK_NUMPADENTER:
 			case DIK_RETURN:
 				// connect to the selected server if user presses enter at server select screen
-				ReceiveMessage(m_pList_Group[m_iSelectedServerIndex], UIMSG_STRING_LDCLICK);
+				// (2369/ISTIRAP: liste satırı bağlanamamışsa doğrudan seçili/ilk sunucuya)
+				if (m_pList_Group[m_iSelectedServerIndex] != nullptr)
+					ReceiveMessage(m_pList_Group[m_iSelectedServerIndex], UIMSG_STRING_LDCLICK);
+				else
+					CGameProcedure::s_pProcLogIn->ConnectToGameServer();
 				return true;
 
 			default:
