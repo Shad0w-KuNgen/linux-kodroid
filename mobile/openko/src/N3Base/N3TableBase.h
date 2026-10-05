@@ -118,7 +118,7 @@ bool CN3TableBase<Type>::Load(File& file)
 	int iDataTypeCount = 0;
 	file.Read(&iDataTypeCount, 4); // (엑셀에서 column 수)
 	__ASSERT(iDataTypeCount > 0, "Data Type 이 0 이하입니다.");
-	if (iDataTypeCount <= 0 || iDataTypeCount > 1024)
+	if (iDataTypeCount <= 0 || iDataTypeCount > 4096)
 		return false;
 
 	std::vector<DATA_TYPE> fileTypes(iDataTypeCount, DT_NONE);

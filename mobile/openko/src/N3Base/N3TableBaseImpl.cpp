@@ -230,6 +230,10 @@ bool CN3TableBaseImpl::ReadData(File& file, DATA_TYPE DataType, void* pData)
 			file.Read(pData, sizeof(double));
 			break;
 
+		case DT_INT64:
+			file.Read(pData, sizeof(int64_t));
+			break;
+
 		case DT_NONE:
 		default:
 			__ASSERT(0, "");
@@ -269,6 +273,9 @@ int CN3TableBaseImpl::SizeOf(DATA_TYPE DataType) const
 
 		case DT_DOUBLE:
 			return sizeof(double);
+
+		case DT_INT64:
+			return sizeof(int64_t);
 
 		default:
 			break;

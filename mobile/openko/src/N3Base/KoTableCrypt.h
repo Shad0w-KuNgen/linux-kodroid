@@ -14,7 +14,7 @@
 #include <cstdint>
 #include <vector>
 
-// XOR katmanı çözülmüş N3 tablo başlığı makul mu? (sütun sayısı 1..256, türler DT_CHAR..DT_DOUBLE, ilk sütun DT_DWORD)
+// XOR katmanı çözülmüş N3 tablo başlığı makul mu? (sütun sayısı 1..4096, türler DT_CHAR..DT_DOUBLE, ilk sütun DT_DWORD)
 bool KoTableHeaderLooksValid(const uint8_t* pData, size_t nSize);
 
 // Ham dosya 2xxx DES katmanı düzeninde mi? (sabit 16 baytlık başlık, boyut % 8 == 4)

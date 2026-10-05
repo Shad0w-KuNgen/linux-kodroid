@@ -100,14 +100,15 @@ uint32_t KoTableTypeFromLetter(char c)
 		case 'T': return 7;
 		case 'F': return 8;
 		case 'R': return 9;
+		case 'Q': return 10;
 		default: return 0;
 	}
 }
 
 char KoTableLetterFromType(uint32_t t)
 {
-	static const char L[] = "?CBSWIDTFR";
-	return t < 10 ? L[t] : '?';
+	static const char L[] = "?CBSWIDTFRQ";
+	return t < 11 ? L[t] : '?';
 }
 
 std::string KoTableTypesToString(const std::vector<uint32_t>& types)

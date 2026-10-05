@@ -19,7 +19,8 @@ enum TBL_DATA_TYPE : uint32_t
 	DT_DWORD,
 	DT_STRING,
 	DT_FLOAT,
-	DT_DOUBLE
+	DT_DOUBLE,
+	DT_INT64 // 2xxx verisi (Player_experience, SpecialAuction): 8 bayt
 };
 
 class CN3TableBaseImpl

@@ -163,13 +163,13 @@ bool KoTableHeaderLooksValid(const uint8_t* pData, size_t nSize)
 		return false;
 	uint32_t nCols = 0;
 	memcpy(&nCols, pData, 4);
-	if (nCols == 0 || nCols > 256 || nSize < 4 + 4 * (size_t) nCols + 4)
+	if (nCols == 0 || nCols > 4096 || nSize < 4 + 4 * (size_t) nCols + 4)
 		return false;
 	for (uint32_t i = 0; i < nCols; i++)
 	{
 		uint32_t t = 0;
 		memcpy(&t, pData + 4 + 4 * i, 4);
-		if (t < 1 || t > 9) // DT_CHAR .. DT_DOUBLE
+		if (t < 1 || t > 10) // DT_CHAR .. DT_DOUBLE, 10 = DT_INT64 (2xxx)
 			return false;
 		if (i == 0 && t != 6) // DT_DWORD
 			return false;

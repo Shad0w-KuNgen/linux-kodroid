@@ -118,6 +118,36 @@ static void TestXorRoundTrip()
 	CHECK(!KoTableIsLayer2(enc.data(), enc.size()), "XOR verisi katman-2 sanilmamali");
 	KoTableXorDecrypt(enc.data(), enc.size());
 	CHECK(enc == plain, "XOR gidis-donus");
+	// 2369 UIs_us: 347 sütun (256'dan fazla) kabul edilmeli; 1.298 şemasına (145 alan) hizalanmalı
+	std::vector<uint8_t> wide;
+	uint32_t nWide = 347;
+	wide.insert(wide.end(), (uint8_t*) &nWide, (uint8_t*) &nWide + 4);
+	for (uint32_t i = 0; i < nWide; i++)
+	{
+		uint32_t t = i == 0 ? 6 : 7;
+		wide.insert(wide.end(), (uint8_t*) &t, (uint8_t*) &t + 4);
+	}
+	wide.insert(wide.end(), 4, 0);
+	CHECK(KoTableHeaderLooksValid(wide.data(), wide.size()), "347 sutunlu baslik gecerli olmali");
+	{
+		std::vector<uint32_t> ft(nWide, 7), out;
+		ft[0] = 6;
+		std::vector<int> map;
+		std::string rep;
+		CHECK(KoTableAlignSchema("uis_us.tbl", ft, out, map, rep) && out.size() == 145 && map[144] == 144 && map[145] == -1
+				  && map[346] == -1,
+			"uis_us 347->145 hizalama: %s", rep.c_str());
+	}
+	// Tür 10 = int64 (Player_experience, SpecialAuction): başlıkta geçerli, hizalamada atlanır
+	{
+		std::vector<uint32_t> ft = { 6, 10, 7 }, out;
+		std::vector<int> map;
+		std::string rep;
+		uint32_t hdr[5] = { 3, 6, 10, 7, 0 };
+		CHECK(KoTableHeaderLooksValid((const uint8_t*) hdr, sizeof(hdr)), "int64 sutunlu baslik gecerli");
+		CHECK(KoTableAlignSchema("texts_us.tbl", ft, out, map, rep) && map[0] == 0 && map[1] == -1 && map[2] == 1,
+			"int64 sutunu atlanir: %s", rep.c_str());
+	}
 	std::vector<uint8_t> junk(40, 0xAB);
 	CHECK(!KoTableHeaderLooksValid(junk.data(), junk.size()), "cop veri baslik degil");
 }

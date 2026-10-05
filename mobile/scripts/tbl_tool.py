@@ -21,8 +21,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ko_tbl_des  # noqa: E402
 
-DT_NAMES = {1: 'char', 2: 'byte', 3: 'short', 4: 'word', 5: 'int', 6: 'dword', 7: 'string', 8: 'float', 9: 'double'}
-DT_SIZE = {1: 1, 2: 1, 3: 2, 4: 2, 5: 4, 6: 4, 8: 4, 9: 8}
+DT_NAMES = {1: 'char', 2: 'byte', 3: 'short', 4: 'word', 5: 'int', 6: 'dword', 7: 'string', 8: 'float', 9: 'double', 10: 'int64'}
+DT_SIZE = {1: 1, 2: 1, 3: 2, 4: 2, 5: 4, 6: 4, 8: 4, 9: 8, 10: 8}
 
 
 def xor_layer(data: bytes) -> bytes:
@@ -39,7 +39,7 @@ def header_ok(d: bytes):
     if len(d) < 8:
         return False, 'kısa'
     n = struct.unpack_from('<I', d, 0)[0]
-    if n == 0 or n > 256 or len(d) < 4 + 4 * n + 4:
+    if n == 0 or n > 4096 or len(d) < 4 + 4 * n + 4:
         return False, f'sütun sayısı {n}'
     types = list(struct.unpack_from('<%dI' % n, d, 4))
     if any(t not in DT_NAMES for t in types) or types[0] != 6:
@@ -96,7 +96,7 @@ def rows_of(d: bytes):
                 row.append(d[pos:pos + ln].decode('cp1254', 'replace'))
                 pos += ln
             else:
-                fmt = {1: 'b', 2: 'B', 3: 'h', 4: 'H', 5: 'i', 6: 'I', 8: 'f', 9: 'd'}[t]
+                fmt = {1: 'b', 2: 'B', 3: 'h', 4: 'H', 5: 'i', 6: 'I', 8: 'f', 9: 'd', 10: 'q'}[t]
                 row.append(struct.unpack_from('<' + fmt, d, pos)[0])
                 pos += DT_SIZE[t]
         yield row
@@ -115,7 +115,7 @@ def cmd_info(path):
     print('özet:', counts)
 
 
-LETTERS = {1: 'C', 2: 'B', 3: 'S', 4: 'W', 5: 'I', 6: 'D', 7: 'T', 8: 'F', 9: 'R'}
+LETTERS = {1: 'C', 2: 'B', 3: 'S', 4: 'W', 5: 'I', 6: 'D', 7: 'T', 8: 'F', 9: 'R', 10: 'Q'}
 
 
 def cmd_schema(path):
