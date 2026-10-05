@@ -123,7 +123,6 @@ void LoadOptions(const std::string& iniPath)
 	}
 #endif
 	o.bSndEnable      = o.bSndBgmEnable || o.bSndEffectEnable;
-	CLogWriter::Write("Seçenekler: ses bgm={} efekt={} ({})", o.bSndBgmEnable, o.bSndEffectEnable, iniPath);
 	o.bWindowCursor   = ini.GetBool("Cursor", "WindowCursor", true);
 	o.bWindowMode     = ini.GetBool("Screen", "WindowMode", true);
 	o.bVSyncEnabled   = ini.GetBool("Screen", "VSyncEnabled", true);
@@ -576,6 +575,8 @@ int main(int argc, char** argv)
 
 	CGameProcedure::s_bWindowed = true;
 	CGameProcedure::StaticMemberInit(nullptr, hWndMain);
+	CLogWriter::Write("Seçenekler: ses bgm={} efekt={} (OpenAL {})", CN3Base::s_Options.bSndBgmEnable,
+		CN3Base::s_Options.bSndEffectEnable, CN3Base::s_SndMgr.IsEnabled() ? "açık" : "kapalı");
 
 	// Temel tablolar çözülemediyse (ör. 2369 verisinin ikinci şifre katmanı) siyah ekran yerine açık hata
 	if (CGameBase::s_pTbl_Texts.GetSize() == 0 || CGameBase::s_pTbl_UI.GetSize() == 0
