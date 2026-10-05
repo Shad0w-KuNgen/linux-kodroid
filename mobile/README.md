@@ -183,8 +183,8 @@ Yazı tipi için `<veri>/fonts/default.ttf` koyun (yoksa `/system/fonts/` deneni
   **yapışkan taşıma** (ipucu çıkar, sonraki dokunuş ikonu oraya bırakır); çift dokunuş = sağ tık
   (eşya kullan / giy, beceri kullan). Sayılabilir eşyalar ticaret/depo/pazarda bırakılınca oyunun
   kendi adet penceresi açılır (klavye otomatik gelir).
-- Sağ alt: SALDIR (R), HEDEF (Z), PARTI (X), DOST (V), NPC (B), 8 beceri yuvası (1-8), S1..S8
-  beceri sayfası döngüsü (F1-F8), HP/MP pot düğmeleri (`PotHpSlot`/`PotMpSlot`). Joystick üstünde
+- Sağ alt: SALDIR (R), HEDEF (Z), PARTI (X), DOST (V), NPC (B), 2×4 beceri ızgarası (1-8), üstünde F1..F8
+  sayfa düğmeleri (seçili sayfa vurgulu), HP/MP pot düğmeleri (`PotHpSlot`/`PotMpSlot`). Joystick üstünde
   OTO (E, sürekli yürüme). Sağ üst: kamera kümesi (F9, 180°, +/-, T koş). Alt çubuk: Çanta (I),
   Karakter (U), Beceri (K), Otur (C), Harita (M), Al (F), Sohbet (Enter → klavye açılır, Enter
   gönderir), Menü (H komut listesi), Yardım (F10), Kapat (ESC).

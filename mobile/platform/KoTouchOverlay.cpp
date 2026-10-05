@@ -39,6 +39,7 @@ constexpr uint32_t COL_BAR       = 0xA0241C14;
 constexpr uint32_t COL_BAR_BTN   = 0xC0463828;
 constexpr uint32_t COL_DOWN      = 0xC0FFC040;
 constexpr uint32_t COL_TEXT      = 0xFFF4E6B8;
+constexpr uint32_t COL_PAGE_ON   = 0xD0B07A1C; // seçili beceri sayfası (F1..F8)
 
 struct RhwVertex
 {
@@ -144,8 +145,21 @@ void KoTouchOverlay::Layout(int w, int h)
 	}
 	const float gridLeft = gridRight - 4 * (t + gap) + gap;
 
-	// Beceri sayfası (F1..F8): ızgaranın üstünde, sağa yaslı küçük düğme
-	ring(Action::SkillPage, 0, "S" + std::to_string(m_skillPage), gridRight - t * 0.5f, rowY0 - t * 0.5f - gap - r * 0.7f, r * 0.7f, COL_SLOT);
+	// Beceri sayfaları F1..F8: ızgaranın üstünde sekiz ayrı düğme (oyundaki F1-F8 gibi), seçili sayfa vurgulu
+	{
+		const float gridW = 4 * t + 3 * gap;
+		const float pgap  = 4.0f * u;
+		const float pw    = (gridW - 7 * pgap) / 8.0f, ph = std::max(24.0f * u, t * 0.5f);
+		const float py    = rowY0 - t / 2.0f - gap - ph / 2.0f;
+		for (int i = 0; i < 8; ++i)
+		{
+			Button b;
+			b.action = Action::SkillPage; b.shape = Shape::Rect; b.dik = KM_SKILL_PAGE_1 + i;
+			b.label = "F" + std::to_string(i + 1);
+			b.cx = gridLeft + pw / 2.0f + i * (pw + pgap); b.cy = py; b.w = pw; b.h = ph; b.color = COL_BAR_BTN;
+			m_buttons.push_back(b);
+		}
+	}
 
 	// HP / MP: ızgaranın solunda, iki sıraya hizalı
 	const int slotKeys[8] = {KM_HOTKEY1, KM_HOTKEY2, KM_HOTKEY3, KM_HOTKEY4, KM_HOTKEY5, KM_HOTKEY6, KM_HOTKEY7, KM_HOTKEY8};
@@ -510,10 +524,9 @@ void KoTouchOverlay::Update()
 			case Action::SkillPage:
 				if (!b.fired)
 				{
-					m_skillPage     = (m_skillPage % 8) + 1;
-					m_pageKey       = KM_SKILL_PAGE_1 + (m_skillPage - 1); // DIK_F1..F8 ardışık
+					m_skillPage     = b.dik - KM_SKILL_PAGE_1 + 1; // F1..F8 ardışık
+					m_pageKey       = b.dik;
 					m_pageKeyFrames = 2;
-					b.label         = "S" + std::to_string(m_skillPage);
 					b.fired         = true;
 				}
 				break;
@@ -688,6 +701,8 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 	for (const Button& b : m_buttons)
 	{
 		uint32_t col = b.down ? COL_DOWN : b.color;
+		if (b.action == Action::SkillPage && b.dik == KM_SKILL_PAGE_1 + m_skillPage - 1)
+			col = b.down ? COL_DOWN : COL_PAGE_ON; // seçili beceri sayfası
 		switch (b.shape)
 		{
 			case Shape::Rect:
