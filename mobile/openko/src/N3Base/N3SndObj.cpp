@@ -25,7 +25,11 @@ bool al_check_error_impl(const char* file, int line)
 		return false;
 
 #ifdef _N3GAME
-	CLogWriter::Write("{}({}) - OpenAL error occurred: {:X}", file, line, error);
+	// Günlük seli önlemi: ilk 20 hata, sonra her 500'de bir
+	static int s_iCount = 0;
+	++s_iCount;
+	if (s_iCount <= 20 || s_iCount % 500 == 0)
+		CLogWriter::Write("{}({}) - OpenAL error occurred: {:X} (toplam {})", file, line, error, s_iCount);
 #endif
 	return true;
 }

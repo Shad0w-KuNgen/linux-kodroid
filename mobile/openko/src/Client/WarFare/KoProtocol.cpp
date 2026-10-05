@@ -531,6 +531,30 @@ void BuildSelectCharacter(std::vector<uint8_t>& out, const std::string& account,
 		AddByte(out, zoneCur);
 }
 
+void BuildNewChar(std::vector<uint8_t>& out, uint8_t index, const std::string& name, uint8_t race, uint16_t cls, uint8_t face,
+	uint32_t hair, uint8_t str, uint8_t sta, uint8_t dex, uint8_t intel, uint8_t cha)
+{
+	out.clear();
+	AddByte(out, WIZ_NEW_CHAR);
+	AddByte(out, index);
+	AddStrS(out, name);
+	AddByte(out, race);
+	AddU16(out, cls);
+	AddByte(out, face);
+	if (Is2369())
+	{
+		AddU16(out, (uint16_t) (hair & 0xFFFF));
+		AddU16(out, (uint16_t) (hair >> 16));
+	}
+	else
+		AddByte(out, (uint8_t) hair);
+	AddByte(out, str);
+	AddByte(out, sta);
+	AddByte(out, dex);
+	AddByte(out, intel);
+	AddByte(out, cha);
+}
+
 void BuildGameStart(std::vector<uint8_t>& out, uint8_t step, const std::string& charName)
 {
 	out.clear();

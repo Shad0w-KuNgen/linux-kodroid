@@ -13,6 +13,7 @@
 #include "LocalInput.h"
 #include "APISocket.h"
 #include "GameCursor.h"
+#include "KoProtocol.h"
 #include "text_resources.h"
 
 #include <N3Base/N3UIString.h>
@@ -270,23 +271,17 @@ bool CGameProcCharacterCreate::MsgSendCharacterCreate()
 			__InfoPlayerBase* pInfoBase  = &s_pPlayer->m_InfoBase;
 			__InfoPlayerMySelf* pInfoExt = &s_pPlayer->m_InfoExt;
 
-			uint8_t byBuff[64];
-			int iOffset = 0;
-			CAPISocket::MP_AddByte(byBuff, iOffset, WIZ_NEW_CHAR);                         // 커멘드.
-			CAPISocket::MP_AddByte(byBuff, iOffset, CGameProcedure::s_iChrSelectIndex);    // 캐릭터 인덱스 b
-			CAPISocket::MP_AddShort(byBuff, iOffset, static_cast<int16_t>(szID.length())); // Id 길이 s
-			CAPISocket::MP_AddString(byBuff, iOffset, s_pPlayer->IDString());              // ID 문자열 str
-			CAPISocket::MP_AddByte(byBuff, iOffset, pInfoBase->eRace);                     // 종족 b
-			CAPISocket::MP_AddShort(byBuff, iOffset, pInfoBase->eClass);                   // 직업 b
-			CAPISocket::MP_AddByte(byBuff, iOffset, pInfoExt->iFace);                      // 얼굴모양 b
-			CAPISocket::MP_AddByte(byBuff, iOffset, pInfoExt->iHair);                      // 머리모양 b
-			CAPISocket::MP_AddByte(byBuff, iOffset, pInfoExt->iStrength);                  // 힘 b
-			CAPISocket::MP_AddByte(byBuff, iOffset, pInfoExt->iStamina);                   // 지구력 b
-			CAPISocket::MP_AddByte(byBuff, iOffset, pInfoExt->iDexterity);                 // 민첩 b
-			CAPISocket::MP_AddByte(byBuff, iOffset, pInfoExt->iIntelligence);              // 지능 b
-			CAPISocket::MP_AddByte(byBuff, iOffset, pInfoExt->iMagicAttak);                // 마력 b
-
-			s_pSocket->Send(byBuff, iOffset);                                              // 보낸다
+			// 2369: saç uint32 (GameServer NewCharToAgent); 1.298: uint8
+			std::vector<uint8_t> buff;
+			KoProto::BuildNewChar(buff, (uint8_t) CGameProcedure::s_iChrSelectIndex, s_pPlayer->IDString(), (uint8_t) pInfoBase->eRace,
+				(uint16_t) pInfoBase->eClass, (uint8_t) pInfoExt->iFace, (uint32_t) pInfoExt->iHair, (uint8_t) pInfoExt->iStrength,
+				(uint8_t) pInfoExt->iStamina, (uint8_t) pInfoExt->iDexterity, (uint8_t) pInfoExt->iIntelligence,
+				(uint8_t) pInfoExt->iMagicAttak);
+			s_pSocket->Send(buff.data(), (int) buff.size());                               // 보낸다
+			CLogWriter::Write("WIZ_NEW_CHAR gönderildi: yuva {} ad '{}' ırk {} sınıf {} yüz {} saç {} güç/dayanıklılık/çeviklik/zeka/büyü {}/{}/{}/{}/{} ({} bayt)",
+				CGameProcedure::s_iChrSelectIndex, s_pPlayer->IDString(), (int) pInfoBase->eRace, (int) pInfoBase->eClass, pInfoExt->iFace,
+				pInfoExt->iHair, pInfoExt->iStrength, pInfoExt->iStamina, pInfoExt->iDexterity, pInfoExt->iIntelligence,
+				pInfoExt->iMagicAttak, buff.size());
 
 			s_pUIMgr->EnableOperationSet(false);                                           // 패킷이 들어올때까지 UI 를 Disable 시킨다...
 			m_fWaitReplySec = 15.0f;                                                       // yanıt zaman aşımı
@@ -295,6 +290,8 @@ bool CGameProcCharacterCreate::MsgSendCharacterCreate()
 		}
 	}
 
+	CLogWriter::Write("WIZ_NEW_CHAR gönderilmedi: istemci doğrulaması hata {} (ad '{}', ırk {}, sınıf {})", (int) eErrCode,
+		s_pPlayer->IDString(), (int) s_pPlayer->m_InfoBase.eRace, (int) s_pPlayer->m_InfoBase.eClass);
 	ReportErrorCharacterCreate(eErrCode); // 에러 보고...
 
 	return false;
@@ -346,6 +343,7 @@ bool CGameProcCharacterCreate::ProcessPacket(Packet& pkt)
 		{
 			uint8_t bySuccess = pkt.read<uint8_t>();                            // 커멘드 파싱..
 			m_fWaitReplySec   = 0.0f;
+			CLogWriter::Write("WIZ_NEW_CHAR yanıtı: {} ({})", bySuccess, bySuccess == 0 ? "başarılı" : "hata");
 			if (0 == bySuccess)
 			{
 				ProcActiveSet((CGameProcedure*) s_pProcCharacterSelect);        // 캐릭터 선택창으로 가기..

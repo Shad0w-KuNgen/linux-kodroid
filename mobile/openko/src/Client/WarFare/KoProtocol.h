@@ -247,6 +247,9 @@ void BuildAllCharInfoReq(std::vector<uint8_t>& out);                            
 void BuildSelectCharacter(std::vector<uint8_t>& out, const std::string& account, const std::string& charName,
 	uint8_t zoneInit, uint8_t zoneCur);                                              // 2369: zoneCur gönderilmez
 void BuildGameStart(std::vector<uint8_t>& out, uint8_t step, const std::string& charName); // 2369: isim (uint8 uzunluk)
+// WIZ_NEW_CHAR: 2369 (GameServer NewCharToAgent) saç uint32, 1.298 uint8
+void BuildNewChar(std::vector<uint8_t>& out, uint8_t index, const std::string& name, uint8_t race, uint16_t cls, uint8_t face,
+	uint32_t hair, uint8_t str, uint8_t sta, uint8_t dex, uint8_t intel, uint8_t cha);
 void BuildMove(std::vector<uint8_t>& out, uint16_t willX, uint16_t willZ, int16_t willY, int16_t speed, uint8_t flag,
 	uint16_t curX, uint16_t curZ, int16_t curY);                                     // 2369: mevcut konum eklenir
 } // namespace KoProto

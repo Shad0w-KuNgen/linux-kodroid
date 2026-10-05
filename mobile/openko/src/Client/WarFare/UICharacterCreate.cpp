@@ -14,6 +14,7 @@
 #include <N3Base/N3UIArea.h>
 #include <N3Base/N3UIEdit.h>
 #include <N3Base/N3UITooltip.h>
+#include <strings.h>
 
 CUICharacterCreate::CUICharacterCreate()
 {
@@ -67,10 +68,36 @@ void CUICharacterCreate::Release()
 	m_iBonusPoint = m_iMaxBonusPoint = 0;
 }
 
+static bool IDEquals(const CN3UIBase* p, const char* szID)
+{
+	return p != nullptr && strcasecmp(p->m_szID.c_str(), szID) == 0;
+}
+
 bool CUICharacterCreate::Load(File& file)
 {
 	if (!CN3UIBase::Load(file))
 		return false;
+
+	// 2369 arayüzü için teşhis: temel denetimler yoksa alt ağacı Log.txt'ye dök
+	{
+		CN3UIBase* pCreate = GetChildByID("btn_create");
+		CN3UIBase* pName   = GetChildByID("edit_name");
+		if (pCreate == nullptr || pName == nullptr)
+		{
+			std::string szTree;
+			for (CN3UIBase* pChild : m_Children)
+			{
+				if (pChild == nullptr)
+					continue;
+				szTree += std::to_string((int) pChild->UIType()) + ":" + pChild->m_szID + " ";
+				for (CN3UIBase* pSub : pChild->GetChildren())
+					if (pSub != nullptr)
+						szTree += "(" + std::to_string((int) pSub->UIType()) + ":" + pSub->m_szID + ") ";
+			}
+			CLogWriter::Write("CUICharacterCreate::Load ({}): btn_create={} edit_name={}; çocuklar (tür:ID): {}", m_szFileName,
+				pCreate ? "var" : "YOK", pName ? "var" : "YOK", szTree);
+		}
+	}
 
 	// 캐릭터 초기화..
 	__InfoPlayerBase* pInfoBase = &CGameBase::s_pPlayer->m_InfoBase;
@@ -256,12 +283,13 @@ bool CUICharacterCreate::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 		int iFacePrev = pInfoExt->iFace;
 		int iHairPrev = pInfoExt->iHair;
 
-		if (pSender->m_szID == "btn_cancel")
+		CLogWriter::Write("CUICharacterCreate: düğme '{}' tıklandı", pSender->m_szID);
+		if (IDEquals(pSender, "btn_cancel") || IDEquals(pSender, "btn_close") || IDEquals(pSender, "btn_back"))
 		{
 			CGameProcedure::ProcActiveSet((CGameProcedure*) CGameProcedure::s_pProcCharacterSelect); // 캐릭터 선택 프로시저로 한다..
 			return true;
 		}
-		else if (pSender->m_szID == "btn_create" && m_pEdit_Name)
+		else if ((IDEquals(pSender, "btn_create") || IDEquals(pSender, "btn_ok")) && m_pEdit_Name)
 		{
 			CGameBase::s_pPlayer->IDSet(0, m_pEdit_Name->GetString(), 0);            // 이름을 넣어주고...
 			return CGameProcedure::s_pProcCharacterCreate->MsgSendCharacterCreate(); // 캐릭터 만들기 메시지 보내기...
