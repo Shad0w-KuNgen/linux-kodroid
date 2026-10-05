@@ -4,6 +4,7 @@
 // Android'de (SDL'in Android projesi SDL_main'i çağırır) aynı kod çalışır.
 #include "StdAfx.h"
 #include "GameProcedure.h"
+#include "GameBase.h"
 #include "GameProcMain.h"
 #include "GameProcLogIn.h"
 #include "GameEng.h"
@@ -560,6 +561,23 @@ int main(int argc, char** argv)
 
 	CGameProcedure::s_bWindowed = true;
 	CGameProcedure::StaticMemberInit(nullptr, hWndMain);
+
+	// Temel tablolar çözülemediyse (ör. 2369 verisinin ikinci şifre katmanı) siyah ekran yerine açık hata
+	if (CGameBase::s_pTbl_Texts.GetSize() == 0 || CGameBase::s_pTbl_UI.GetSize() == 0
+		|| CGameBase::s_pTbl_Zones.GetSize() == 0)
+	{
+		std::string msg = fmt::format(
+			"Oyun veri tablolari okunamadi (Texts {} / UIs {} / Zones {} kayit).\n"
+			"Protokol {}: bu veri paketinin .tbl dosyalari bu istemcinin bildigi sifreyle acilamiyor.\n"
+			"Ayrintilar Log.txt'de (Launcher > Hata raporu).",
+			CGameBase::s_pTbl_Texts.GetSize(), CGameBase::s_pTbl_UI.GetSize(), CGameBase::s_pTbl_Zones.GetSize(),
+			KoProto::Version());
+		CLogWriter::Write("{}", msg);
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Knight Online Mobile", msg.c_str(), g_window);
+		CGameProcedure::StaticMemberRelease();
+		return 1;
+	}
+
 	CGameProcedure::ProcActiveSet((CGameProcedure*) CGameProcedure::s_pProcLogIn);
 
 	// Başsız test için: KO_MAX_FRAMES=N kare sonra çık, KO_SCREENSHOT=dosya.ppm ile son kareyi kaydet
