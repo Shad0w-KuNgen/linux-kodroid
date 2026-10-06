@@ -379,6 +379,9 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
   Beceri ikonları kaplama halkalarında, alan becerisi hedef seçiminde joystick/kamera kilidi + tek onay; oyuncu menüsü
   (parti/ticaret/fısıltı/arkadaş); klan sayfası görünürlük düzeltmesi + `btn_clan`; ogg ses (stb_vorbis) ve uzantı
   seçimi; 2369 karakter seçim sahnesi denemesi; bilgi kutusu geri (sağ üst). Devir notları: `docs/2369-durum.md`.
+- v168: HP 0/34'ün kök nedeni `WIZ_ITEM_MOVE` yetenek paketi (1298 okuması); 2369 düzeni eklendi, ham MYINFO birim testi.
+  Ses: sessiz dosya çözümleme + bir kez günlük, bölge müziği (Zones.tbl), ayak sesi tablosu. Kaplama: yuva sürükle (boşalt /
+  yer değiştir), iletişim penceresi önceliği, küçük bilgi satırları; 2369 klan penceresi; bilgi kutusu sözcük kırma.
 
 ### Oyun verisini telefona kurma
 

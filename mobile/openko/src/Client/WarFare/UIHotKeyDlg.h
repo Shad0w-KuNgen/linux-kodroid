@@ -46,6 +46,8 @@ public:
 	__IconItemSkill* GetHighlightIconItem(CN3UIIcon* pUIIcon) override;
 
 	void SetHotKeyPage(int iPageNum);
+	void ClearSlot(int iIndex);              // dokunmatik: yuvayı boşalt (yuvadan dışarı sürükle)
+	void SwapSlots(int iA, int iB);          // dokunmatik: iki yuvanın yerini değiştir
 
 	void PageUp();
 	void PageDown();

@@ -94,6 +94,7 @@ int CGameProcedure::s_iTouchInsetTop                = 0;
 int CGameProcedure::s_iTouchInsetRight              = 0;
 int CGameProcedure::s_iTouchInsetBottom             = 0;
 bool CGameProcedure::s_bTouchLockMove               = false;
+void (*CGameProcedure::s_pfnTouchInfoLine)(const std::string&, uint32_t) = nullptr;
 int CGameProcedure::s_iSendLogLeft                  = 0;
 int CGameProcedure::s_iRecvLogLeft                  = 0;
 
@@ -1003,6 +1004,11 @@ void CGameProcedure::MsgRecv_CompressedPacket(Packet& pkt) // 압축된 데이�
 
 	Packet decompressedPkt;
 	decompressedPkt.append(&decompressedBuffer[0], originalLength);
+	{
+		static std::set<int> s_Seen;
+		if (s_Seen.insert((int) decompressedBuffer[0]).second)
+			CLogWriter::Write("Sıkıştırılmış paket: iç opcode 0x{:02x} ({} bayt)", (int) decompressedBuffer[0], originalLength);
+	}
 
 	ProcessPacket(decompressedPkt);
 }

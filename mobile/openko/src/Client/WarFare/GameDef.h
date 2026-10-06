@@ -1016,6 +1016,12 @@ enum e_ItemSlot : int8_t
 
 // Manages NPC/mob/player appearance
 // 2369 Data\NPC_us.tbl (DTDDDDD): sunucu K_NPC kimliği → görünen ad ("<Bind Stone>" gibi); NPC_Looks'ta ad yok (Korece)
+struct __TABLE_MOVE_SOUND // 2369 Data\move_sound.tbl (DIIIII): ırk → 5 ayak sesi kimliği (zemin türüne göre)
+{
+	uint32_t dwID = 0;
+	int32_t iSnd[5] = {};
+};
+
 struct __TABLE_NPC_NAME
 {
 	uint32_t dwID      = 0;

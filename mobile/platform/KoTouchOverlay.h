@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <deque>
 
 class IDirect3DDevice9;
 class CDFont;
@@ -59,6 +60,7 @@ public:
 	void Update();
 	/// Kaplamayı çizer (Present'ten hemen önce çağrılır)
 	void Render(IDirect3DDevice9* dev);
+	void AddInfoLine(const std::string& text, uint32_t color); // bilgi/hasar iletisi (MsgOutput)
 
 	bool IsInGame() const;
 	/// Giriş: sunucu seçme ekranı açık mı? (büyük BAĞLAN düğmesi çizilir; Enter yerine geçer)
@@ -86,6 +88,7 @@ private:
 		int64_t finger = -1;
 		bool fired     = false;
 		bool tapQueued = false; // parmak aynı karede basıp kalktıysa tuş yine de bir kare basılı sayılır
+		int hotkeySlot = -1;    // 0..7: beceri yuvası halkası (tuş kalkışta basılır; sürükleme = taşı/boşalt)
 	};
 	enum class Role { None, Joystick, Button, Pending, Camera, LeftDrag, Done };
 	struct Finger
@@ -96,6 +99,7 @@ private:
 		int buttonIndex;
 		uint32_t downTicks;
 		bool longPressDrag = false; // uzun basışla başlayan sürükleme (kalkınca yapışkan olur)
+		bool slotDrag      = false; // beceri yuvasından sürükleme başladı
 	};
 
 	Finger* Find(int64_t id);
@@ -105,6 +109,15 @@ private:
 	void BeginLeftDrag(Finger& f);
 	/// Nokta görünür bir arayüz penceresinin (çanta, beceri, ticaret...) üstünde mi?
 	bool IsOverUI(int x, int y) const;
+	/// Nokta bir iletişim penceresinin (çanta, karakter, beceri, ticaret…) üstünde mi? Sohbet/durum çubuğu gibi
+	/// kalıcı HUD pencereleri sayılmaz (joystick onların üstünde çalışmaya devam eder)
+	bool IsOverDialogUI(int x, int y) const;
+	int HitHotkeyRing(int x, int y) const; // 0..7 ya da -1
+	// Küçük bilgi satırları (hasar/olay iletileri): sağ altta, beceri kümesinin üstünde, yarı saydam
+	struct InfoLine { std::string text; uint32_t color; uint32_t ticks; };
+	std::deque<InfoLine> m_infoLines;
+	void DrawInfoLines(IDirect3DDevice9* dev);
+	float m_clusterTop = 0; // beceri kümesinin üst kenarı (F1-F8 satırı)
 	void DrawCircle(IDirect3DDevice9* dev, float cx, float cy, float r, uint32_t color, int segs = 32);
 	void DrawRing(IDirect3DDevice9* dev, float cx, float cy, float r, float thickness, uint32_t color, int segs = 40);
 	void DrawRect(IDirect3DDevice9* dev, float x, float y, float w, float h, uint32_t color);

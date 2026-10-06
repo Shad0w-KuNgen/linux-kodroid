@@ -1,5 +1,8 @@
 ﻿#include "StdAfxBase.h"
 #include "AudioAsset.h"
+#include "LogWriter.h"
+#include <sys/stat.h>
+#include <set>
 #include "al_wrapper.h"
 
 #include <FileIO/FileReader.h>
@@ -28,25 +31,30 @@ BufferedAudioAsset::~BufferedAudioAsset()
 bool KoDecodeOggToPcm(const uint8_t* data, size_t size, std::vector<uint8_t>& pcm, int& channels, int& sampleRate);
 
 // 2369: sound.tbl adları .mp3/.wav olabilir ama Snd/ klasöründe .ogg bulunur (ya da tersi). Var olan dosyayı seç.
+std::string KoResolvePath(const std::string& path); // compat/win32/paths.cpp (büyük/küçük harf duyarsız çözümleme)
 static std::string KoResolveAudioPath(const std::string& filename)
 {
+	// Sessiz varlık denemesi (FileReader açılışı eksik dosyayı günlüğe yazar; burada yazılmaz)
 	auto exists = [](const std::string& fn) {
-		FileReader f;
-		return f.OpenExisting(fn);
+		std::string r = KoResolvePath(fn);
+		struct stat sb {};
+		return !r.empty() && ::stat(r.c_str(), &sb) == 0 && S_ISREG(sb.st_mode);
 	};
 	if (exists(filename))
 		return filename;
 	size_t dot = filename.find_last_of('.');
-	if (dot == std::string::npos)
-		return filename;
-	std::string base = filename.substr(0, dot);
+	std::string base = dot == std::string::npos ? filename : filename.substr(0, dot);
 	for (const char* ext : {".ogg", ".mp3", ".wav"})
 	{
 		std::string alt = base + ext;
 		if (alt != filename && exists(alt))
 			return alt;
 	}
-	return filename;
+	// 2369: sound.tbl'deki 732 kaydın 279'u ISTIRAP verisinde de yok; her biri bir kez günlüğe
+	static std::set<std::string> s_Missing;
+	if (s_Missing.insert(filename).second)
+		CLogWriter::Write("Ses dosyası yok (bir kez): {}", filename);
+	return std::string();
 }
 
 static bool KoHasExt(const std::string& fn, const char* ext)
@@ -57,6 +65,8 @@ static bool KoHasExt(const std::string& fn, const char* ext)
 bool BufferedAudioAsset::LoadFromFile(const std::string& filenameIn)
 {
 	const std::string filename = KoResolveAudioPath(filenameIn);
+	if (filename.empty())
+		return false;
 	if (KoHasExt(filename, ".ogg"))
 	{
 		FileReader file;
@@ -118,6 +128,8 @@ StreamedAudioAsset::StreamedAudioAsset()
 bool StreamedAudioAsset::LoadFromFile(const std::string& filenameIn)
 {
 	const std::string filename = KoResolveAudioPath(filenameIn);
+	if (filename.empty())
+		return false;
 	if (KoHasExt(filename, ".ogg"))
 	{
 		// Tam çözüp bellek içi PCM akışı olarak sun (AudioDecoderThread: File boşsa OwnedPcm'den okur)

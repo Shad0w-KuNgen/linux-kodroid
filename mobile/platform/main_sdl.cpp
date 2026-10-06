@@ -553,6 +553,7 @@ int main(int argc, char** argv)
 	// Mantıksal çözünürlük (mobilde ekran yüksekliği 768'e ölçeklenir; d3d9gles FBO ile büyütür)
 	KoTouch().SetEnabled(g_touchControls);
 	CGameProcedure::s_bTouchControls = g_touchControls;
+	CGameProcedure::s_pfnTouchInfoLine = [](const std::string& t, uint32_t c) { KoTouch().AddInfoLine(t, c); };
 	if (std::getenv("KO_TOUCH_DEBUG"))
 		KoTouch().SetForceVisible(true);
 	UpdateLogicalSize();

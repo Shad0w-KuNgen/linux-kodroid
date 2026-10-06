@@ -326,6 +326,21 @@ void CUIMessageWnd::AddLineBuffer(const std::string& szString, D3DCOLOR color)
 			if ((iCX + size.cx) > iRegionWidth) // 가로 길이가 넘었으면
 			{
 				// 한 라인 더 추가하기
+				// Sözcük ortasından bölme ("facing t" / "he wrong"): satırda boşluk varsa oradan kır
+				{
+					size_t iSpace = szString.rfind(' ', (size_t) iCount);
+					if (iSpace != std::string::npos && (int) iSpace > iLineStart)
+					{
+						__ChatInfo* pLineInfo = new __ChatInfo;
+						m_LineBuffer.push_back(pLineInfo);
+						pLineInfo->color  = color;
+						pLineInfo->szChat = szString.substr(iLineStart, (int) iSpace - iLineStart);
+						iLineStart = (int) iSpace + 1;
+						iCount     = iLineStart;
+						iCX        = 0;
+						continue;
+					}
+				}
 
 				int iLineLength = iCount - iLineStart;
 				if (iLineLength > 0)

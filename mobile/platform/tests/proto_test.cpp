@@ -369,6 +369,40 @@ static void BuildUserInfo(W& w, bool clan)
 	w.u8(21).u8(0xFF).u8(0xFF).u32(0).u8(0).u8(0).u8(0).u8(0).u8(0).u16(0).u32(1).u32(0).u16(0);
 }
 
+// v167 telefon günlüğünden ham MYINFO (opcode sonrası, osman): MaxHP 2002, HP 100, MaxMP 1982, MP 1982, altın 1000010331
+static void TestMyInfoRaw2369()
+{
+	std::printf("TestMyInfoRaw2369\n");
+	const char* hex =
+		"01 00 05 6f 73 6d 61 6e 93 22 46 29 c4 00 02 0b ce 00 00 00 00 00 00 00 00 00 00 53 24 01 90 d1 ea 06 02 00 00 00 "
+		"92 fa c9 02 00 00 00 00 bf 58 00 00 52 55 00 00 99 3a 05 00 00 03 05 48 55 4d 41 4e 01 00 01 00 03 00 00 00 00 01 "
+		"02 03 04 05 d2 07 64 00 be 07 be 07 f6 22 00 00 cd 01 00 00 48 18 44 00 3c 00 32 00 32 00 19 00 93 00 00 00 00 00 "
+		"00 00 5b f2 9a 3b 00 ff ff 37 00 00 00 00 50 00 0d 00";
+	std::vector<uint8_t> b;
+	for (const char* p = hex; *p;)
+	{
+		while (*p == ' ') p++;
+		if (!*p) break;
+		b.push_back((uint8_t) std::strtoul(std::string(p, 2).c_str(), nullptr, 16));
+		p += 2;
+	}
+	// eşya listesi + kuyruk: sıfırlarla doldur (okuyucu yalnız yeterli bayt ister)
+	b.resize(b.size() + 19 * KoProto::INVENTORY_TOTAL_2369 + 8, 0);
+	Packet p;
+	p.append(b.data(), b.size());
+	KoProto::MyInfo2369 m;
+	bool ok = KoProto::ParseMyInfo2369(p, m);
+	CHECK(ok, "ham MYINFO cozulemedi");
+	CHECK(m.name == "osman", "ad %s", m.name.c_str());
+	CHECK(m.level == 83, "seviye %d", (int) m.level);
+	CHECK(m.maxHp == 2002 && m.hp == 100, "HP %d/%d (2002/100 bekleniyor)", (int) m.hp, (int) m.maxHp);
+	CHECK(m.maxMp == 1982 && m.mp == 1982, "MP %d/%d", (int) m.mp, (int) m.maxMp);
+	CHECK(m.maxWeight == 8950 && m.weight == 461, "agirlik %u/%u", (unsigned) m.weight, (unsigned) m.maxWeight);
+	CHECK(m.str == 72 && m.sta == 68, "STR %d STA %d", (int) m.str, (int) m.sta);
+	CHECK(m.gold == 1000010331u, "altin %u", (unsigned) m.gold);
+	CHECK(m.clanID == 15001 && m.clan.name == "HUMAN", "klan %d %s", (int) m.clanID, m.clan.name.c_str());
+}
+
 static void TestUserInfo()
 {
 	std::printf("[test] WIZ_USER_INOUT / REQ_USERIN 2369\n");
@@ -504,6 +538,7 @@ int main()
 	TestVersionAndCompressed();
 	TestAllCharInfo();
 	TestMyInfo();
+	TestMyInfoRaw2369();
 	TestUserInfo();
 	TestNpcInfo();
 	TestChatMap();

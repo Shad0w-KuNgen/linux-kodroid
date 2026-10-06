@@ -4,6 +4,7 @@
 
 #include "StdAfx.h"
 #include "UIHotKeyDlg.h"
+#include <utility>
 #include <N3Base/LogWriter.h>
 #include "LocalInput.h"
 #include "GameProcMain.h"
@@ -1175,4 +1176,42 @@ void CUIHotKeyDlg::SetHotKeyTooltip(__IconItemSkill* spSkill)
 	std::string szTooltip = fmt::format("[{}] {}", spSkill->pSkill->szName, spSkill->pSkill->szDesc);
 	spSkill->pUIIcon->SetTooltipText(szTooltip);
 	spSkill->pUIIcon->SetTooltipColor(D3DCOLOR_XRGB(0x80, 0x80, 0xFF));
+}
+
+
+void CUIHotKeyDlg::ClearSlot(int iIndex)
+{
+	if (iIndex < 0 || iIndex >= MAX_SKILL_IN_HOTKEY || m_iCurPage < 0 || m_iCurPage >= MAX_SKILL_HOTKEY_PAGE)
+		return;
+	__IconItemSkill* spSkill = m_pMyHotkey[m_iCurPage][iIndex];
+	if (spSkill == nullptr)
+		return;
+	if (spSkill->pUIIcon)
+	{
+		RemoveChild(spSkill->pUIIcon);
+		spSkill->pUIIcon->Release();
+		delete spSkill->pUIIcon;
+		spSkill->pUIIcon = nullptr;
+	}
+	delete spSkill;
+	m_pMyHotkey[m_iCurPage][iIndex] = nullptr;
+	CLogWriter::Write("Kısayol: sayfa {} yuva {} boşaltıldı", m_iCurPage + 1, iIndex + 1);
+}
+
+void CUIHotKeyDlg::SwapSlots(int iA, int iB)
+{
+	if (iA == iB || iA < 0 || iB < 0 || iA >= MAX_SKILL_IN_HOTKEY || iB >= MAX_SKILL_IN_HOTKEY)
+		return;
+	std::swap(m_pMyHotkey[m_iCurPage][iA], m_pMyHotkey[m_iCurPage][iB]);
+	for (int i : {iA, iB})
+	{
+		__IconItemSkill* p = m_pMyHotkey[m_iCurPage][i];
+		CN3UIArea* pArea   = GetChildAreaByiOrder(UI_AREA_TYPE_SKILL_HOTKEY, i);
+		if (p && p->pUIIcon && pArea)
+		{
+			p->pUIIcon->SetRegion(pArea->GetRegion());
+			p->pUIIcon->SetMoveRect(pArea->GetRegion());
+		}
+	}
+	CLogWriter::Write("Kısayol: sayfa {} yuva {} <-> {}", m_iCurPage + 1, iA + 1, iB + 1);
 }

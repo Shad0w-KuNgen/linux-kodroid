@@ -285,7 +285,9 @@ void KoTouchOverlay::Layout(int w, int h)
 	{
 		float cx = gridRight - (3 - i) * (t + gap) - t / 2.0f;
 		ring(Action::Key, hotkeys[i], names[i], cx, rowY0, r, COL_SLOT);
+		m_buttons.back().hotkeySlot = i;
 		ring(Action::Key, hotkeys[4 + i], names[4 + i], cx, rowY1, r, COL_SLOT);
+		m_buttons.back().hotkeySlot = 4 + i;
 	}
 	const float gridLeft = gridRight - 4 * (t + gap) + gap;
 
@@ -295,6 +297,7 @@ void KoTouchOverlay::Layout(int w, int h)
 		const float pgap  = 4.0f * u;
 		const float pw    = (gridW - 7 * pgap) / 8.0f, ph = std::max(24.0f * u, t * 0.5f);
 		const float py    = rowY0 - t / 2.0f - gap - ph / 2.0f;
+		m_clusterTop      = py - ph / 2.0f;
 		for (int i = 0; i < 8; ++i)
 		{
 			Button b;
@@ -452,11 +455,11 @@ void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
 			m_buttons[b].finger    = id;
 			m_buttons[b].down      = true;
 			m_buttons[b].fired     = false;
-			m_buttons[b].tapQueued = true; // Update() çalışmadan parmak kalksa bile tuş bir kare işlenir
+			m_buttons[b].tapQueued = m_buttons[b].hotkeySlot < 0; // beceri yuvası: tuş kalkışta (sürükleme ayrımı için)
 			m_fingers.push_back(f);
 			return;
 		}
-		if (!m_hidden && m_joyFinger < 0 && InJoystickZone(x, y) && !CGameProcedure::s_bTouchLockMove)
+		if (!m_hidden && m_joyFinger < 0 && InJoystickZone(x, y) && !CGameProcedure::s_bTouchLockMove && !IsOverDialogUI(x, y))
 		{
 			f.role      = Role::Joystick;
 			m_joyFinger = id;
@@ -481,6 +484,11 @@ void KoTouchOverlay::OnFingerMotion(int64_t id, int x, int y)
 	KoInputState& in = KoInput();
 	switch (f->role)
 	{
+		case Role::Button:
+			if (f->buttonIndex >= 0 && f->buttonIndex < (int) m_buttons.size() && m_buttons[f->buttonIndex].hotkeySlot >= 0
+				&& (std::abs(x - f->startX) > TAP_SLOP || std::abs(y - f->startY) > TAP_SLOP))
+				f->slotDrag = true;
+			break;
 		case Role::Pending:
 			if (std::abs(x - f->startX) > TAP_SLOP || std::abs(y - f->startY) > TAP_SLOP)
 			{
@@ -547,8 +555,25 @@ void KoTouchOverlay::ReleaseFinger(Finger& f)
 		case Role::Button:
 			if (f.buttonIndex >= 0 && f.buttonIndex < (int) m_buttons.size())
 			{
-				m_buttons[f.buttonIndex].down   = false;
-				m_buttons[f.buttonIndex].finger = -1;
+				Button& b = m_buttons[f.buttonIndex];
+				b.down    = false;
+				b.finger  = -1;
+				if (b.hotkeySlot >= 0)
+				{
+					CUIHotKeyDlg* pHK = (CGameProcedure::s_pProcMain != nullptr) ? CGameProcedure::s_pProcMain->m_pUIHotKeyDlg : nullptr;
+					float dx = (float) f.x - b.cx, dy = (float) f.y - b.cy;
+					bool bOutside = (dx * dx + dy * dy) > (b.r * 1.6f) * (b.r * 1.6f);
+					if (!f.slotDrag && !bOutside)
+						b.tapQueued = true; // dokunuş = beceriyi kullan
+					else if (pHK != nullptr)
+					{
+						int iOther = HitHotkeyRing(f.x, f.y);
+						if (iOther >= 0 && iOther != b.hotkeySlot)
+							pHK->SwapSlots(b.hotkeySlot, iOther); // başka yuvaya bırak = yer değiştir
+						else if (bOutside)
+							pHK->ClearSlot(b.hotkeySlot);          // dışarı bırak = yuvadan kaldır
+					}
+				}
 			}
 			break;
 		case Role::Joystick:
@@ -710,7 +735,11 @@ void KoTouchOverlay::Update()
 			continue;
 		switch (b.action)
 		{
-			case Action::Key: in.virtualKeysDIK[b.dik] = 0x80; break;
+			case Action::Key:
+				if (b.hotkeySlot >= 0 && b.down)
+					break; // yuva basılı tutuluyor: sürükleme olabilir; tuş kalkışta (tapQueued) işlenir
+				in.virtualKeysDIK[b.dik] = 0x80;
+				break;
 			case Action::ToggleHide:
 				if (!b.fired)
 				{
@@ -1015,6 +1044,8 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 	{
 		DrawSkillIcons(dev);
 		setup();
+		DrawInfoLines(dev);
+		setup();
 	}
 	// Oyuncu menüsü
 	{
@@ -1144,4 +1175,86 @@ bool KoTouchOverlay::HitPlayerMenu(int x, int y)
 			return true;
 		}
 	return false;
+}
+
+
+bool KoTouchOverlay::IsOverDialogUI(int x, int y) const
+{
+	CUIManager* mgr = CGameProcedure::s_pUIMgr;
+	if (!mgr || !mgr->IsVisible())
+		return false;
+	CGameProcMain* pMain = CGameProcedure::s_pProcMain;
+	for (CN3UIBase* child : mgr->GetChildren())
+	{
+		if (child == nullptr || !child->IsVisible() || !child->IsIn(x, y))
+			continue;
+		if (pMain != nullptr)
+		{
+			// Kalıcı HUD pencereleri joystick alanını kapatmaz
+			if (child == (CN3UIBase*) pMain->m_pUIChatDlg || child == (CN3UIBase*) pMain->m_pUIMsgDlg
+				|| child == (CN3UIBase*) pMain->m_pUIStateBarAndMiniMap || child == (CN3UIBase*) pMain->m_pUIHotKeyDlg
+				|| child == (CN3UIBase*) pMain->m_pUICmd)
+				continue;
+		}
+		return true;
+	}
+	return false;
+}
+
+int KoTouchOverlay::HitHotkeyRing(int x, int y) const
+{
+	for (const Button& b : m_buttons)
+	{
+		if (b.hotkeySlot < 0)
+			continue;
+		float dx = x - b.cx, dy = y - b.cy;
+		if (dx * dx + dy * dy <= b.r * b.r * 1.3f)
+			return b.hotkeySlot;
+	}
+	return -1;
+}
+
+void KoTouchOverlay::AddInfoLine(const std::string& text, uint32_t color)
+{
+	m_infoLines.push_back({text, color, (uint32_t) timeGetTime()});
+	while (m_infoLines.size() > 6)
+		m_infoLines.pop_front();
+}
+
+void KoTouchOverlay::DrawInfoLines(IDirect3DDevice9* dev)
+{
+	if (m_infoLines.empty() || !IsInGame())
+		return;
+	const uint32_t now = timeGetTime();
+	while (!m_infoLines.empty() && now - m_infoLines.front().ticks > 9000)
+		m_infoLines.pop_front();
+	if (m_infoLines.empty())
+		return;
+	const float u = m_u, lh = 15.0f * u, pad = 6.0f * u;
+	const float right = (float) m_w - (CGameProcedure::s_iTouchInsetRight > 0 ? (float) CGameProcedure::s_iTouchInsetRight : 90.0f * u);
+	const float w     = std::min((float) m_w * 0.42f, 420.0f * u);
+	float bottom      = (m_clusterTop > 0 ? m_clusterTop : m_h * 0.5f) - 6.0f * u;
+	float top         = bottom - pad * 2 - lh * (float) m_infoLines.size();
+	DrawRect(dev, right - w, top, w, bottom - top, 0x60000000); // yarı saydam zemin
+	int idx = 300;
+	float y = top + pad + lh / 2;
+	for (const InfoLine& l : m_infoLines)
+	{
+		uint32_t age   = now - l.ticks;
+		uint32_t alpha = age > 6000 ? (uint32_t) (255 * (9000 - age) / 3000) : 255;
+		uint32_t col   = (alpha << 24) | (l.color & 0x00FFFFFF);
+		while ((int) m_fonts.size() <= idx)
+			m_fonts.push_back(nullptr);
+		CDFont*& f = m_fonts[idx];
+		if (!f)
+		{
+			f = new CDFont("Arial", (uint32_t) (12.0f * u), 0);
+			f->InitDeviceObjects(dev);
+			f->RestoreDeviceObjects();
+		}
+		f->SetText(l.text);
+		f->DrawText(right - w + pad, y - lh / 2, col, 0);
+		y += lh;
+		idx++;
+	}
 }

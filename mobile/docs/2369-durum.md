@@ -34,6 +34,27 @@ tutulur. Her büyük değişiklik commit mesajında ve burada kısaca açıklan�
    düğmelerinin altında, hedef sütununun solunda.
 7. **PUS**: `CUIPowerUpStore2369` sunucudan XSafe PUS/PusCat/CASHCHANGE listesini alır (v163).
 
+## v168 (v167 kök sorunlar)
+1. **HP 0/34 kök nedeni**: `WIZ_ITEM_MOVE (0x1f)`; sunucu `SendItemMove` girişte (`SetUserAbility`) yetenek paketini yayınlar:
+   `u8 komut, u8 alt, u16 vuruş, u16 savunma, u32 maxAğırlık, u8 0, u8 0, u16 maxHP, u16 maxMP, 5×i16 stat bonus,
+   6×u16 direnç, u32 KC, 7×u16 silah direnci, u32 tamir, i16 HP, i16 MP`. İstemci 1298 düzeniyle okuyup HPMax'ı
+   `f6 22 00 00` içinden (34) alıyordu. 2369 dalı eklendi; Log: `WIZ_ITEM_MOVE (2369) yetenek: …`. MYINFO ve LEVEL_CHANGE
+   zaten doğruydu; `ko_proto_test` içinde ham MYINFO testi (`TestMyInfoRaw2369`, v167 günlüğünden) 2002/100/1982 doğrular.
+   Sıkıştırılmış paketlerin iç opcode'u bir kez günlüğe yazılır.
+2. **Ses**: dosya çözümleme sessiz (`KoResolvePath` + stat), eksik dosya adı bir kez günlüğe (`Ses dosyası yok (bir kez)`),
+   .mp3/.wav/.ogg hangisi varsa; bölge müziği `Zones.tbl` yakalanan sütunlarından (`KoZoneBgmFile`, Log: `Bölge müziği`),
+   bölge değişince değişir; ayak sesleri `Data\move_sound.tbl` (ırk satırı, sütun 0); beceri/mob sesleri sound.tbl kimlikleriyle
+   zaten çağrılıyor (dosya bulununca çalar). 279 eksik ses ISTIRAP verisinde de yok.
+3. **Beceri yuvaları (kaplama)**: halkaya dokunuş = kullan (tuş kalkışta); basılı tutup dışarı bırak = yuvayı boşalt
+   (`CUIHotKeyDlg::ClearSlot`); başka halkaya bırak = yer değiştir (`SwapSlots`). Eşya (pot) yuvaya koymak için
+   çantadan sürükleme hedefi hâlâ yok (gizli pencere); HP/MP düğmeleri `HpSlot/MpSlot` ayarıyla yuva tuşuna basar.
+4. **Joystick / pencere**: açık iletişim penceresi (çanta, karakter, beceri…) alanındaki dokunuş pencereye gider
+   (`IsOverDialogUI`); sohbet/durum çubuğu gibi kalıcı HUD joystick'i engellemez.
+5. **Klan**: 2369 `re_clan_window.istirap` genel pencere olarak açılır (klan adı yazılır); üye listesi için 2369
+   `WIZ_KNIGHTS_PROCESS` yanıt düzenleri henüz çözülmedi (sunucu `KnightsManager`).
+6. **Bilgi/hasar satırları**: büyük kutu gizli; `MsgOutput` iletileri kaplamada beceri kümesinin üstünde, sağa hizalı,
+   yarı saydam 6 satır (9 sn sonra solar). Sözcük ortasından bölünme ("he wrong") için bilgi kutusu satır kırma boşluktan.
+
 ## Açık işler (kolaylar — yerel Claude)
 - Metin/etiket düzeltmeleri (kaplama etiketleri ASCII: PARTI, FISILDA…; Türkçe karakterli etiketler için fontta ğ/ş var).
 - Klan sayfası metinleri ("Membe", "LevelClas") kesiliyor: yazı tipi genişliği; `co_page_clan.uif` yerine

@@ -4,6 +4,7 @@
 
 #include "StdAfx.h"
 #include "PlayerBase.h"
+#include "KoProtocol.h"
 #include "N3WorldManager.h"
 #include "N3FXMgr.h"
 
@@ -158,7 +159,17 @@ void CPlayerBase::SetSoundAndInitFont(uint32_t dwFontFlag)
 	m_bSoundAllSet = true;
 
 	if (m_pSnd_Move == nullptr)
-		m_pSnd_Move = s_SndMgr.CreateObj(m_pLooksRef->iSndID_Move);
+	{
+		int iSndMove = m_pLooksRef->iSndID_Move;
+		if (KoProto::Is2369() && (m_ePlayerType == PLAYER_OTHER || m_ePlayerType == PLAYER_MYSELF))
+		{
+			// 2369: oyuncu ayak sesi move_sound.tbl'den (ırk satırı, ilk sütun = varsayılan zemin)
+			if (__TABLE_MOVE_SOUND* pMS = CGameBase::s_pTbl_MoveSound.Find((uint32_t) m_InfoBase.eRace))
+				if (pMS->iSnd[0] > 0)
+					iSndMove = pMS->iSnd[0];
+		}
+		m_pSnd_Move = s_SndMgr.CreateObj(iSndMove);
+	}
 
 	if (m_pSnd_Struck_0 == nullptr)
 		m_pSnd_Struck_0 = s_SndMgr.CreateObj(m_pLooksRef->iSndID_Struck0);

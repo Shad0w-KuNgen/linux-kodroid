@@ -13,3 +13,7 @@ void KoUiRowCapture(const std::string& szFile, uint32_t dwKey, const std::vector
 void KoUiApplySlots2369(uint32_t dwNationKey, __TABLE_UI_RESRC& r);
 // Yakalanan sütunları (varsa) döndür — tanılama günlüğü için
 const std::vector<std::string>* KoUiCapturedColumns(uint32_t dwNationKey);
+/// 2369 Zones.tbl satır yakalama (ses/müzik sütunları struct'ta yok)
+void KoZoneRowCapture(const std::string& szFile, uint32_t dwKey, const std::vector<std::string>& cols);
+/// Bölgenin müzik dosyası (ör. "Snd\\21_moradon.ogg"); yoksa boş. iZone ve iZone/10 denenir.
+std::string KoZoneBgmFile(int iZone);

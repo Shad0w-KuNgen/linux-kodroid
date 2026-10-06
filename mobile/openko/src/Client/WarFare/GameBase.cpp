@@ -26,6 +26,7 @@ CN3TableBase<__TABLE_PLAYER_LOOKS> CGameBase::s_pTbl_UPC_Looks;
 CN3TableBase<__TABLE_PLAYER_LOOKS> CGameBase::s_pTbl_NPC_Looks;
 CN3TableBase<__TABLE_NPC_NAME> CGameBase::s_pTbl_NPC_Names;
 CN3TableBase<__TABLE_NPC_NAME> CGameBase::s_pTbl_Mob_Names;
+CN3TableBase<__TABLE_MOVE_SOUND> CGameBase::s_pTbl_MoveSound;
 CN3TableBase<__TABLE_UPC_SKILL> CGameBase::s_pTbl_Skill;
 CN3TableBase<__TABLE_FX> CGameBase::s_pTbl_FXSource;
 CN3TableBase<__TABLE_QUEST_MENU> CGameBase::s_pTbl_QuestMenu;
@@ -56,7 +57,19 @@ void CGameBase::StaticMemberInit()
 	szFN = "Data\\Texts" + szLangTail;
 	s_pTbl_Texts.LoadFromFile(szFN);
 	szFN = "Data\\Zones.tbl";
+	if (KoProto::Is2369())
+	{
+		CN3TableBaseImpl::s_pfnRowStrings    = KoZoneRowCapture; // bölge müziği sütunları
+		CN3TableBaseImpl::s_szRowStringsFile = "zones";
+	}
 	s_pTbl_Zones.LoadFromFile(szFN);
+	CN3TableBaseImpl::s_pfnRowStrings = nullptr;
+	if (KoProto::Is2369())
+	{
+		if (s_pTbl_MoveSound.LoadFromFile("Data\\move_sound.tbl"))
+			CLogWriter::Write("Ayak sesi tablosu: Data\\move_sound.tbl ({} satır)", s_pTbl_MoveSound.GetSize());
+		CLogWriter::Write("Bölge müziği örnekleri: 21 -> \"{}\", 1 -> \"{}\"", KoZoneBgmFile(21), KoZoneBgmFile(1));
+	}
 	szFN = "Data\\UIs" + szLangTail;
 	if (KoProto::Is2369())
 	{

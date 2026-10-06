@@ -21,7 +21,8 @@ public:
 	static CN3TableBase<__TABLE_PLAYER_LOOKS> s_pTbl_UPC_Looks;                  // Default model information for player characters
 	static CN3TableBase<__TABLE_PLAYER_LOOKS> s_pTbl_NPC_Looks;                  // Default model information for NPCs/monsters
 	static CN3TableBase<__TABLE_NPC_NAME> s_pTbl_NPC_Names;                      // 2369: NPC_us.tbl (K_NPC id → display name)
-	static CN3TableBase<__TABLE_NPC_NAME> s_pTbl_Mob_Names;                      // 2369: mob_us.tbl (monster id → display name)
+	static CN3TableBase<__TABLE_NPC_NAME> s_pTbl_Mob_Names;
+	static CN3TableBase<__TABLE_MOVE_SOUND> s_pTbl_MoveSound;                    // 2369: move_sound.tbl (ırk → ayak sesleri)                      // 2369: mob_us.tbl (monster id → display name)
 	static CN3TableBase<__TABLE_UPC_SKILL> s_pTbl_Skill;                         // Base skill data
 	static CN3TableBase<__TABLE_FX> s_pTbl_FXSource;                             // Effect data (filename and settings)
 	static CN3TableBase<__TABLE_QUEST_MENU> s_pTbl_QuestMenu;                    // Quest menu button resources

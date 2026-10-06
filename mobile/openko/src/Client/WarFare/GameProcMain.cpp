@@ -318,7 +318,14 @@ void CGameProcMain::Init()
 
 	if (m_pSnd_Town == nullptr)
 	{
-		m_pSnd_Town = s_pEng->s_SndMgr.CreateStreamObj(ID_SOUND_BGM_TOWN); // 마을음악 ID
+		std::string szZoneBgm = KoProto::Is2369() ? KoZoneBgmFile(s_pPlayer->m_InfoExt.iZoneCur) : std::string();
+		if (!szZoneBgm.empty())
+		{
+			m_pSnd_Town = s_pEng->s_SndMgr.CreateStreamObj(szZoneBgm); // 2369: bölgenin kendi müziği (Zones.tbl)
+			CLogWriter::Write("Bölge müziği ({}): {} -> {}", s_pPlayer->m_InfoExt.iZoneCur, szZoneBgm, m_pSnd_Town ? "açıldı" : "açılamadı");
+		}
+		if (m_pSnd_Town == nullptr)
+			m_pSnd_Town = s_pEng->s_SndMgr.CreateStreamObj(ID_SOUND_BGM_TOWN); // 마을음악 ID
 		if (m_pSnd_Town)
 		{
 			m_pSnd_Town->Looping(true);
@@ -3855,6 +3862,64 @@ bool CGameProcMain::MsgRecv_ItemMove(Packet& pkt)
 	__InfoPlayerBase* pInfoBase  = &(s_pPlayer->m_InfoBase);
 
 	uint8_t bResult              = pkt.read<uint8_t>(); // 0x01 : true, 0x00 : false..
+	if (KoProto::Is2369())
+	{
+		// 2369 (User.cpp SendItemMove): u8 komut, u8 altKomut; altKomut != 0 ise: u16 vuruş, u16 savunma, u32 maxAğırlık,
+		// u8 0, u8 0, u16 maxHP, u16 maxMP, 5×i16 stat bonusu, 6×u16 direnç, u32 KC, 7×u16 silah direnci, u32 tamir, i16 HP, i16 MP.
+		// Eski 1298 okuması bu paketi (girişte SetUserAbility yayınlar) yanlış hizalayıp HP'yi 0/34 yapıyordu.
+		uint8_t bySub = pkt.read<uint8_t>();
+		if (bySub == 0 || pkt.size() < pkt.rpos() + 2 + 2 + 4 + 2 + 2 + 2)
+			return true;
+		pInfoExt->iAttack    = pkt.read<uint16_t>();
+		pInfoExt->iGuard     = pkt.read<uint16_t>();
+		pInfoExt->iWeightMax = (int) pkt.read<uint32_t>();
+		pkt.read<uint8_t>();
+		pkt.read<uint8_t>();
+		pInfoBase->iHPMax             = pkt.read<uint16_t>();
+		pInfoExt->iMSPMax             = pkt.read<uint16_t>();
+		pInfoExt->iStrength_Delta     = pkt.read<int16_t>();
+		pInfoExt->iStamina_Delta      = pkt.read<int16_t>();
+		pInfoExt->iDexterity_Delta    = pkt.read<int16_t>();
+		pInfoExt->iIntelligence_Delta = pkt.read<int16_t>();
+		pInfoExt->iMagicAttak_Delta   = pkt.read<int16_t>();
+		pInfoExt->iRegistFire         = pkt.read<uint16_t>();
+		pInfoExt->iRegistCold         = pkt.read<uint16_t>();
+		pInfoExt->iRegistLight        = pkt.read<uint16_t>();
+		pInfoExt->iRegistMagic        = pkt.read<uint16_t>();
+		pInfoExt->iRegistCurse        = pkt.read<uint16_t>();
+		pInfoExt->iRegistPoison       = pkt.read<uint16_t>();
+		if (pkt.size() >= pkt.rpos() + 4 + 14 + 4 + 2 + 2)
+		{
+			pkt.read<uint32_t>(); // Knight Cash
+			for (int i = 0; i < 7; i++)
+				pkt.read<uint16_t>(); // silah dirençleri
+			pkt.read<uint32_t>(); // tamir ücreti
+			pInfoBase->iHP = pkt.read<int16_t>();
+			pInfoExt->iMSP = pkt.read<int16_t>();
+		}
+		if (pInfoBase->iHP > pInfoBase->iHPMax)
+			pInfoBase->iHP = pInfoBase->iHPMax;
+		if (pInfoExt->iMSP > pInfoExt->iMSPMax)
+			pInfoExt->iMSP = pInfoExt->iMSPMax;
+		static int s_iLogged = 0;
+		if (s_iLogged++ < 5)
+			CLogWriter::Write("WIZ_ITEM_MOVE (2369) yetenek: komut {} alt {} HP {}/{} MP {}/{} vuruş {} savunma {} ağırlık {}", (int) bResult,
+				(int) bySub, pInfoBase->iHP, pInfoBase->iHPMax, pInfoExt->iMSP, pInfoExt->iMSPMax, pInfoExt->iAttack, pInfoExt->iGuard,
+				pInfoExt->iWeightMax);
+		m_pUIVar->m_pPageState->UpdateHP(pInfoBase->iHP, pInfoBase->iHPMax);
+		m_pUIVar->m_pPageState->UpdateMSP(pInfoExt->iMSP, pInfoExt->iMSPMax);
+		m_pUIStateBarAndMiniMap->UpdateHP(pInfoBase->iHP, pInfoBase->iHPMax, false);
+		m_pUIStateBarAndMiniMap->UpdateMSP(pInfoExt->iMSP, pInfoExt->iMSPMax, false);
+		m_pUIVar->m_pPageState->UpdateAttackPoint(pInfoExt->iAttack, pInfoExt->iAttack_Delta);
+		m_pUIVar->m_pPageState->UpdateGuardPoint(pInfoExt->iGuard, pInfoExt->iGuard_Delta);
+		m_pUIVar->m_pPageState->UpdateWeight(pInfoExt->iWeight, pInfoExt->iWeightMax);
+		m_pUIVar->m_pPageState->UpdateStrength(pInfoExt->iStrength, pInfoExt->iStrength_Delta);
+		m_pUIVar->m_pPageState->UpdateStamina(pInfoExt->iStamina, pInfoExt->iStamina_Delta);
+		m_pUIVar->m_pPageState->UpdateDexterity(pInfoExt->iDexterity, pInfoExt->iDexterity_Delta);
+		m_pUIVar->m_pPageState->UpdateIntelligence(pInfoExt->iIntelligence, pInfoExt->iIntelligence_Delta);
+		m_pUIVar->m_pPageState->UpdateMagicAttak(pInfoExt->iMagicAttak, pInfoExt->iMagicAttak_Delta);
+		return true;
+	}
 	if (bResult)
 	{
 		pInfoExt->iAttack             = pkt.read<int16_t>();
@@ -4460,11 +4525,8 @@ void CGameProcMain::InitUI()
 	{
 		// Dokunmatik: bilgi (hasar) kutusu orijinaldeki gibi ayrı kalır; sağ alt kaplama kümesiyle çakışmasın diye
 		// kamera düğmelerinin altına, ekranın sağ yarısına (hedef sütununun soluna) konur
-		RECT rcMsg = m_pUIMsgDlg->GetRegion();
-		int iMW    = rcMsg.right - rcMsg.left;
-		int iTop   = s_iTouchInsetTop > 0 ? s_iTouchInsetTop : iH / 6;
-		int iRight = s_iTouchInsetRight > 0 ? s_iTouchInsetRight : iW / 12;
-		m_pUIMsgDlg->SetPos(std::max(iW / 2, iW - iRight - iMW - 4), iTop + 4);
+		// Büyük 2369 bilgi kutusu ekranı kaplıyordu: dokunmatikte gizli; iletiler kaplamada küçük satırlar olarak
+		m_pUIMsgDlg->SetVisibleWithNoSound(false);
 	}
 
 	m_pUIStateBarAndMiniMap->Init(s_pUIMgr);
@@ -5011,6 +5073,22 @@ bool CGameProcMain::MsgRecv_ItemTradeResult(Packet& pkt) // 아이템 상거래 
 
 void CGameProcMain::InitZone(int iZone, const __Vector3& vPosPlayer)
 {
+	if (KoProto::Is2369() && m_pSnd_Town != nullptr)
+	{
+		// Bölge değişince o bölgenin müziğine geç
+		std::string szZoneBgm = KoZoneBgmFile(iZone);
+		if (!szZoneBgm.empty())
+		{
+			s_pEng->s_SndMgr.ReleaseStreamObj(&m_pSnd_Town);
+			m_pSnd_Town = s_pEng->s_SndMgr.CreateStreamObj(szZoneBgm);
+			if (m_pSnd_Town)
+			{
+				m_pSnd_Town->Looping(true);
+				m_pSnd_Town->Play(nullptr, 3.0f);
+			}
+			CLogWriter::Write("Bölge müziği ({}): {} -> {}", iZone, szZoneBgm, m_pSnd_Town ? "açıldı" : "açılamadı");
+		}
+	}
 	if (m_pSnd_Battle)
 		m_pSnd_Battle->Stop(0.0f); // 음악 멈추기..
 	if (m_pSnd_Town)
@@ -5510,7 +5588,9 @@ void CGameProcMain::CommandCameraChange() // 카메라 시점 바꾸기..
 
 void CGameProcMain::MsgOutput(const std::string& szMsg, D3DCOLOR crMsg)
 {
-	m_pUIMsgDlg->AddMsg(szMsg, crMsg);
+	m_pUIMsgDlg->AddMsg(szMsg, crMsg); // Info sekmesi geçmişi (dokunmatikte kutu gizli)
+	if (KoProto::Is2369() && s_bTouchControls && s_pfnTouchInfoLine != nullptr)
+		s_pfnTouchInfoLine(szMsg, crMsg); // kaplama: beceri kümesinin üstünde küçük, yarı saydam satırlar
 }
 
 void CGameProcMain::MsgSend_FriendAdd(int iTargetID, const std::string& szName)

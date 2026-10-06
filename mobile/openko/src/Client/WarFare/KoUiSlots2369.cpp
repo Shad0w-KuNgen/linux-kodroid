@@ -110,3 +110,37 @@ void KoUiApplySlots2369(uint32_t dwNationKey, __TABLE_UI_RESRC& r)
 			szDump += fmt::format("[{}]{} ", i, cols[i]);
 	CLogWriter::Write("UIs_us.tbl ulus {} sütunları ({} değişti): {}", dwNationKey, iChanged, szDump);
 }
+
+
+// ---------------------------------------------------------------------------
+// 2369 Zones.tbl: 28 sütun; istemci struct'ı 24. Atlanan metin sütunları (9, 25, 26) arasında bölge müziği var.
+// ---------------------------------------------------------------------------
+namespace
+{
+std::map<uint32_t, std::vector<std::string>> g_ZoneRows;
+}
+
+void KoZoneRowCapture(const std::string& /*szFile*/, uint32_t dwKey, const std::vector<std::string>& cols)
+{
+	g_ZoneRows[dwKey] = cols;
+}
+
+std::string KoZoneBgmFile(int iZone)
+{
+	for (int key : {iZone, iZone / 10, iZone * 10})
+	{
+		auto it = g_ZoneRows.find((uint32_t) key);
+		if (it == g_ZoneRows.end())
+			continue;
+		for (const std::string& c : it->second)
+		{
+			std::string low = c;
+			for (char& ch : low)
+				ch = (char) tolower((unsigned char) ch);
+			if (low.find(".ogg") != std::string::npos || low.find(".mp3") != std::string::npos || low.find(".wav") != std::string::npos
+				|| low.rfind("snd\\", 0) == 0 || low.rfind("snd/", 0) == 0)
+				return c;
+		}
+	}
+	return std::string();
+}

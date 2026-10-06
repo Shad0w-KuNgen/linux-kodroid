@@ -287,6 +287,7 @@ protected:
 	CN3UIButton* m_pBtn_Friends;
 	CN3UIButton* m_pBtn_Close;
 	CN3UIButton* m_pBtn_Clan2369 = nullptr;    // 2369 re_various_frame: "btn_clan" (klan sayfası)
+	class CUIGeneric2369* m_pClanWnd2369 = nullptr; // 2369: ISTIRAP\re_clan_window.istirap (1.298 co_page_clan yerine)
 	CN3UIButton* m_pBtnPagePrev  = nullptr;    // son etkin sekme (eski static yeniden yüklemede takılıyordu)
 
 	bool m_bOpenningNow; // 열리고 있다..

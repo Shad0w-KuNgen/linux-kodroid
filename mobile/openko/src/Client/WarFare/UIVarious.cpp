@@ -4,6 +4,10 @@
 
 #include "StdAfx.h"
 #include "UIVarious.h"
+#include <cctype>
+#include "KoProtocol.h"
+#include "KoUiSlots2369.h"
+#include "UIGeneric2369.h"
 #include "UIManager.h"
 #include "UIInventory.h"
 #include "UITransactionDlg.h"
@@ -1456,6 +1460,12 @@ CUIVarious::~CUIVarious()
 
 void CUIVarious::Release()
 {
+	if (m_pClanWnd2369)
+	{
+		m_pClanWnd2369->Release();
+		delete m_pClanWnd2369;
+		m_pClanWnd2369 = nullptr;
+	}
 	CN3UIBase::Release();
 
 	m_pBtn_Knights = nullptr;
@@ -1521,6 +1531,29 @@ bool CUIVarious::Load(File& file)
 	// (CUIKnights::SetVisible erken dönüyordu → klan sayfası karakter bilgisinin üstünde açılıyordu).
 	m_pBtn_Clan2369 = GetChildByID<CN3UIButton>("btn_clan");
 	m_pBtnPagePrev  = nullptr;
+	if (KoProto::Is2369() && m_pClanWnd2369 == nullptr && CGameBase::s_pPlayer != nullptr)
+	{
+		// 2369'un kendi klan penceresi; UIs_us.tbl sütunlarında ada göre bulunur
+		const std::vector<std::string>* pCols = KoUiCapturedColumns((uint32_t) CGameBase::s_pPlayer->m_InfoBase.eNation);
+		std::string szFile;
+		if (pCols)
+			for (const std::string& c : *pCols)
+			{
+				std::string low = c;
+				for (char& ch : low) ch = (char) tolower((unsigned char) ch);
+				if (low.find("clan_window") != std::string::npos) { szFile = c; break; }
+			}
+		if (!szFile.empty())
+		{
+			m_pClanWnd2369 = new CUIGeneric2369();
+			m_pClanWnd2369->Init(CGameProcedure::s_pUIMgr);
+			if (!m_pClanWnd2369->LoadCentered(szFile, CN3Base::s_CameraData.vp.Width, CN3Base::s_CameraData.vp.Height, "Klan"))
+			{
+				delete m_pClanWnd2369;
+				m_pClanWnd2369 = nullptr;
+			}
+		}
+	}
 	for (CN3UIBase* pPage : {(CN3UIBase*) m_pPageKnights, (CN3UIBase*) m_pPageQuest, (CN3UIBase*) m_pPageFriends})
 		if (pPage)
 			pPage->CN3UIBase::SetVisible(false);
@@ -1541,7 +1574,24 @@ bool CUIVarious::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 		else if (pSender == m_pBtn_Quest)
 			this->UpdatePageButtons(m_pBtn_Quest);   // 퀘스트...
 		else if (pSender == m_pBtn_Knights || (m_pBtn_Clan2369 != nullptr && pSender == m_pBtn_Clan2369))
-			this->UpdatePageButtons(m_pBtn_Knights); // 기사단... 잠시 막자..
+		{
+			if (m_pClanWnd2369 != nullptr)
+			{
+				// 2369: klan sekmesi kendi penceresini açar; ad/derece bilgisi yazılır (üye listesi: sunucu paketi bekliyor)
+				for (CN3UIBase* pChild : m_pClanWnd2369->GetChildren())
+				{
+					if (pChild == nullptr || pChild->UIType() != UI_TYPE_STRING)
+						continue;
+					std::string low = pChild->m_szID;
+					for (char& ch : low) ch = (char) tolower((unsigned char) ch);
+					if (low.find("clan") != std::string::npos && low.find("name") != std::string::npos)
+						static_cast<CN3UIString*>(pChild)->SetString(CGameBase::s_pPlayer->m_InfoExt.szKnights);
+				}
+				m_pClanWnd2369->Toggle();
+			}
+			else
+				this->UpdatePageButtons(m_pBtn_Knights); // 기사단... 잠시 막자..
+		}
 		else if (pSender == m_pBtn_Friends)
 			this->UpdatePageButtons(m_pBtn_Friends);
 	}
