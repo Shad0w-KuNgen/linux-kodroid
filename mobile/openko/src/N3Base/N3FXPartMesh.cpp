@@ -7,6 +7,7 @@
 #include "N3FXShape.h"
 #include "N3FXPartMesh.h"
 #include "LogWriter.h"
+#include <cctype>
 #include "N3AnimKey.h"
 
 #include <shared/StringUtils.h>
@@ -233,9 +234,24 @@ bool CN3FXPartMesh::Load(File& file)
 	m_pRefShape = s_MngFXShape.Get(szShapeFileName);
 	if (m_pRefShape == nullptr)
 	{
+		// Özgün 2369 verisinde yazım hatalı uzantılar var (ice_cast0_3.fxb: "ice_cm.n32hape"); ".n3?hape" → ".n3shape" dene
+		std::string szFixed = szShapeFileName;
+		size_t nDot         = szFixed.rfind('.');
+		if (nDot != std::string::npos)
+		{
+			std::string szExt = szFixed.substr(nDot);
+			for (char& c : szExt)
+				c = (char) tolower((unsigned char) c);
+			if (szExt != ".n3shape" && szExt.size() == 8 && szExt.compare(0, 3, ".n3") == 0 && szExt.compare(4, 4, "hape") == 0)
+			{
+				szFixed.replace(nDot, std::string::npos, ".n3shape");
+				m_pRefShape = s_MngFXShape.Get(szFixed);
+			}
+		}
 		static int s_iLogged = 0;
 		if (s_iLogged++ < 20)
-			CLogWriter::Write("CN3FXPartMesh: efekt şekli yüklenemedi: \"{}\" (parça {}), efekt bu parça olmadan çalışır", szShapeFileName, m_szName);
+			CLogWriter::Write("CN3FXPartMesh: efekt şekli \"{}\" (parça {}): {}", szShapeFileName, m_szName,
+				m_pRefShape ? fmt::format("yazım hatası düzeltilerek yüklendi ({})", szFixed) : "yüklenemedi, efekt bu parça olmadan çalışır");
 	}
 	m_pShape->Duplicate(m_pRefShape);
 	m_pShape->SetPartsMtl(

@@ -303,7 +303,8 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
 - Yazı tipi: ana yüzde (Android `NotoSansCJK`) ğ/ş/İ yoksa Roboto/NotoSans/DejaVu yedek yüzünden alınır
   (`KO_FONT_FALLBACK` ile dosya verilebilir).
 - 2369 `.gtd` çim bloğu: yama başına 4 bayt (513 haritada 16384) — Ronark (freezone_b) döşemeleri artık yüklenir.
-- FX: `.fxb` parçasının şekli yüklenemezse (bozuk ad) efekt şekilsiz çalışır, çökmez; ad günlüğe yazılır.
+- FX: `.fxb` parçasının şekli yüklenemezse efekt şekilsiz çalışır, çökmez; ad günlüğe yazılır. Özgün 2369 verisinde
+  yazım hatalı uzantı var (`ice_cast0_3.fxb`: `ice_cm.n32hape`); `.n3?hape` → `.n3shape` ile yeniden denenir.
 
 - **2369 zemin delikleri (turkuaz/boş görünen yamalar)**: 2369 `.gtd` dosyasındaki yama başına "orta yükseklik +
   yarıçap" bloğu bu motorun anlamında değil (eksi yarıçaplar); görüş alanı sınaması yamaları yanlış elediği için
