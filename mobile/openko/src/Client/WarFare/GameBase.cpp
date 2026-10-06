@@ -25,6 +25,7 @@ CN3TableBase<__TABLE_ITEM_EXT> CGameBase::s_pTbl_Items_Exts[MAX_ITEM_EXTENSION];
 CN3TableBase<__TABLE_PLAYER_LOOKS> CGameBase::s_pTbl_UPC_Looks;
 CN3TableBase<__TABLE_PLAYER_LOOKS> CGameBase::s_pTbl_NPC_Looks;
 CN3TableBase<__TABLE_NPC_NAME> CGameBase::s_pTbl_NPC_Names;
+CN3TableBase<__TABLE_NPC_NAME> CGameBase::s_pTbl_Mob_Names;
 CN3TableBase<__TABLE_UPC_SKILL> CGameBase::s_pTbl_Skill;
 CN3TableBase<__TABLE_FX> CGameBase::s_pTbl_FXSource;
 CN3TableBase<__TABLE_QUEST_MENU> CGameBase::s_pTbl_QuestMenu;
@@ -105,6 +106,11 @@ void CGameBase::StaticMemberInit()
 			CLogWriter::Write("NPC ad tablosu yüklenemedi: {} (NPC adları model adıyla gösterilir)", szFN);
 		else
 			CLogWriter::Write("NPC ad tablosu: {} ({} satır)", szFN, s_pTbl_NPC_Names.GetSize());
+		szFN = "Data\\mob" + szLangTail; // canavar adları (Data\mob_us.tbl)
+		if (!s_pTbl_Mob_Names.LoadFromFile(szFN))
+			CLogWriter::Write("Canavar ad tablosu yüklenemedi: {}", szFN);
+		else
+			CLogWriter::Write("Canavar ad tablosu: {} ({} satır)", szFN, s_pTbl_Mob_Names.GetSize());
 	}
 	szFN = "Data\\skill_magic_main" + szLangTail;
 	s_pTbl_Skill.LoadFromFile(szFN);

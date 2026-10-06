@@ -4,6 +4,7 @@
 
 #include "StdAfx.h"
 #include "PlayerMySelf.h"
+#include <N3Base/LogWriter.h>
 #include "PacketDef.h"
 #include "PlayerOtherMgr.h"
 #include "N3WorldManager.h"
@@ -94,6 +95,8 @@ void CPlayerMySelf::Release()
 
 void CPlayerMySelf::SetMoveTargetID(int iID)
 {
+	if (m_iMoveTarget != iID)
+		CLogWriter::Write("Hedefe yürüme başladı: hedef {}, hareket durumu {}, hız {:.1f}", iID, (int) m_eStateMove, m_fMoveSpeedPerSec);
 	m_bTargetOrPosMove = true;
 	m_iMoveTarget      = iID;
 }

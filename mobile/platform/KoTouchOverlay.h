@@ -37,7 +37,7 @@ public:
 	{
 		float camSens        = 1.0f;  // kamera sürükleme hızı çarpanı (CameraSens %)
 		bool joyTurnAndRun   = false; // joystick: yön = karakterin baktığı yön (kameraya göre) + ileri koşma; false = klasik: ileri/geri + dönüş
-		float joyRotateDegPerSec = 150.0f; // klasik kipte tam yatık joystick ile dönüş hızı (oyunun A/D'si 60°/sn)
+		float joyRotateDegPerSec = 220.0f; // klasik kipte tam yatık joystick ile dönüş hızı (oyunun A/D'si 60°/sn)
 		float joyDeadZone    = 0.22f; // joystick ölü bölge (yarıçap oranı, JoyDeadZone %)
 		uint32_t longPressMs = 450;   // uzun basış = sağ tık (NPC ile konuş / eşya al)
 		int hpSlot           = 7;     // HP pot düğmesinin bastığı kısayol yuvası (1..8)
@@ -72,7 +72,7 @@ public:
 	void ButtonBox(size_t i, float* x0, float* y0, float* x1, float* y1, std::string* label) const;
 
 private:
-	enum class Action { Key, Yaw180, ZoomIn, ZoomOut, SkillPage };
+	enum class Action { Key, Yaw180, ZoomIn, ZoomOut, SkillPage, ToggleHide };
 	enum class Shape { Circle, Ring, Rect };
 	struct Button
 	{
@@ -119,6 +119,7 @@ private:
 	std::string m_fpsText;
 	CDFont* m_fpsFont      = nullptr;
 	bool m_forceVisible = false;
+	bool m_hidden       = false; // GİZLE: yalnız gizle/göster düğmesi kalır (joystick ve tuşlar kapalı)
 	int m_w = 1024, m_h = 768;
 	// Sunucu seçme ekranındaki BAĞLAN düğmesi (alt orta)
 	float m_connCx = 0, m_connCy = 0, m_connW = 0, m_connH = 0;

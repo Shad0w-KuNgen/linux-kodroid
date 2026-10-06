@@ -3,6 +3,7 @@
 //////////////////////////////////////////////////////////////////////
 #include "StdAfx.h"
 #include "UIDroppedItemDlg.h"
+#include "KoProtocol.h"
 #include "PacketDef.h"
 #include "LocalInput.h"
 #include "APISocket.h"
@@ -437,6 +438,8 @@ bool CUIDroppedItemDlg::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 				CAPISocket::MP_AddDword(byBuff, iOffset, spItem->pItemBasic->dwID + spItem->pItemExt->dwID);
 			else
 				CAPISocket::MP_AddDword(byBuff, iOffset, spItem->pItemBasic->dwID);
+			if (KoProto::Is2369())
+				CAPISocket::MP_AddShort(byBuff, iOffset, (int16_t) iOrder); // 2369: kutudaki yuva
 
 			CGameProcedure::s_pSocket->Send(byBuff, iOffset);
 

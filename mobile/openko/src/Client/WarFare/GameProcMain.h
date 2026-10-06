@@ -92,6 +92,7 @@ public:
 	float m_fExitTimer;
 	float m_fLBClickTime;
 	bool m_bTouchInteractThisFrame = false; // dokunmatik: bu karede ikinci dokunuşla etkileşim yapıldı → sol tuş hareketi atla
+	int m_iTouchTalkNpcID          = -1;    // dokunmatik: uzaktaki NPC'ye yürünüyor, menzile girince konuşulacak
 
 	int m_iJoinReqClan;
 	int m_iJoinReqClanRequierID;

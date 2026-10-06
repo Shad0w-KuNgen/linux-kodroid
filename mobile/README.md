@@ -322,6 +322,13 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
   sessizce yutulur (opcode başına bir günlük satırı). Sunucu `shared/packets.h` ile istemci enum'u birebir aynı
   numaralardadır; kalan fark yalnız istemcide işlenmeyen paketlerdir.
 
+- v161: 2369 kutu açma (`u32 kutu, u8 dolu, 8×(u32,u16)`), eşya alma `u16 yuva`; `Data\mob_us.tbl` canavar adları;
+  seçili uzak NPC'ye ikinci dokunuş → yürü, menzilde konuş; alan becerisi onayı dokunuşta yeniden hesaplanır;
+  `MAX_LEVEL` 83; 2369+dokunmatikte 1.298 alt komut çubuğu gizli, durum çubuğu yuvası futbol arayüzü ise gizli;
+  kaplamada üst ortada GİZLE/GÖSTER; `JoyRotateSpeed` 220. Hedefe yürüme/çarpışma ve bölge becerisi için günlük satırları.
+- Işınlanma listesi sunucu tarafından süzülür (`GetWarpList`: savaş durumuna göre Ardream/Ronark gizlenir); istemci
+  listeyi olduğu gibi gösterir.
+
 ### Oyun verisini telefona kurma
 
 Launcher oyun verisini arar; yoksa "Veriyi indir ve kur" (varsayılan adres) ya da "Veriyi onar /

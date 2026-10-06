@@ -269,6 +269,8 @@ void KoTouchOverlay::Layout(int w, int h)
 	const float atkR   = std::max(46.0f * u, t * 0.62f);
 	const float atkCx  = w - gap - atkR, atkCy = bottom - atkR;
 	circle(Action::Key, KM_TOGGLE_ATTACK, "SALDIR", atkCx, atkCy, atkR, COL_ATTACK);
+	// Üst orta: kaplamayı gizle/göster (gizliyken yalnız bu düğme kalır)
+	circle(Action::ToggleHide, 0, m_hidden ? "GOSTER" : "GIZLE", w / 2.0f, 16.0f * u + r * 0.7f, r * 0.7f, COL_CAM);
 
 	// Beceri ızgarası: üst sıra 1-4, alt sıra 5-8; sağ kenarı SALDIR'ın solunda
 	const int hotkeys[8] = {KM_HOTKEY1, KM_HOTKEY2, KM_HOTKEY3, KM_HOTKEY4, KM_HOTKEY5, KM_HOTKEY6, KM_HOTKEY7, KM_HOTKEY8};
@@ -429,6 +431,8 @@ void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
 	if (overlayActive)
 	{
 		int b = HitButton(x, y);
+		if (m_hidden && b >= 0 && m_buttons[b].action != Action::ToggleHide)
+			b = -1; // gizliyken yalnız GÖSTER düğmesi
 		if (b >= 0 && m_buttons[b].finger < 0)
 		{
 			f.role        = Role::Button;
@@ -439,7 +443,7 @@ void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
 			m_fingers.push_back(f);
 			return;
 		}
-		if (m_joyFinger < 0 && InJoystickZone(x, y))
+		if (!m_hidden && m_joyFinger < 0 && InJoystickZone(x, y))
 		{
 			f.role      = Role::Joystick;
 			m_joyFinger = id;
@@ -692,6 +696,14 @@ void KoTouchOverlay::Update()
 		switch (b.action)
 		{
 			case Action::Key: in.virtualKeysDIK[b.dik] = 0x80; break;
+			case Action::ToggleHide:
+				if (!b.fired)
+				{
+					m_hidden = !m_hidden;
+					Layout(m_w, m_h); // etiket GIZLE/GOSTER
+				}
+				b.fired = true;
+				break;
 			case Action::Yaw180:
 				if (!b.fired && eng && IsInGame())
 					eng->CameraYawAdd(3.1415926f);
@@ -942,20 +954,28 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 
 	// Joystick (aktifken parmağın altında, değilken soluk ipucu)
 	bool joyActive = m_joyFinger >= 0;
-	uint32_t base  = joyActive ? COL_JOY_BASE : (COL_JOY_BASE & 0x00FFFFFF) | 0x18000000;
-	uint32_t ring  = joyActive ? COL_JOY_RING : (COL_JOY_RING & 0x00FFFFFF) | 0x40000000;
-	DrawCircle(dev, m_joyCx, m_joyCy, m_joyR, base, 48);
-	DrawRing(dev, m_joyCx, m_joyCy, m_joyR, 3.0f * u, ring, 48);
-	DrawCircle(dev, m_knobX, m_knobY, m_joyR * 0.38f, joyActive ? COL_KNOB : (COL_KNOB & 0x00FFFFFF) | 0x40000000);
+	if (!m_hidden)
+	{
+		uint32_t base = joyActive ? COL_JOY_BASE : (COL_JOY_BASE & 0x00FFFFFF) | 0x18000000;
+		uint32_t ring = joyActive ? COL_JOY_RING : (COL_JOY_RING & 0x00FFFFFF) | 0x40000000;
+		DrawCircle(dev, m_joyCx, m_joyCy, m_joyR, base, 48);
+		DrawRing(dev, m_joyCx, m_joyCy, m_joyR, 3.0f * u, ring, 48);
+		DrawCircle(dev, m_knobX, m_knobY, m_joyR * 0.38f, joyActive ? COL_KNOB : (COL_KNOB & 0x00FFFFFF) | 0x40000000);
+	}
 
 	// Alt çubuk arka planı
 	float barH = m_barH > 0 ? m_barH : 40.0f * u;
-	DrawRect(dev, 0, m_h - barH, (float) m_w, barH, COL_BAR);
-	DrawRect(dev, 0, m_h - barH, (float) m_w, 2.0f * u, COL_SLOT_RING);
+	if (!m_hidden)
+	{
+		DrawRect(dev, 0, m_h - barH, (float) m_w, barH, COL_BAR);
+		DrawRect(dev, 0, m_h - barH, (float) m_w, 2.0f * u, COL_SLOT_RING);
+	}
 
 	// Tuşlar
 	for (const Button& b : m_buttons)
 	{
+		if (m_hidden && b.action != Action::ToggleHide)
+			continue;
 		uint32_t col = b.down ? COL_DOWN : b.color;
 		if (b.action == Action::SkillPage && b.dik == KM_SKILL_PAGE_1 + m_skillPage - 1)
 			col = b.down ? COL_DOWN : COL_PAGE_ON; // seçili beceri sayfası
@@ -979,6 +999,8 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 	for (size_t i = 0; i < m_buttons.size(); ++i)
 	{
 		const Button& b = m_buttons[i];
+		if (m_hidden && b.action != Action::ToggleHide)
+			continue;
 		int height      = b.shape == Shape::Rect ? 9 : (b.r > 40.0f * u ? 12 : 9);
 		DrawLabel(dev, (int) i, b.label, b.cx, b.cy, COL_TEXT, height);
 		setup(); // DFont durumları değiştirir

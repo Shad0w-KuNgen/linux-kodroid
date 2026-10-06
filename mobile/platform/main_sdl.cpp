@@ -149,7 +149,7 @@ void LoadOptions(const std::string& iniPath)
 	g_uiScalePct = std::clamp(ini.GetInt("Mobile", "UiScale", 100), 100, 200);
 	g_touchTuning.camSens     = std::clamp(ini.GetInt("Mobile", "CameraSens", 260), 25, 600) / 100.0f;
 	g_touchTuning.joyTurnAndRun = ini.GetBool("Mobile", "JoyTurnAndRun", false); // 1: joystick yönü = karakter yönü (kameraya göre) + koş; 0: klasik
-	g_touchTuning.joyRotateDegPerSec = (float) std::clamp(ini.GetInt("Mobile", "JoyRotateSpeed", 150), 30, 400); // klasik kip dönüş hızı °/sn
+	g_touchTuning.joyRotateDegPerSec = (float) std::clamp(ini.GetInt("Mobile", "JoyRotateSpeed", 220), 30, 400); // klasik kip dönüş hızı °/sn
 	CPlayerOtherMgr::s_iMaxVisibleUsers = std::clamp(ini.GetInt("Mobile", "MaxVisibleUsers", 120), 0, 1000); // en yakın N oyuncu çizilir
 	g_touchTuning.joyDeadZone = std::clamp(ini.GetInt("Mobile", "JoyDeadZone", 22), 5, 60) / 100.0f;
 	g_touchTuning.longPressMs = (uint32_t) std::clamp(ini.GetInt("Mobile", "LongPressMs", 450), 200, 1500);

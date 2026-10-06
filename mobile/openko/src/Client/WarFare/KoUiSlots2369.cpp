@@ -27,7 +27,7 @@ struct SlotRule
 // Desenler ISTIRAP dosya adlarına göre; tam döküm geldikçe daraltılır. Yalnız 1.298 yuvası yanlış/eksik
 // pencere yüklediği bilinen yuvalar listelenir.
 const SlotRule RULES[] = {
-	{ "szStateBar", &__TABLE_UI_RESRC::szStateBar, R"(\\(re|co|ka|el)_?(state_?bar|statebar|hud|mainstate|state2|state_new)(_us)?\.(uif|istirap)$)", "soccer|page_state|otherstate" },
+	{ "szStateBar", &__TABLE_UI_RESRC::szStateBar, R"(\\(re|co|ka|el)_?(state_?bar|statebar|hud|mainstate|state2|state_new|hpbar)(_us)?\.(uif|istirap)$)", "soccer|page_state|otherstate" },
 	{ "szMiniMap", &__TABLE_UI_RESRC::szMiniMap, R"(\\(re|co)_?mini_?map(_us)?\.(uif|istirap)$)", nullptr },
 	{ "szState", &__TABLE_UI_RESRC::szState, R"(\\(re|co|ka|el)_page_state(_us)?\.(uif|istirap)$)", "other" },
 	{ "szKnights", &__TABLE_UI_RESRC::szKnights, R"(\\(re|co|ka|el)_?(page_clan|knights)(_us)?\.(uif|istirap)$)", "operation|logo|cape" },
@@ -42,8 +42,6 @@ const SlotRule RULES[] = {
 	{ "szZoneChangeOrWarp", &__TABLE_UI_RESRC::szZoneChangeOrWarp, R"(\\(re|co|ka|el)_?warp(_us)?\.(uif|istirap)$)", "list" },
 	{ "szItemUpgrade", &__TABLE_UI_RESRC::szItemUpgrade, R"(\\(re|co|ka|el)_?item_?upgrade(_us)?\.(uif|istirap)$)", nullptr },
 	{ "szPartyOrForce", &__TABLE_UI_RESRC::szPartyOrForce, R"(\\(re|co|ka|el)_party(_us)?\.(uif|istirap)$)", "board|bbs|msg" },
-	{ "szCharSelect", &__TABLE_UI_RESRC::szCharSelect, R"(\\(re|co)_?character_?select(_us)?\.(uif|istirap)$)", nullptr },
-	{ "szCharCreate", &__TABLE_UI_RESRC::szCharCreate, R"(\\(re|co)_?character_?create(_us)?\.(uif|istirap)$)", nullptr },
 };
 } // namespace
 

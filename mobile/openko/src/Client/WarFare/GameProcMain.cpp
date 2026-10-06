@@ -493,6 +493,32 @@ void CGameProcMain::Tick()
 	if (!s_pSocket->IsConnected())
 		return;
 
+	// Dokunmatik: ikinci dokunuşla uzaktaki NPC'ye yürüme — menzile girince konuş
+	if (m_iTouchTalkNpcID >= 0)
+	{
+		CPlayerNPC* pNPC = s_pOPMgr->NPCGetByID(m_iTouchTalkNpcID, false);
+		if (pNPC == nullptr || s_pPlayer->m_iIDTarget != m_iTouchTalkNpcID || !s_pPlayer->m_bTargetOrPosMove)
+			m_iTouchTalkNpcID = -1;
+		else
+		{
+			float fD      = (s_pPlayer->Position() - pNPC->Position()).Magnitude();
+			float fDLimit = (s_pPlayer->Radius() + pNPC->Radius()) * 3.0f;
+			if (fD <= fDLimit)
+			{
+				int iID           = m_iTouchTalkNpcID;
+				m_iTouchTalkNpcID = -1;
+				s_pPlayer->m_bTargetOrPosMove = false;
+				s_pPlayer->ActionMove(PSM_STOP);
+				MsgSend_Move(false, false);
+				pNPC->RotateTo(s_pPlayer);
+				MsgSend_NPCEvent((int16_t) iID);
+				if (m_pUITransactionDlg)
+					m_pUITransactionDlg->m_iNpcID = pNPC->IDNumber();
+				CLogWriter::Write("Dokunmatik: NPC {} menzilde, konuşma isteği gönderildi", iID);
+			}
+		}
+	}
+
 #ifdef _DEBUG
 	if (s_pLocalInput->IsKeyPressed(DIK_F11))
 	{
@@ -3188,6 +3214,8 @@ bool CGameProcMain::MsgRecv_NPCIn(Packet& pkt)
 		dwType   = n.objectType;
 		if (__TABLE_NPC_NAME* pNpcName = s_pTbl_NPC_Names.Find(n.protoID)) // NPC_us.tbl: görünen ad
 			szName = pNpcName->szName;
+		else if (__TABLE_NPC_NAME* pMobName = s_pTbl_Mob_Names.Find(n.protoID)) // mob_us.tbl: canavar adı
+			szName = pMobName->szName;
 		if (szName.empty())
 			if (__TABLE_PLAYER_LOOKS* pLooksName = s_pTbl_NPC_Looks.Find(iIDResrc))
 				szName = pLooksName->szName;
@@ -3908,13 +3936,24 @@ bool CGameProcMain::MsgRecv_ItemBundleOpen(Packet& pkt) // 아이템 상자를 �
 	POINT ptCur       = s_pLocalInput->MouseGetPos();
 	m_pUIDroppedItemDlg->EnterDroppedState(ptCur.x, ptCur.y);
 
-	for (int i = 0; i < MAX_ITEM_BUNDLE_DROP_PIECE; i++)
+	// 2369 (BundleSystem.cpp): u32 kutuID, u8 dolu, 8 × (u32 eşya, u16 adet); 1298: 6 × (u32, i16)
+	int iPieces = MAX_ITEM_BUNDLE_DROP_PIECE;
+	if (KoProto::Is2369())
+	{
+		uint32_t dwBundle = pkt.read<uint32_t>();
+		uint8_t byFull    = pkt.read<uint8_t>();
+		iPieces           = 8;
+		static int s_iLogged = 0;
+		if (s_iLogged++ < 5)
+			CLogWriter::Write("Kutu açıldı (2369): kutu {} dolu {} ({} bayt)", dwBundle, (int) byFull, pkt.size());
+	}
+	for (int i = 0; i < iPieces; i++)
 	{
 		dwItemID   = pkt.read<uint32_t>();
 		iItemCount = pkt.read<int16_t>();
 
 		// 이부분에 몬스터 아이템창을 열고 준비한다..
-		if (dwItemID)
+		if (dwItemID && i < MAX_ITEM_BUNDLE_DROP_PIECE)
 			m_pUIDroppedItemDlg->AddToItemTable(dwItemID, iItemCount, i);
 	}
 
@@ -4246,6 +4285,8 @@ void CGameProcMain::InitUI()
 	rc = m_pUICmd->GetRegion();
 	m_pUICmd->SetPos((iW - (rc.right - rc.left)) / 2, iH - (rc.bottom - rc.top));
 	m_pUICmd->SetStyle(UISTYLE_FOCUS_UNABLE | UISTYLE_HIDE_UNABLE);
+	if (KoProto::Is2369() && CGameProcedure::s_bTouchControls)
+		m_pUICmd->SetVisibleWithNoSound(false); // 1.298 alt komut çubuğu: dokunmatik kaplamanın alt çubuğu bunun yerini alır
 
 	m_pUIChatDlg->Init(s_pUIMgr); //Manager 자식으로 리스트에 추가
 	m_pUIChatDlg->LoadFromFile(pTbl->szChat);
@@ -4285,6 +4326,17 @@ void CGameProcMain::InitUI()
 	m_pUIStateBarAndMiniMap->Init(s_pUIMgr);
 	m_pUIStateBarAndMiniMap->LoadFromFile(pTbl->szStateBar);
 	m_pUIStateBarAndMiniMap->SetStyle(UISTYLE_FOCUS_UNABLE | UISTYLE_HIDE_UNABLE);
+	{
+		std::string szSB = pTbl->szStateBar;
+		for (char& c : szSB)
+			c = (char) tolower((unsigned char) c);
+		if (szSB.find("soccer") != std::string::npos)
+		{
+			// 2369 tablosunda durum çubuğu yuvasında futbol skor tablosu var; HUD'u gizle (re_hpbar/re_taskbar eşlenince açılır)
+			m_pUIStateBarAndMiniMap->SetVisibleWithNoSound(false);
+			CLogWriter::Write("Durum çubuğu yuvası futbol arayüzü ({}), gizlendi", pTbl->szStateBar);
+		}
+	}
 #ifdef _DEBUG
 	m_pUIStateBarAndMiniMap->SetPos(0, 70); // 디버그 정보 표시때문에 조금 내린다....
 #else
@@ -4984,6 +5036,9 @@ void CGameProcMain::CommandMove(e_MoveDirection eMD, bool bStartOrEnd)
 			if (0 == fSpeed)                                        // 못움직이는 상황이면..
 			{
 				s_pPlayer->ActionMove(PSM_STOP);                    // 멈춤..
+				static int s_iLogged = 0;
+				if (s_iLogged++ < 10)
+					CLogWriter::Write("CommandMove: başlangıçta çarpışma (hız 0) — hareket başlatılamadı (hedefe yürüme/SALDIR için önemli)");
 			}
 			else
 			{
@@ -8045,8 +8100,19 @@ bool CGameProcMain::OnMouseLBtnPress(POINT ptCur, POINT /*ptPrev*/)
 	this->TargetSelect(iID, false);                                                                           // 타겟을 잡는다..
 	if (CGameProcedure::s_bTouchControls && pTarget != nullptr && iID != -1 && iID == iPrevTarget && !s_pPlayer->IsHostileTarget(pTarget))
 	{
-		// Dokunmatik: zaten seçili dost NPC'ye ikinci dokunuş = sağ tık (konuş / dükkân / depo / kapı NPC'si)
+		// Dokunmatik: zaten seçili dost NPC'ye ikinci dokunuş = sağ tık (konuş / dükkân / depo / kapı NPC'si).
+		// Uzaksa NPC'ye yürü, menzile girince konuş (Tick'te m_iTouchTalkNpcID).
 		m_bTouchInteractThisFrame = true;
+		float fD      = (s_pPlayer->Position() - pTarget->Position()).Magnitude();
+		float fDLimit = (s_pPlayer->Radius() + pTarget->Radius()) * 3.0f;
+		if (fD > fDLimit && !pTarget->m_pShapeExtraRef)
+		{
+			m_iTouchTalkNpcID = iID;
+			CommandMove(MD_FORWARD, true);
+			s_pPlayer->SetMoveTargetPos(pTarget->Position());
+			CLogWriter::Write("Dokunmatik: NPC {} ({}) uzak ({:.1f} m), yürünüyor; menzilde konuşulacak", iID, pTarget->IDString(), fD);
+			return true;
+		}
 		return OnMouseRBtnPress(ptCur, ptCur);
 	}
 	if (nullptr == pTarget)                                                                                   // 타겟이 없으면..
@@ -8078,8 +8144,12 @@ bool CGameProcMain::OnMouseLBtnPress(POINT ptCur, POINT /*ptPrev*/)
 	if (m_pMagicSkillMng->m_dwRegionMagicState == 1)
 	{
 		//		s_pFX->SetBundlePos(m_pMagicSkillMng->m_iMyRegionTargetFXID, m_pMagicSkillMng->m_iMyRegionTargetFXID, m_vMouseLBClickedPos);
+		// Dokunmatik: dokunuşta imleç yeni yere atlar; OnMouseMove aynı karede çalışmamış olabilir → alanı burada da hesapla
+		ACT_WORLD->PickWideWithTerrain(ptCur.x, ptCur.y, m_vMouseSkillPos);
 		s_pFX->SetBundlePos(m_pMagicSkillMng->m_iMyRegionTargetFXID, m_pMagicSkillMng->m_iMyRegionTargetFXID, m_vMouseSkillPos);
 		m_pMagicSkillMng->m_dwRegionMagicState = 2;
+		CLogWriter::Write("Alan becerisi: hedef nokta onaylandı ({:.1f}, {:.1f}, {:.1f})", m_vMouseSkillPos.x, m_vMouseSkillPos.y, m_vMouseSkillPos.z);
+		m_bTouchInteractThisFrame = true; // bu dokunuş yürüme değil
 	}
 
 	if (!s_pPlayer->IsDead() && VP_THIRD_PERSON == s_pEng->ViewPoint())
