@@ -73,6 +73,7 @@ public:
 	CPlayerNPC* PickAllPrecisely(int ixScreen, int iyScreen, int& iIDResult, __Vector3* pvPick);
 	CPlayerNPC* PickCorpse(int ixScreen, int iyScreen, int& iIDResult); // 시체중 클릭..
 	static int SortByCameraDistance(const void* pArg1, const void* pArg2);
+	static int s_iMaxVisibleUsers; // Mobil: aynı anda çizilen en yakın oyuncu sayısı (0 = sınırsız; [Mobile] MaxVisibleUsers)
 
 	void ReleaseUPCs();
 	void ReleaseNPCs();

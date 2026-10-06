@@ -2319,8 +2319,37 @@ bool CGameProcMain::MsgRecv_Chat(Packet& pkt)
 {
 	std::string szChat;                                  // 버퍼..
 	uint8_t byChatType = pkt.read<uint8_t>();            // 채팅 타입
+	const uint8_t byRawChatType = byChatType;
 	if (KoProto::Is2369())
 	{
+		if (byRawChatType == 26)
+		{
+			// 2369 DEATH_NOTICE (ChatHandler.cpp ~771, u8 uzunluklu dizeler):
+			// u8 ulus | u8 bildirimTürü | u16 öldürenID | str8 öldürenAdı | u16 ölenID | str8 ölenAdı | u16 x | u16 z
+			pkt.read<uint8_t>();                        // ulus
+			uint8_t byNoticeType = pkt.read<uint8_t>(); // bildirim türü
+			pkt.read<uint16_t>();                       // öldüren ID
+			std::string szKiller, szVictim;
+			uint8_t byLen = pkt.read<uint8_t>();
+			bool bOk      = pkt.readString(szKiller, byLen);
+			pkt.read<uint16_t>();                       // ölen ID
+			byLen = pkt.read<uint8_t>();
+			bOk   = bOk && pkt.readString(szVictim, byLen);
+			if (!bOk)
+			{
+				static bool s_bLogged = false;
+				if (!s_bLogged)
+				{
+					s_bLogged = true;
+					CLogWriter::Write("WIZ_CHAT ölüm bildirimi (tür 26) beklenen düzende değil, atlandı");
+				}
+				return true;
+			}
+			if (m_pUIChatDlg != nullptr && !szKiller.empty() && !szVictim.empty())
+				MsgOutput(fmt::format("{} → {} öldürdü{}", szKiller, szVictim, byNoticeType == 0 ? "" : fmt::format(" ({})", (int) byNoticeType)),
+					D3DCOLOR_ARGB(255, 255, 128, 96));
+			return true;
+		}
 		// 2369 ChatType → N3 sohbet kipi (KoProtocol.cpp); 0 = gösterilmez
 		byChatType = KoProto::MapChatType2369(byChatType);
 		if (byChatType == 0)
@@ -2332,11 +2361,20 @@ bool CGameProcMain::MsgRecv_Chat(Packet& pkt)
 
 	std::string szName;
 	int iNameLen = pkt.read<uint8_t>();
-	pkt.readString(szName, iNameLen);
+	bool bRead   = pkt.readString(szName, iNameLen);
 
 	std::string szMsg;
 	int iMsgLen = pkt.read<int16_t>();
-	pkt.readString(szMsg, iMsgLen);
+	bRead       = bRead && iMsgLen >= 0 && pkt.readString(szMsg, (size_t) iMsgLen);
+	if (!bRead)
+	{
+		// Bilinmeyen düzen (uzunluk paketi aşıyor): paketi at, türü bir kez günlükle — çökme yerine
+		static std::set<int> s_BadChatTypes;
+		if (s_BadChatTypes.insert(byRawChatType).second)
+			CLogWriter::Write("WIZ_CHAT tür {} (ham {}): dize uzunluğu paketi aşıyor (ad {}, ileti {}, boyut {}), paket atıldı", (int) byChatType,
+				(int) byRawChatType, iNameLen, iMsgLen, pkt.size());
+		return true;
+	}
 
 	if (szName.empty())
 		szChat = szMsg;

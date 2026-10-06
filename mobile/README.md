@@ -293,6 +293,12 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
   izler, `str_id/str_lev/str_job` ayrı yazılır. NPC adları `Data\NPC_us.tbl` (DTDDDDD, K_NPC kimliği →
   ad) ile gösterilir; görünüm (`NPC_Looks`) Korece adı yalnız yedektir.
 
+- 2369 sohbet: tür 26 (DEATH_NOTICE: `u8 ulus, u8 tür, u16 öldürenID, str8 ad, u16 ölenID, str8 ad, u16 x, u16 z`)
+  ayrı ayrıştırılır ve "X → Y öldürdü" olarak sohbete yazılır. `ByteBuffer::readString` dize uzunluğu
+  paketin kalanını aşarsa ayırma yapmadan `false` döner (okuma sonuna atlanır); `MsgRecv_Chat` böyle
+  paketi atar ve türü bir kez günlükler (bilinmeyen sohbet düzeni artık çökertmez).
+- `[Mobile] MaxVisibleUsers` (varsayılan 60): kameraya en yakın N oyuncu çizilir (Ronark'ta 400 bot).
+
 ### Oyun verisini telefona kurma
 
 Launcher oyun verisini arar; yoksa "Veriyi indir ve kur" (varsayılan adres) ya da "Veriyi onar /

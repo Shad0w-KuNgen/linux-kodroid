@@ -11,6 +11,7 @@
 #include "N3WorldManager.h"
 #include "N3WorldBase.h"
 #include "PlayerMySelf.h"
+#include "PlayerOtherMgr.h"
 #include "LightMgr.h"
 #include <N3Base/N3Camera.h>
 #include <cmath>
@@ -148,6 +149,7 @@ void LoadOptions(const std::string& iniPath)
 	g_uiScalePct = std::clamp(ini.GetInt("Mobile", "UiScale", 100), 100, 200);
 	g_touchTuning.camSens     = std::clamp(ini.GetInt("Mobile", "CameraSens", 260), 25, 600) / 100.0f;
 	g_touchTuning.joyTurnAndRun = ini.GetBool("Mobile", "JoyTurnAndRun", true); // joystick yönü = karakter yönü (kameraya göre), ileri koş
+	CPlayerOtherMgr::s_iMaxVisibleUsers = std::clamp(ini.GetInt("Mobile", "MaxVisibleUsers", 60), 0, 1000); // en yakın N oyuncu çizilir
 	g_touchTuning.joyDeadZone = std::clamp(ini.GetInt("Mobile", "JoyDeadZone", 22), 5, 60) / 100.0f;
 	g_touchTuning.longPressMs = (uint32_t) std::clamp(ini.GetInt("Mobile", "LongPressMs", 450), 200, 1500);
 	g_touchTuning.hpSlot      = std::clamp(ini.GetInt("Mobile", "PotHpSlot", 7), 1, 8);

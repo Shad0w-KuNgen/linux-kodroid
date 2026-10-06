@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "ByteBuffer.h"
 
 #include <cassert>
@@ -173,6 +173,8 @@ bool ByteBuffer::readString(size_t pos, std::string& dest) const
 			return false;
 
 		pos += sizeof(uint16_t);
+		if (pos + len > size())
+			return false;
 		dest.assign(len, '\0');
 		return read(pos, &dest[0], len);
 	}
@@ -183,6 +185,8 @@ bool ByteBuffer::readString(size_t pos, std::string& dest) const
 			return false;
 
 		pos += sizeof(uint8_t);
+		if (pos + len > size())
+			return false;
 		dest.assign(len, '\0');
 		return read(pos, &dest[0], len);
 	}
@@ -191,11 +195,12 @@ bool ByteBuffer::readString(size_t pos, std::string& dest) const
 bool ByteBuffer::readString(size_t pos, std::string& dest, size_t len) const
 {
 	dest.clear();
-	dest.assign(len, '\0');
 
-	if (pos + len > size())
+	// Uzunluk kalan veriyi aşıyorsa (bozuk/bilinmeyen düzen, negatif int16 → dev size_t) ayırma yapma
+	if (pos > size() || len > size() - pos)
 		return false;
 
+	dest.assign(len, '\0');
 	return read(pos, &dest[0], len);
 }
 
@@ -209,6 +214,11 @@ bool ByteBuffer::readString(std::string& dest)
 		if (!read(&len, sizeof(uint16_t)))
 			return false;
 
+		if (len > size() - _rpos)
+		{
+			_rpos = size(); // paketin kalanı atılır
+			return false;
+		}
 		dest.assign(len, '\0');
 		if (!read(&dest[0], len))
 			return false;
@@ -222,6 +232,11 @@ bool ByteBuffer::readString(std::string& dest)
 		if (!read(&len, sizeof(uint8_t)))
 			return false;
 
+		if (len > size() - _rpos)
+		{
+			_rpos = size();
+			return false;
+		}
 		dest.assign(len, '\0');
 		if (!read(&dest[0], len))
 			return false;
@@ -234,6 +249,13 @@ bool ByteBuffer::readString(std::string& dest)
 bool ByteBuffer::readString(std::string& dest, size_t len)
 {
 	dest.clear();
+	// Uzunluk kalan veriyi aşıyorsa (bozuk/bilinmeyen düzen, negatif int16 → dev size_t) ayırma yapma;
+	// okuma konumu sona alınır ki çağıran paketin kalanını güvenle atsın
+	if (_rpos > size() || len > size() - _rpos)
+	{
+		_rpos = size();
+		return false;
+	}
 	dest.assign(len, '\0');
 	if (!read(&dest[0], len))
 		return false;

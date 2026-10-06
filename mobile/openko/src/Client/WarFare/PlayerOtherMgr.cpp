@@ -157,6 +157,8 @@ void CPlayerOtherMgr::Tick(const __Vector3& vPosPlayer)
 	CN3Chr::LODDeltaSet(iLODDelta);
 }
 
+int CPlayerOtherMgr::s_iMaxVisibleUsers = 0;
+
 void CPlayerOtherMgr::Render(float fSunAngle)
 {
 	//	CPlayerOther*	pUPC = nullptr;
@@ -186,6 +188,8 @@ void CPlayerOtherMgr::Render(float fSunAngle)
 		for (int i = iUPCSize - 1; i >= 0; i--)
 		{
 			if (!UPCs[i]->m_bVisible)
+				continue;
+			if (s_iMaxVisibleUsers > 0 && i >= s_iMaxVisibleUsers) // kameraya göre artan sıralı: uzaktakiler çizilmez (400 botlu Ronark)
 				continue;
 			/*
 			if(UPCs[i]->m_InfoBase.iAuthority == AUTHORITY_MANAGER)
