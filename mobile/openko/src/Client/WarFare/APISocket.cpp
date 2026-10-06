@@ -4,6 +4,7 @@
 
 #include "StdAfx.h"
 #include "APISocket.h"
+#include "GameProcedure.h"
 #include "ClientResourceFormatter.h"
 
 //////////////////////////////////////////////////////////////////////
@@ -293,6 +294,8 @@ BOOL CAPISocket::ReceiveProcess()
 
 void CAPISocket::Send(uint8_t* pData, int nSize)
 {
+	if (!CGameProcedure::SendAllowed(pData, nSize)) // 2369 oyun öncesi süzgeci + gönderim günlüğü
+		return;
 	if (!m_bEnableSend)
 	{
 #ifdef _N3GAME

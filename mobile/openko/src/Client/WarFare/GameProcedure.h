@@ -94,6 +94,12 @@ public:
 
 	static bool s_bNeedReportConnectionClosed; // 서버접속이 끊어진걸 보고해야 하는지..
 	static bool s_bReconnectLogInRequested;    // Mobile: "Disconnected" OK → giriş sahnesini yeniden başlat
+	static bool s_bGameStarted2369;            // 2369: WIZ_GAMESTART 2 gönderildi (sunucu isInGame); öncesinde yalnız izinli paketler
+	static int s_iSendLogLeft;                 // Main'e geçişte günlüğe yazılacak kalan gönderim sayısı
+	static int s_iRecvLogLeft;                 // Main'de günlüğe yazılacak kalan alım sayısı
+	// 2369 sunucusu (CUser::HandlePacket) karakter seçildikten sonra oyun başlayana dek yalnız belirli opcode'ları
+	// kabul eder; diğerinde bağlantıyı keser. Gönderim izinli mi? (ayrıntı: günlük)
+	static bool SendAllowed(const uint8_t* pData, int nSize);
 	static bool s_bWindowed;                   // 창모드 실행??
 	static bool s_bKeyPress;                   //키가 눌려졌을때 ui에서 해당하는 조작된적이 있다면
 	static bool s_bKeyPressed;                 //키가 올라갔을때 ui에서 해당하는 조작된적이 있다면

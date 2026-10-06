@@ -238,6 +238,17 @@ yüklenemezse `CN3Terrain::Tick/Render` erken döner (v146/v147 SIGSEGV'leri). 2
 `CN3Chr::PartSet` ve `CPlayerBase::InitChr` bozuk (yazdırılamayan) dosya adlarını tablo ID'siyle günlükler;
 `CGameProcCharacterSelect` yüklediği UIF'i günlükler.
 
+**2369 oyuna giriş (WIZ_GAMESTART):** sunucu (`CUser::HandlePacket`) karakter seçildikten sonra oyun başlayana dek yalnız
+belirli opcode'ları kabul eder (GAMESTART, REGENE, REQ_USERIN/NPCIN, ZONE_CHANGE, QUEST, SPEEDHACK_CHECK, DATASAVE,
+KNIGHTS/FRIEND_PROCESS, …); `InitZone`'daki `CommandToggleMoveContinous` → `WIZ_MOVE` bu aşamada bağlantıyı
+kestiriyordu (v148 "Disconnected" 11 sn). `CGameProcedure::SendAllowed` 2369'da Main'e geçişten `WIZ_GAMESTART 2`
+gönderilene kadar izinsiz paketleri atlar (günlük: "oyun başlamadan gönderilemez"); Main'e geçişte ilk 80 gönderim ve
+ilk 60 alım `Send:`/`Recv:` satırlarıyla yazılır. Akış: `WIZ_SEL_CHAR` → bölge → `0D 01 <ad>` → sunucunun tek baytlık
+`0x0d` yanıtı → `0D 02 <ad>` → oyun içi. `CGameProcMain::Init`'teki `_findfirst` ön yüklemeleri compat'in `-1`
+dönüşünü başarı sayıp çöp adlarla (`\chr\???o`, `\item\???o`) yükleme yapıyordu; düzeltildi. Yardım penceresi
+(F10) açılışta kapalı. Karakter seçimi 2369'da UIs tablosunun 121. sütunu `szCharSelect`
+(`ui\re_characterselect.uif`) ile yüklenir, olmazsa eski `ka_/el_CharacterSelect`.
+
 **Ses:** istemciyle gelen `Option.ini` `[Sound] Bgm=0 Effect=0` olduğundan `s_SndMgr.Init()` hiç çağrılmıyor,
 OpenAL bağlamı olmadan `alListener*` her kare A004 (`AL_INVALID_OPERATION`) üretiyordu. Dinleyici çağrıları
 ses kapalıyken atlanır; telefonda ilk açılışta (`[Mobile] SoundInit` yoksa) ses açılıp Option.ini'ye yazılır,

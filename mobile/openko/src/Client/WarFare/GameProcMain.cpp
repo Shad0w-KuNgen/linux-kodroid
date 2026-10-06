@@ -334,7 +334,7 @@ void CGameProcMain::Init()
 	lstrcat(szPathFind, "\\Chr");
 	::SetCurrentDirectory(szPathFind);
 	hFind = _findfirst("*.N3Anim", &fi);
-	if (hFind)
+	if (hFind != -1) // compat _findfirst: başarısızlıkta -1 (0 değil); eski koşul çöp adlarla ("\\chr\\???o") yükleme yapıyordu
 	{
 		std::string szFN = "Chr\\";
 		szFN.append(fi.name);
@@ -357,7 +357,7 @@ void CGameProcMain::Init()
 	lstrcat(szPathFind, "\\Item");
 	::SetCurrentDirectory(szPathFind);
 	hFind = _findfirst("*.dxt", &fi);
-	if (hFind)
+	if (hFind != -1) // compat _findfirst: başarısızlıkta -1 (0 değil); eski koşul çöp adlarla ("\\chr\\???o") yükleme yapıyordu
 	{
 		std::string szFN = "Item\\";
 		szFN.append(fi.name);
@@ -380,7 +380,7 @@ void CGameProcMain::Init()
 	lstrcat(szPathFind, "\\Chr");
 	::SetCurrentDirectory(szPathFind);
 	hFind = _findfirst("*.N3Joint", &fi);
-	if (hFind)
+	if (hFind != -1) // compat _findfirst: başarısızlıkta -1 (0 değil); eski koşul çöp adlarla ("\\chr\\???o") yükleme yapıyordu
 	{
 		std::string szFN = "Chr\\";
 		szFN.append(fi.name);
@@ -403,7 +403,7 @@ void CGameProcMain::Init()
 	lstrcat(szPathFind, "\\Item");
 	::SetCurrentDirectory(szPathFind);
 	hFind = _findfirst("*.N3CSkins", &fi);
-	if (hFind)
+	if (hFind != -1) // compat _findfirst: başarısızlıkta -1 (0 değil); eski koşul çöp adlarla ("\\chr\\???o") yükleme yapıyordu
 	{
 		std::string szFN = "Item\\";
 		szFN.append(fi.name);
@@ -426,7 +426,7 @@ void CGameProcMain::Init()
 	lstrcat(szPathFind, "\\Item");
 	::SetCurrentDirectory(szPathFind);
 	hFind = _findfirst("*.N3PMesh", &fi);
-	if (hFind)
+	if (hFind != -1) // compat _findfirst: başarısızlıkta -1 (0 değil); eski koşul çöp adlarla ("\\chr\\???o") yükleme yapıyordu
 	{
 		std::string szFN = "Item\\";
 		szFN.append(fi.name);
@@ -830,6 +830,8 @@ bool CGameProcMain::ProcessPacket(Packet& pkt)
 			std::vector<uint8_t> buff;
 			KoProto::BuildGameStart(buff, 0x02, s_pPlayer->IDString());
 			s_pSocket->Send(buff.data(), (int) buff.size());
+			s_bGameStarted2369 = true; // bundan sonra hareket/dönüş vb. paketler serbest
+			CLogWriter::Write("WIZ_GAMESTART 2 gönderildi ({}), oyun içi", s_pPlayer->IDString());
 		}
 			return true;
 
@@ -4198,6 +4200,7 @@ void CGameProcMain::InitUI()
 	iX = (iW - (rc.right - rc.left)) / 2;
 	iY = (iH - (rc.bottom - rc.top)) / 2;
 	m_pUIHelp->SetPos(iX, iY);
+	m_pUIHelp->SetVisible(false); // açılışta yardım penceresi kapalı (F10 ile açılır; mobilde ekranı kaplıyordu)
 	//	m_pUIHelp->SetStyle(UISTYLE_SHOW_ME_ALONE);
 
 	// 공지사항..
@@ -4745,6 +4748,7 @@ void CGameProcMain::MsgSend_GameStart()
 	std::vector<uint8_t> buff;
 	KoProto::BuildGameStart(buff, 0x01, s_pPlayer->IDString());
 	s_pSocket->Send(buff.data(), (int) buff.size());
+	CLogWriter::Write("WIZ_GAMESTART 1 gönderildi ({}), sunucunun 0x0d yanıtı bekleniyor", s_pPlayer->IDString());
 }
 
 bool CGameProcMain::CommandToggleWalkRun()

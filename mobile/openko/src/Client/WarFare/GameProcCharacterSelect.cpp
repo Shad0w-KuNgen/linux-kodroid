@@ -146,8 +146,18 @@ void CGameProcCharacterSelect::Init()
 	m_pUICharacterSelect->Init(s_pUIMgr);
 	if (pTbl)
 	{
-		bool bOK = m_pUICharacterSelect->LoadFromFile(pTbl->szCharacterSelect); // UI Manager 에 넣지 않고 따로 처리한다... 이유가 있다..
-		CLogWriter::Write("Karakter seçimi UI: {} -> {} ({} çocuk)", pTbl->szCharacterSelect, bOK ? "yüklendi" : "BAŞARISIZ",
+		// 2369: UIs tablosunun 121. sütunu (szCharSelect) yeni ekranı (ui\re_characterselect.uif) gösterir; 1.298 ka_/el_ eskisi
+		std::string szUIF = pTbl->szCharacterSelect;
+		if (KoProto::Is2369() && !pTbl->szCharSelect.empty())
+			szUIF = pTbl->szCharSelect;
+		bool bOK = m_pUICharacterSelect->LoadFromFile(szUIF); // UI Manager 에 넣지 않고 따로 처리한다... 이유가 있다..
+		if (!bOK && szUIF != pTbl->szCharacterSelect)
+		{
+			CLogWriter::Write("Karakter seçimi UI: {} yüklenemedi, {} deneniyor", szUIF, pTbl->szCharacterSelect);
+			szUIF = pTbl->szCharacterSelect;
+			bOK   = m_pUICharacterSelect->LoadFromFile(szUIF);
+		}
+		CLogWriter::Write("Karakter seçimi UI: {} -> {} ({} çocuk)", szUIF, bOK ? "yüklendi" : "BAŞARISIZ",
 			m_pUICharacterSelect->GetChildren().size());
 	}
 	m_pUICharacterSelect->SetPos(0, 0);

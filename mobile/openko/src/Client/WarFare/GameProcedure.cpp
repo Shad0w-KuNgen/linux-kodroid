@@ -86,6 +86,40 @@ HWND CGameProcedure::s_hWndSubSocket               = nullptr; // 서브 소켓�
 int CGameProcedure::s_iChrSelectIndex              = 0;
 bool CGameProcedure::s_bNeedReportConnectionClosed = false;   // 서버접속이 끊어진걸 보고해야 하는지..
 bool CGameProcedure::s_bReconnectLogInRequested    = false;
+bool CGameProcedure::s_bGameStarted2369             = false;
+int CGameProcedure::s_iSendLogLeft                  = 0;
+int CGameProcedure::s_iRecvLogLeft                  = 0;
+
+bool CGameProcedure::SendAllowed(const uint8_t* pData, int nSize)
+{
+	if (pData == nullptr || nSize <= 0)
+		return false;
+	const uint8_t op = pData[0];
+	if (s_iSendLogLeft > 0)
+	{
+		--s_iSendLogLeft;
+		std::string szHex;
+		for (int i = 0; i < nSize && i < 16; i++)
+			szHex += fmt::format("{:02x} ", pData[i]);
+		CLogWriter::Write("Send: opcode 0x{:02x} ({} bayt) {}{}", op, nSize, szHex, nSize > 16 ? "..." : "");
+	}
+	if (!KoProto::Is2369() || s_pProcActive != (CGameProcedure*) s_pProcMain || s_bGameStarted2369)
+		return true;
+	// Sunucu kaynağı User.cpp: karakter seçildi, oyun başlamadı → izinli opcode'lar (diğerleri bağlantıyı kestirir)
+	switch (op)
+	{
+		case WIZ_GAMESTART: case WIZ_ALLCHAR_INFO_REQ: case WIZ_SERVER_INDEX: case WIZ_RENTAL: case WIZ_SKILLDATA:
+		case WIZ_REGENE: case WIZ_REQ_USERIN: case WIZ_REQ_NPCIN: case WIZ_ZONE_CHANGE: case WIZ_STATE_CHANGE:
+		case WIZ_QUEST: case WIZ_MAP_EVENT: case WIZ_MAGIC_PROCESS: case WIZ_OBJECT_EVENT: case WIZ_WEATHER:
+		case WIZ_TIME: case WIZ_CONCURRENTUSER: case WIZ_DATASAVE: case WIZ_KNIGHTS_PROCESS: case WIZ_SPEEDHACK_CHECK:
+		case WIZ_FRIEND_PROCESS: case WIZ_WARP_LIST: case WIZ_VIRTUAL_SERVER: case WIZ_CLIENT_EVENT: case WIZ_SELECT_MSG:
+		case WIZ_EVENT: case WIZ_SHOPPING_MALL: case WIZ_SEL_CHAR: case WIZ_CAPTCHA:
+			return true;
+		default:
+			CLogWriter::Write("Send: opcode 0x{:02x} oyun başlamadan (WIZ_GAMESTART 2 öncesi) gönderilemez, ATLANDI", op);
+			return false;
+	}
+}
 bool CGameProcedure::s_bWindowed                   = false;   // 창모드 실행??
 bool CGameProcedure::s_bKeyPress                   = false;   //키가 눌려졌을때 ui에서 해당하는 조작된적이 있다면
 bool CGameProcedure::s_bKeyPressed                 = false;   //키가 올라갔을때 ui에서 해당하는 조작된적이 있다면
@@ -406,9 +440,9 @@ void CGameProcedure::Tick()
 	while (!s_pSocket->m_qRecvPkt.empty())
 	{
 		auto pkt = s_pSocket->m_qRecvPkt.front();
-		if (s_pProcActive != (CGameProcedure*) s_pProcMain)
+		if (s_pProcActive != (CGameProcedure*) s_pProcMain || s_iRecvLogLeft-- > 0)
 		{
-			// Oyun öncesi (giriş/ulus/karakter seçimi): gelen her paket Log.txt'ye (opcode, boyut, ilk 24 bayt)
+			// Oyun öncesi (giriş/ulus/karakter seçimi) ve Main'in ilk paketleri: Log.txt'ye (opcode, boyut, ilk 24 bayt)
 			std::string szHex;
 			const uint8_t* p = pkt->contents();
 			for (size_t i = 0; i < pkt->size() && i < 24; i++)
@@ -528,6 +562,12 @@ void CGameProcedure::ProcActiveSet(CGameProcedure* pProc)
 		return p ? "?" : "null";
 	};
 	CLogWriter::Write("ProcActiveSet: {} -> {}", procName(s_pProcActive), procName(pProc));
+	if (pProc == (CGameProcedure*) s_pProcMain)
+	{
+		s_bGameStarted2369 = false;
+		s_iSendLogLeft     = 80;
+		s_iRecvLogLeft     = 60;
+	}
 
 	if (s_pUIMgr != nullptr)
 		s_pUIMgr->EnableOperationSet(true); // UI를 조작할수 있게 한다..
