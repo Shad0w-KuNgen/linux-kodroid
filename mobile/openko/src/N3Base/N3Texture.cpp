@@ -237,7 +237,8 @@ bool CN3Texture::LoadFromFile(const std::string& szFileName)
 	else
 	{
 		D3DXIMAGE_INFO ImgInfo;
-		HRESULT rval = D3DXCreateTextureFromFileEx(s_lpD3DDev, szFullPath.c_str(), D3DX_DEFAULT,
+		const std::string szResolved = KoResolvePath(szFullPath); // harf duyarsız yol / klasör paketi
+		HRESULT rval = D3DXCreateTextureFromFileEx(s_lpD3DDev, szResolved.c_str(), D3DX_DEFAULT,
 			D3DX_DEFAULT, D3DX_DEFAULT, 0, D3DFMT_UNKNOWN, D3DPOOL_MANAGED,
 			D3DX_FILTER_TRIANGLE | D3DX_FILTER_MIRROR, D3DX_FILTER_TRIANGLE | D3DX_FILTER_MIRROR, 0,
 			&ImgInfo, nullptr, &m_lpTexture);

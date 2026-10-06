@@ -141,9 +141,9 @@ struct ManualMap
 const ManualMap MANUAL_MAPS[] = {
 	// 2195/2369 Zones: 9. sütun (HDR gökyüzü) eklendi, sona .mob ve .NaviMesh eklendi
 	{ "zones.tbl", 27, "0,1,2,3,4,5,6,7,8,x,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,x,x" },
-	// 2369 (ISTIRAP) Zones: 8. sütun geliştirici yolu ("d:\mgame\zone\…dxt"), sonra mini harita ve gökyüzü;
-	// sonda 3 ek sütun (DTTTTTTTTTIITTITFTDDDDTITTTI)
-	{ "zones.tbl", 28, "0,1,2,3,4,5,6,x,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,x,x,x" },
+	// 2369 (ISTIRAP) Zones (DTTTTTTTTTIITTITFTDDDDTITTTI): 9. sütun HDR gökyüzü (moradon_hdr.n3sky) atlanır,
+	// sonda .evtsub/.mob/.NaviMesh/int atlanır (yerel tbl_tool dökümü, satır 210)
+	{ "zones.tbl", 28, "0,1,2,3,4,5,6,7,8,x,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,x,x,x" },
 };
 
 bool ParseManual(const char* map, std::vector<int>& colMap)

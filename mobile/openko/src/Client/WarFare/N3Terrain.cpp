@@ -473,18 +473,33 @@ bool CN3Terrain::Load(File& file)
 
 	if (m_bHeader2369)
 	{
-		// 2369 nehir/havuz bölümü henüz tam çözülmedi: 1264 düzenini dene, uymazsa zemin susuz kalır
-		// (yürümeyi engellemez); çözüm için ilk 96 bayt Log.txt'ye dökülür.
+		// 2369 su verisi: her bölüm [u32 n=7][n bayt imza][int sürüm] ile başlar; nehir gövdesi 1264 ile aynı
+		// (moradon'da 0 nehir), havuz gövdesi 1264 + ikinci doku adı + 80 bayt ek (CN3Pond::Load b2369).
 		const int64_t iWaterOffset = static_cast<int64_t>(file.Offset());
 		try
 		{
+			auto skipSection = [&](const char* szWhat) -> int {
+				uint32_t n = 0;
+				file.Read(&n, sizeof(uint32_t));
+				if (n == 0 || n > 64)
+					throw std::runtime_error(fmt::format("CN3Terrain: 2369 {} bölüm imzası beklenmedik ({})", szWhat, n));
+				file.Seek(n, SEEK_CUR);
+				int iSecVer = -1;
+				file.Read(&iSecVer, sizeof(int));
+				if (iSecVer < 0 || iSecVer > 9)
+					throw std::runtime_error(fmt::format("CN3Terrain: 2369 {} bölüm sürümü beklenmedik ({})", szWhat, iSecVer));
+				return iSecVer;
+			};
+			skipSection("nehir");
 			m_pRiver->Load(file);
-			m_pPond->Load(file, iVersion);
+			skipSection("havuz");
+			m_pPond->Load(file, iVersion, true);
+			CLogWriter::Write("CN3Terrain: 2369 su verisi yüklendi (ofset {} → {}, dosya sonuna {} bayt)", iWaterOffset, file.Offset(),
+				(int64_t) file.Size() - (int64_t) file.Offset());
 		}
 		catch (const std::runtime_error& ex)
 		{
-			CLogWriter::Write("CN3Terrain: 2369 su verisi (ofset {}) 1264 düzenine uymadı: {} — nehir/havuz atlandı", iWaterOffset,
-				ex.what());
+			CLogWriter::Write("CN3Terrain: 2369 su verisi (ofset {}) okunamadı: {} — nehir/havuz atlandı", iWaterOffset, ex.what());
 			m_pRiver->Release();
 			m_pPond->Release();
 			file.Seek(iWaterOffset, SEEK_SET);

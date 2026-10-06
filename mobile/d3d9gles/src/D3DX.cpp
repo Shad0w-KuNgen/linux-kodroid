@@ -3,6 +3,9 @@
 #include <d3dx9.h>
 
 #include <algorithm>
+#include <cstdio>
+#include <cstring>
+#include <vector>
 
 using namespace d3d9gles;
 
@@ -103,13 +106,202 @@ HRESULT D3DXLoadSurfaceFromSurface(IDirect3DSurface9* dst, const PALETTEENTRY* d
 	return D3DXLoadSurfaceFromMemory(dst, dstPal, dstRect, lv.bytes.data(), sd.Format, LevelPitch(sd.Format, lv.width), srcPal, srcRect, filter, colorKey);
 }
 
-HRESULT D3DXCreateTextureFromFileEx(IDirect3DDevice9*, LPCSTR file, UINT, UINT, UINT, DWORD, D3DFORMAT, D3DPOOL, DWORD, DWORD, D3DCOLOR, D3DXIMAGE_INFO*, PALETTEENTRY*, IDirect3DTexture9** out)
+namespace
 {
-	// BMP/JPG/TGA yükleme henüz taşınmadı (oyun dokuları .DXT formatında; bu yol nadiren kullanılır).
-	Log("d3d9gles: D3DXCreateTextureFromFileEx desteklenmiyor (%s)", file ? file : "");
+// Basit BMP (24/32 bit, sıkıştırmasız, alt-üst / üst-alt) ve TGA (tür 2/3/10/11, 8/24/32 bit) çözücü → RGBA8
+bool DecodeBMP(const std::vector<uint8_t>& f, UINT& w, UINT& h, std::vector<uint8_t>& rgba)
+{
+	if (f.size() < 54 || f[0] != 'B' || f[1] != 'M')
+		return false;
+	auto u32 = [&](size_t o) { return (uint32_t) f[o] | (uint32_t) f[o + 1] << 8 | (uint32_t) f[o + 2] << 16 | (uint32_t) f[o + 3] << 24; };
+	auto u16 = [&](size_t o) { return (uint16_t) (f[o] | f[o + 1] << 8); };
+	uint32_t off = u32(10), hdr = u32(14);
+	int32_t bw = (int32_t) u32(18), bh = (int32_t) u32(22);
+	uint16_t bpp = u16(28);
+	uint32_t comp = hdr >= 40 ? u32(30) : 0;
+	if (bw <= 0 || bh == 0 || (bpp != 24 && bpp != 32) || (comp != 0 && comp != 3))
+		return false;
+	bool topDown = bh < 0;
+	UINT ah = (UINT) (bh < 0 ? -bh : bh);
+	size_t stride = ((size_t) bw * bpp / 8 + 3) & ~(size_t) 3;
+	if (off + stride * ah > f.size())
+		return false;
+	w = (UINT) bw;
+	h = ah;
+	rgba.resize((size_t) w * h * 4);
+	for (UINT y = 0; y < h; ++y)
+	{
+		const uint8_t* row = f.data() + off + stride * (topDown ? y : (h - 1 - y));
+		uint8_t* d         = rgba.data() + (size_t) y * w * 4;
+		for (UINT x = 0; x < w; ++x)
+		{
+			const uint8_t* s = row + (size_t) x * bpp / 8;
+			d[x * 4 + 0] = s[2];
+			d[x * 4 + 1] = s[1];
+			d[x * 4 + 2] = s[0];
+			d[x * 4 + 3] = bpp == 32 ? s[3] : 255;
+		}
+	}
+	return true;
+}
+
+bool DecodeTGA(const std::vector<uint8_t>& f, UINT& w, UINT& h, std::vector<uint8_t>& rgba)
+{
+	if (f.size() < 18)
+		return false;
+	uint8_t idLen = f[0], cmapType = f[1], type = f[2];
+	uint16_t tw = (uint16_t) (f[12] | f[13] << 8), th = (uint16_t) (f[14] | f[15] << 8);
+	uint8_t bpp = f[16], desc = f[17];
+	if (cmapType != 0 || tw == 0 || th == 0)
+		return false;
+	bool rle = (type == 10 || type == 11);
+	if (type != 2 && type != 3 && !rle)
+		return false;
+	if (bpp != 8 && bpp != 24 && bpp != 32)
+		return false;
+	size_t pos = 18 + idLen;
+	w = tw;
+	h = th;
+	size_t n = (size_t) w * h, bytes = bpp / 8;
+	std::vector<uint8_t> px(n * bytes);
+	if (!rle)
+	{
+		if (pos + n * bytes > f.size())
+			return false;
+		std::memcpy(px.data(), f.data() + pos, n * bytes);
+	}
+	else
+	{
+		size_t i = 0;
+		while (i < n)
+		{
+			if (pos >= f.size())
+				return false;
+			uint8_t hdr = f[pos++];
+			size_t cnt  = (hdr & 0x7F) + 1;
+			if (hdr & 0x80)
+			{
+				if (pos + bytes > f.size())
+					return false;
+				for (size_t k = 0; k < cnt && i < n; ++k, ++i)
+					std::memcpy(px.data() + i * bytes, f.data() + pos, bytes);
+				pos += bytes;
+			}
+			else
+			{
+				if (pos + cnt * bytes > f.size())
+					return false;
+				for (size_t k = 0; k < cnt && i < n; ++k, ++i, pos += bytes)
+					std::memcpy(px.data() + i * bytes, f.data() + pos, bytes);
+			}
+		}
+	}
+	bool topDown = (desc & 0x20) != 0;
+	rgba.resize(n * 4);
+	for (UINT y = 0; y < h; ++y)
+	{
+		const uint8_t* row = px.data() + (size_t) (topDown ? y : (h - 1 - y)) * w * bytes;
+		uint8_t* d         = rgba.data() + (size_t) y * w * 4;
+		for (UINT x = 0; x < w; ++x)
+		{
+			const uint8_t* s = row + (size_t) x * bytes;
+			if (bytes == 1)
+			{
+				d[x * 4 + 0] = d[x * 4 + 1] = d[x * 4 + 2] = s[0];
+				d[x * 4 + 3] = 255;
+			}
+			else
+			{
+				d[x * 4 + 0] = s[2];
+				d[x * 4 + 1] = s[1];
+				d[x * 4 + 2] = s[0];
+				d[x * 4 + 3] = bytes == 4 ? s[3] : 255;
+			}
+		}
+	}
+	return true;
+}
+} // namespace
+
+HRESULT D3DXCreateTextureFromFileEx(IDirect3DDevice9* dev, LPCSTR file, UINT, UINT, UINT mipLevels, DWORD usage, D3DFORMAT fmt,
+	D3DPOOL pool, DWORD, DWORD, D3DCOLOR, D3DXIMAGE_INFO* info, PALETTEENTRY*, IDirect3DTexture9** out)
+{
+	// BMP/TGA (misc\terrain_base.bmp, misc\sky\*.bmp, phases.tga ...). JPG için N3Texture kendi yolunu kullanır.
 	if (out)
 		*out = nullptr;
-	return D3DERR_NOTAVAILABLE;
+	if (!dev || !file || !out)
+		return D3DERR_INVALIDCALL;
+	std::vector<uint8_t> data;
+	{
+		FILE* fp = std::fopen(file, "rb");
+		if (!fp)
+		{
+			Log("d3d9gles: D3DXCreateTextureFromFileEx dosya açılamadı (%s)", file);
+			return D3DERR_NOTFOUND;
+		}
+		std::fseek(fp, 0, SEEK_END);
+		long n = std::ftell(fp);
+		std::fseek(fp, 0, SEEK_SET);
+		data.resize(n > 0 ? (size_t) n : 0);
+		size_t rd = data.empty() ? 0 : std::fread(data.data(), 1, data.size(), fp);
+		std::fclose(fp);
+		if (rd != data.size())
+			return D3DERR_NOTAVAILABLE;
+	}
+	UINT w = 0, h = 0;
+	std::vector<uint8_t> rgba;
+	bool ok = DecodeBMP(data, w, h, rgba) || DecodeTGA(data, w, h, rgba);
+	if (!ok)
+	{
+		Log("d3d9gles: D3DXCreateTextureFromFileEx desteklenmeyen biçim (%s)", file);
+		return D3DERR_NOTAVAILABLE;
+	}
+	if (fmt == D3DFMT_UNKNOWN)
+		fmt = D3DFMT_A8R8G8B8;
+	if (IsCompressedFormat(fmt))
+		fmt = D3DFMT_A8R8G8B8;
+	UINT levels = (mipLevels == 0 || mipLevels == D3DX_DEFAULT) ? 0 : mipLevels; // 0 = tam zincir
+	IDirect3DTexture9* tex = nullptr;
+	if (FAILED(dev->CreateTexture(w, h, levels, usage, fmt, pool, &tex, nullptr)) || !tex)
+		return D3DERR_NOTAVAILABLE;
+	UINT lvCount = tex->GetLevelCount();
+	std::vector<uint8_t> cur = rgba, next;
+	UINT cw = w, ch = h;
+	UINT bpp = FormatBytesPerPixel(fmt);
+	for (UINT lv = 0; lv < lvCount; ++lv)
+	{
+		if (lv > 0)
+		{
+			UINT nw = std::max(1u, cw / 2), nh = std::max(1u, ch / 2);
+			next.resize((size_t) nw * nh * 4);
+			ResampleRGBA(cur.data(), cw, ch, next.data(), nw, nh);
+			cur.swap(next);
+			cw = nw;
+			ch = nh;
+		}
+		D3DLOCKED_RECT lr;
+		if (FAILED(tex->LockRect(lv, &lr, nullptr, 0)))
+			break;
+		std::vector<uint8_t> row((size_t) cw * bpp);
+		for (UINT y = 0; y < ch; ++y)
+		{
+			RGBA8ToPixels(fmt, cw, 1, cur.data() + (size_t) y * cw * 4, row.data());
+			std::memcpy(static_cast<uint8_t*>(lr.pBits) + (size_t) y * lr.Pitch, row.data(), row.size());
+		}
+		tex->UnlockRect(lv);
+	}
+	if (info)
+	{
+		info->Width = w;
+		info->Height = h;
+		info->Depth = 1;
+		info->MipLevels = lvCount;
+		info->Format = fmt;
+		info->ResourceType = D3DRTYPE_TEXTURE;
+		info->ImageFileFormat = (data.size() > 1 && data[0] == 'B' && data[1] == 'M') ? D3DXIFF_BMP : D3DXIFF_TGA;
+	}
+	*out = tex;
+	return S_OK;
 }
 
 HRESULT D3DXCreateTextureFromFileExA(IDirect3DDevice9* dev, LPCSTR file, UINT w, UINT h, UINT mip, DWORD usage, D3DFORMAT fmt, D3DPOOL pool, DWORD f, DWORD mf, D3DCOLOR ck, D3DXIMAGE_INFO* info, PALETTEENTRY* pal, IDirect3DTexture9** out)

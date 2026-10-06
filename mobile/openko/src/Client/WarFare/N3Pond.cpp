@@ -39,7 +39,7 @@ void CN3Pond::Release()
 	m_fTexIndex = 0.0f;
 }
 
-bool CN3Pond::Load(File& file, int iGtdVersion)
+bool CN3Pond::Load(File& file, int iGtdVersion, bool b2369)
 {
 	constexpr int MAX_SUPPORTED_POND_MESH_COUNT = 1024;
 	constexpr int MAX_SUPPORTED_TEX_NAME_LENGTH = 50;
@@ -97,7 +97,7 @@ bool CN3Pond::Load(File& file, int iGtdVersion)
 		file.Read(mesh.m_pVertices, iVC * sizeof(__VertexPond));
 
 		float fWaveVariance = 0.2f;
-		if (iGtdVersion >= 2)
+		if (iGtdVersion >= 2 || b2369)
 			file.Read(&fWaveVariance, sizeof(float));
 
 		// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -110,6 +110,15 @@ bool CN3Pond::Load(File& file, int iGtdVersion)
 
 		int iIC                                     = 0;
 		file.Read(&iIC, sizeof(int));                                    // IndexBuffer Count.
+		if (b2369)
+		{
+			// 2369: [int adUzunluk][ikinci doku adı][80 bayt: 19 float + int] — şimdilik atlanır
+			int iTexNameLength2 = 0;
+			file.Read(&iTexNameLength2, sizeof(int));
+			if (iTexNameLength2 < 0 || iTexNameLength2 > MAX_SUPPORTED_TEX_NAME_LENGTH)
+				throw std::runtime_error("CN3Pond: invalid 2369 second texture name length");
+			file.Seek(iTexNameLength2 + 80, SEEK_CUR);
+		}
 		mesh.m_iIC     = iIC;                                            ///
 		mesh.m_wpIndex = new uint16_t[iVC * 6];                          ///
 

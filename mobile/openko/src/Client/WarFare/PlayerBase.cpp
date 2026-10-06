@@ -2029,6 +2029,31 @@ bool CPlayerBase::InitChr(__TABLE_PLAYER_LOOKS* pTbl)
 
 	m_pLooksRef = pTbl;
 
+	{
+		// 2369: bazı görünüm satırlarında bozuk (yazdırılamayan) dosya adları görülüyor ("\\chr\\???o"); kaynağı bulmak için
+		auto bad = [](const std::string& s) {
+			for (char c : s)
+				if ((uint8_t) c < 0x20 || (uint8_t) c >= 0x7F)
+					return true;
+			return false;
+		};
+		bool bBad = bad(pTbl->szJointFN) || bad(pTbl->szAniFN) || bad(pTbl->szChrFN);
+		for (const std::string& sz : pTbl->szPartFNs)
+			bBad = bBad || bad(sz);
+		if (bBad)
+		{
+			auto hex = [](const std::string& s) {
+				std::string h;
+				for (char c : s)
+					h += fmt::format("{:02x} ", (uint8_t) c);
+				return h;
+			};
+			CLogWriter::Write("InitChr: bozuk görünüm satırı: tablo ID {} ad [{}] ırk {} sınıf {} joint [{}] anim [{}] chr [{}] parça0 [{}]",
+				pTbl->dwID, hex(pTbl->szName), (int) m_InfoBase.eRace, (int) m_InfoBase.eClass, hex(pTbl->szJointFN), hex(pTbl->szAniFN),
+				hex(pTbl->szChrFN), hex(pTbl->szPartFNs[0]));
+		}
+	}
+
 	if (!pTbl->szChrFN.empty())
 	{
 		__Vector3 vPos = Position();

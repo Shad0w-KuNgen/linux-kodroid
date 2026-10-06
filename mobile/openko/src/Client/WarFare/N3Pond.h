@@ -103,7 +103,8 @@ public:
 
 public:
 	void Release() override;
-	bool Load(File& file, int iGtdVersion);
+	// b2369: ISTIRAP GTD — her havuzda fWave her zaman var, iIC'den sonra ikinci doku adı + 80 baytlık ek parametre bloğu
+	bool Load(File& file, int iGtdVersion, bool b2369 = false);
 	void Render();
 	void Tick();
 

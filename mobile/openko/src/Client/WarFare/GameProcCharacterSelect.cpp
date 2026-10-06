@@ -145,7 +145,11 @@ void CGameProcCharacterSelect::Init()
 	m_pUICharacterSelect              = new CUICharacterSelect();
 	m_pUICharacterSelect->Init(s_pUIMgr);
 	if (pTbl)
-		m_pUICharacterSelect->LoadFromFile(pTbl->szCharacterSelect); // UI Manager 에 넣지 않고 따로 처리한다... 이유가 있다..
+	{
+		bool bOK = m_pUICharacterSelect->LoadFromFile(pTbl->szCharacterSelect); // UI Manager 에 넣지 않고 따로 처리한다... 이유가 있다..
+		CLogWriter::Write("Karakter seçimi UI: {} -> {} ({} çocuk)", pTbl->szCharacterSelect, bOK ? "yüklendi" : "BAŞARISIZ",
+			m_pUICharacterSelect->GetChildren().size());
+	}
 	m_pUICharacterSelect->SetPos(0, 0);
 	s_pUIMgr->SetFocusedUI((CN3UIBase*) m_pUICharacterSelect);
 

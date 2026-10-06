@@ -186,6 +186,14 @@ bool CN3ShapeMgr::Load(File& file)
 		for (int i = 0; i < iSC; i++)
 		{
 			file.Read(&dwType, sizeof(uint32_t)); // Shape Type
+			// 2369: nesne kayıtlarının arasına [u32 7][7 bayt imza] blokları eklenmiş (moradon.opd 4257. kayıt
+			// öncesi ve dosya sonu); geçerli tür değerleri OBJ_SHAPE (0x400) ve üstü
+			while (m_bHeader2369 && dwType > 0 && dwType < 0x100)
+			{
+				file.Seek(dwType, SEEK_CUR);
+				if (!file.Read(&dwType, sizeof(uint32_t)))
+					throw std::runtime_error("CN3ShapeMgr: 2369 imza bloğundan sonra dosya bitti");
+			}
 
 			// 성문등 확장된 Object 로 쓸경우..
 			if (dwType & OBJ_SHAPE_EXTRA)
@@ -804,12 +812,17 @@ void CN3ShapeMgr::Tick()
 				continue;
 
 			int iSCC = pCellCur->nShapeCount;
+			const int iShapeCount = static_cast<int>(m_Shapes.size());
 			for (int i = 0; i < iSCC; i++)
 			{
 				int iSIndex = pCellCur->pwShapeIndices[i];
 				__ASSERT(iSIndex >= 0 && iSIndex < iSC, "Shape Index is invalid");
+				if (iSIndex < 0 || iSIndex >= iShapeCount) // nesne listesi yarım yüklendiyse (2369) hücre dizini taşar
+					continue;
 
 				CN3Shape* pShape = m_Shapes[iSIndex];
+				if (pShape == nullptr)
+					continue;
 
 				pShape->Tick();
 				if (pShape->m_bDontRender)

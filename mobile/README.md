@@ -224,12 +224,19 @@ ya da klasördeki herhangi bir `*.hdr/*.src` çifti) VFS aynı dizin biçimiyle 
 **2369 harita dosyaları (GTD/OPD):** ISTIRAP istemcisinde `Zones\*.gtd` ve `*.opd/.opdext` başlığı
 `[int32 adUzunluk][ad: tablo akış XOR'u 0x0816/0x6081/0x1608][int32 sürüm]` (1264: `[sürüm][adUzunluk][ad]`);
 gövde 1264 ile aynı, GTD'de çim özniteliğinden sonra 4096 baytlık ek blok var. `CN3Terrain` ve `CN3ShapeMgr`
-önce 1264, sonra 2369 başlığı (`CN3BaseFileAccess::ReadHeader2369`), sonra 1098 dener. 2369'da nehir/havuz
-bölümü henüz çözülmedi: 1264 düzeni denenir, uymazsa su atlanır ve ilk 96 bayt Log.txt'ye dökülür
-(`CN3Terrain: su verisi dökümü`); nesne kayıtlarından biri uymazsa kalanlar atlanır. Zemin yüklenemezse
-`Tick/Render` erken döner (v146: `SetLODLevel` SIGSEGV). 2369 `Zones.tbl` 28 sütun: 8. sütun geliştirici
-yolu (`d:\mgame\zone\…dxt`), mini harita ve gökyüzü bir kaydırılır (`KoTableSchemas` elle eşleme).
-`InitZone` bölge dosya adlarını, `CN3Chr::PartSet` bozuk (yazdırılamayan) parça adlarını günlükler.
+önce 1264, sonra 2369 başlığı (`CN3BaseFileAccess::ReadHeader2369`), sonra 1098 dener. Su verisi (2369,
+`data/2369-samples` dalındaki `moradon.gtd` ile çözüldü): ışık haritası sayısından sonra iki bölüm, her biri
+`[u32 7][7 bayt imza][int sürüm=1]` ile başlar; nehir gövdesi 1264 ile aynı (Moradon'da 0), havuz gövdesi 1264 +
+`fWave` her zaman + `iIC`'den sonra `[int][ikinci doku adı][80 bayt]` (`CN3Pond::Load(..., b2369)`); dosya
+tam tüketilir. Uymazsa su atlanır ve ilk 96 bayt dökülür. OPD: gövde 1264 ile aynı, ancak nesne kayıtları
+arasına ve dosya sonuna `[u32 7][7 bayt imza]` blokları eklenmiş (moradon.opd 4257. kayıt öncesi); tür değeri
+0x100'den küçükse blok atlanır. Yarım yüklemede `CN3ShapeMgr::Tick` hücre dizinlerini sınırlar, zemin
+yüklenemezse `CN3Terrain::Tick/Render` erken döner (v146/v147 SIGSEGV'leri). 2369 `Zones.tbl` 28 sütun:
+9. sütun HDR gökyüzü ve sondaki 3 sütun atlanır (`KoTableSchemas` elle eşleme; satır 210 dökümünden).
+`d3d9gles` `D3DXCreateTextureFromFileEx` artık BMP (24/32) ve TGA (2/3/10/11) okur (`terrain_base.bmp`,
+`sky\*.bmp`, `phases.tga`); `CN3Texture` yolu `KoResolvePath` ile çözer. `InitZone` bölge dosya adlarını,
+`CN3Chr::PartSet` ve `CPlayerBase::InitChr` bozuk (yazdırılamayan) dosya adlarını tablo ID'siyle günlükler;
+`CGameProcCharacterSelect` yüklediği UIF'i günlükler.
 
 **Ses:** istemciyle gelen `Option.ini` `[Sound] Bgm=0 Effect=0` olduğundan `s_SndMgr.Init()` hiç çağrılmıyor,
 OpenAL bağlamı olmadan `alListener*` her kare A004 (`AL_INVALID_OPERATION`) üretiyordu. Dinleyici çağrıları
