@@ -15,3 +15,4 @@ ISTIRAP 2369 istemcisinin `Zones/` klasöründen değiştirilmeden alındı. Bi�
 - `fx/ice_cast0_3.fxb` + `fx/object/31110ice_cm/`: fx paketinden. Not: "ice_cm.n32hape" yazım hatası orijinal fxb'nin içinde (ofset 380), okuma hatası değil.
 - `ui-hdr-list.txt` (6374 ad + boyut), `data-list.txt` (Data/, 270 dosya), `istirap-list.txt` (ISTIRAP/, 40 dosya)
 - `logs/Log-v160.txt` + `logs/rapor-20261006-154517/`: v160 telefon raporunun tamamı (Log.txt, logcat, Option.ini, gpu, cihaz, veri-dizini)
+- `ui/`: 2369 HUD dosyaları (re_hpbar, re_taskbar_main/sub, re_minimap, re_uisubhpbar, co_hpbar .uif; re_taskbar_main.istirap + çözülmüş .uif) ve her biri için `.agac.txt` (ui_tool uif ağaç dökümü)
