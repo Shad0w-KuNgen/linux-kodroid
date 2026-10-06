@@ -76,6 +76,13 @@ CN3UIArea* CN3UIWndBase::GetChildAreaByiOrder(eUI_AREA_TYPE eUAT, int iOrder)
 			return static_cast<CN3UIArea*>(pChild);
 	}
 
+	// 2369 UIF'lerinde yuvalar grup içinde olabilir: derin arama (aynı kimlik ve alan türü)
+	if (CN3UIBase* p = GetChildByID(szID, UI_TYPE_AREA))
+	{
+		if (static_cast<CN3UIArea*>(p)->m_eAreaType == eUAT)
+			return static_cast<CN3UIArea*>(p);
+	}
+
 	return nullptr;
 }
 
@@ -87,6 +94,8 @@ CN3UIString* CN3UIWndBase::GetChildStringByiOrder(int iOrder)
 		if (pChild->UIType() == UI_TYPE_STRING && pChild->GetID() == szID)
 			return static_cast<CN3UIString*>(pChild);
 	}
+	if (CN3UIBase* p = GetChildByID(szID, UI_TYPE_STRING)) // 2369: grup içinde
+		return static_cast<CN3UIString*>(p);
 
 	return nullptr;
 }

@@ -4351,6 +4351,17 @@ void CGameProcMain::InitUI()
 	rc = m_pUIStateBarAndMiniMap->GetRegion();
 	m_pUIHotKeyDlg->Init(s_pUIMgr);
 	m_pUIHotKeyDlg->LoadFromFile(pTbl->szHotKey);
+	{
+		int iSlots = 0;
+		for (int i = 0; i < MAX_SKILL_IN_HOTKEY; i++)
+			if (m_pUIHotKeyDlg->GetChildAreaByiOrder(UI_AREA_TYPE_SKILL_HOTKEY, i) != nullptr)
+				iSlots++;
+		if (iSlots < MAX_SKILL_IN_HOTKEY)
+			CLogWriter::Write("Kısayol çubuğu ({}): {}/{} beceri yuvası alanı bulundu; ağaç: {}", pTbl->szHotKey, iSlots, MAX_SKILL_IN_HOTKEY,
+				m_pUIHotKeyDlg->DumpTreeForLog());
+		else
+			CLogWriter::Write("Kısayol çubuğu ({}): {} beceri yuvası alanı hazır", pTbl->szHotKey, iSlots);
+	}
 	m_pUIHotKeyDlg->SetStyle(UISTYLE_HIDE_UNABLE);
 	UIPostData_Read(UI_POST_WND_HOTKEY, m_pUIHotKeyDlg, rc.left, rc.bottom);
 	m_pUIHotKeyDlg->SetVisibleWithNoSound(true); // 무조건 보인다!!!

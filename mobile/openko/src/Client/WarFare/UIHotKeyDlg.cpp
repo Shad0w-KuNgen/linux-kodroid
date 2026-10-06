@@ -4,6 +4,7 @@
 
 #include "StdAfx.h"
 #include "UIHotKeyDlg.h"
+#include <N3Base/LogWriter.h>
 #include "LocalInput.h"
 #include "GameProcMain.h"
 #include "PlayerMySelf.h"
@@ -613,6 +614,12 @@ void CUIHotKeyDlg::SetReceiveSelectedSkill(int iIndex)
 	}
 
 	CN3UIArea* pArea                = GetChildAreaByiOrder(UI_AREA_TYPE_SKILL_HOTKEY, iIndex);
+	if (pArea == nullptr || s_sSkillSelectInfo.pSkillDoneInfo == nullptr)
+	{
+		CLogWriter::Write("CUIHotKeyDlg: kısayol yuvası {} alanı yok (UIF'de {} türünde \"{}\" alanı bekleniyor) — beceri bırakılamadı", iIndex,
+			(int) UI_AREA_TYPE_SKILL_HOTKEY, iIndex);
+		return;
+	}
 
 	// 그 다음에.. 그 자리에
 	m_pMyHotkey[m_iCurPage][iIndex] = s_sSkillSelectInfo.pSkillDoneInfo;

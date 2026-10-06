@@ -278,6 +278,13 @@ void DumpUITreeForMapping(const CN3UIBase* p, int depth, std::string& out)
 }
 } // namespace
 
+std::string CN3UIBase::DumpTreeForLog() const
+{
+	std::string szTree;
+	DumpUITreeForMapping(this, 1, szTree);
+	return szTree;
+}
+
 bool CN3UIBase::LoadSupportedVersions(File& file)
 {
 	const bool bRoot = !m_szFileName.empty();

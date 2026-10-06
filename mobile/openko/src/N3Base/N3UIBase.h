@@ -232,6 +232,7 @@ public:
 
 	// Find first control matching the specified ID.
 	CN3UIBase* GetChildByID(const std::string_view szID) const;
+	std::string DumpTreeForLog() const; // çocuk ağacı "id(tür), grup(tür): [..]" (3 seviye) — 2369 ID eşlemesi günlüğü
 
 	// Find first control matching both the specified ID and UI type.
 	CN3UIBase* GetChildByID(const std::string_view szID, eUI_TYPE eUIType) const;
