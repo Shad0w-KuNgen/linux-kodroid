@@ -14,3 +14,4 @@ ISTIRAP 2369 istemcisinin `Zones/` klasöründen değiştirilmeden alındı. Bi�
 - `DTex/`: 2369 istemcisinin bütün zemin dokuları (1102 dosya, 1096 GTT; tüm haritalar). Moradon'un kullandığı 42 GTT'nin adları moradon.gtd ofset 607016'dan 260 bayt adımla.
 - `fx/ice_cast0_3.fxb` + `fx/object/31110ice_cm/`: fx paketinden. Not: "ice_cm.n32hape" yazım hatası orijinal fxb'nin içinde (ofset 380), okuma hatası değil.
 - `ui-hdr-list.txt` (6374 ad + boyut), `data-list.txt` (Data/, 270 dosya), `istirap-list.txt` (ISTIRAP/, 40 dosya)
+- `logs/Log-v160.txt` + `logs/rapor-20261006-154517/`: v160 telefon raporunun tamamı (Log.txt, logcat, Option.ini, gpu, cihaz, veri-dizini)
