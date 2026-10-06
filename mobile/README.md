@@ -299,6 +299,12 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
   paketi atar ve türü bir kez günlükler (bilinmeyen sohbet düzeni artık çökertmez).
 - `[Mobile] MaxVisibleUsers` (varsayılan 60): kameraya en yakın N oyuncu çizilir (Ronark'ta 400 bot).
 
+- **2369 zemin delikleri (turkuaz/boş görünen yamalar)**: 2369 `.gtd` dosyasındaki yama başına "orta yükseklik +
+  yarıçap" bloğu bu motorun anlamında değil (eksi yarıçaplar); görüş alanı sınaması yamaları yanlış elediği için
+  oyuncunun yakınında gökyüzü/sis renginde düz plakalar ve delikler kalıyordu. `CN3Terrain::Load` 2369 başlığında
+  bu değerleri yükseklik verisinden yeniden hesaplar (1.298 dosyalarının kendi değerleriyle birebir aynı formül).
+  Masaüstünde `KO_TERRAIN_TEST` ile 2369 Moradon tüm 174 döşeme ve 42 GTT ile eksiksiz çizildi.
+
 ### Oyun verisini telefona kurma
 
 Launcher oyun verisini arar; yoksa "Veriyi indir ve kur" (varsayılan adres) ya da "Veriyi onar /

@@ -5,6 +5,8 @@
 
 #include "StdAfx.h"
 #include "N3TerrainPatch.h"
+#include <N3Base/LogWriter.h>
+#include <cstdlib>
 #include "N3Terrain.h"
 
 #include <N3Base/N3Texture.h>
@@ -708,6 +710,24 @@ void CN3TerrainPatch::Render()
 
 		const size_t TileTextureCount = m_pRefTerrain->m_TileTex.size();
 		int TotalTile                 = PATCH_TILE_SIZE * PATCH_TILE_SIZE;
+		static bool s_bTileDbg = std::getenv("KO_TERRAIN_TEST_TILEDBG") != nullptr;
+		if (s_bTileDbg)
+		{
+			int cx = (int) (CN3Base::s_CameraData.vEye.x / TILE_SIZE), cz = (int) (CN3Base::s_CameraData.vEye.z / TILE_SIZE);
+			if (cx >= m_ti_LBPoint.x && cx < m_ti_LBPoint.x + PATCH_TILE_SIZE && cz >= m_ti_LBPoint.y && cz < m_ti_LBPoint.y + PATCH_TILE_SIZE)
+			{
+				std::string sz;
+				for (int i = 0; i < TotalTile; i++)
+				{
+					uint32_t a = m_pTileTexIndx[0][i], b = m_pTileTexIndx[1][i];
+					const char* ta = a < TileTextureCount ? (m_pRefTerrain->m_TileTex[a].Get() ? "T" : "NULL") : "-";
+					const char* tb = b < TileTextureCount ? (m_pRefTerrain->m_TileTex[b].Get() ? "T" : "NULL") : "-";
+					sz += fmt::format("[{}:{}{}/{}{} f{}] ", i, a, ta, b, tb, (int) m_pIsTileFull[i]);
+				}
+				CLogWriter::Write("[tiledbg] yama LB({},{}) kamera döşemesi ({},{}): {}", m_ti_LBPoint.x, m_ti_LBPoint.y, cx, cz, sz);
+				s_bTileDbg = false;
+			}
+		}
 		for (int i = 0; i < TotalTile; i++)
 		{
 			CN3Base::s_lpD3DDev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);

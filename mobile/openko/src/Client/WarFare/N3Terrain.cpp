@@ -7,6 +7,9 @@
 #include "StdAfx.h"
 #include "N3Terrain.h"
 #include <set>
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
 #include "N3TerrainPatch.h"
 #include "PlayerMySelf.h"
 #include "GameProcedure.h"
@@ -432,6 +435,24 @@ bool CN3Terrain::Load(File& file)
 		{
 			file.Read(&m_ppPatchMiddleY[x][z], sizeof(float));
 			file.Read(&m_ppPatchRadius[x][z], sizeof(float));
+			if (m_bHeader2369)
+			{
+				// 2369 dosyasındaki yama orta yüksekliği/yarıçapı bu motorun beklediği anlamda değil (eksi yarıçaplar,
+				// yüksekliklerle ilgisiz değerler) → görüş alanı sınaması yamaları yanlış eliyor (zeminde delikler).
+				// Yükseklik verisinden yeniden hesapla: orta = (min+max)/2, yarıçap = yama kutusunun yarı köşegeni.
+				float fMin = FLT_MAX, fMax = -FLT_MAX;
+				for (int tx = x * PATCH_TILE_SIZE; tx <= (x + 1) * PATCH_TILE_SIZE && tx < m_ti_MapSize; tx++)
+					for (int tz = z * PATCH_TILE_SIZE; tz <= (z + 1) * PATCH_TILE_SIZE && tz < m_ti_MapSize; tz++)
+					{
+						float h = m_pMapData[tx * m_ti_MapSize + tz].fHeight;
+						fMin    = std::min(fMin, h);
+						fMax    = std::max(fMax, h);
+					}
+				const float fHalfXZ     = PATCH_TILE_SIZE * TILE_SIZE * 0.5f;
+				const float fHalfY      = (fMax - fMin) * 0.5f;
+				m_ppPatchMiddleY[x][z] = (fMin + fMax) * 0.5f;
+				m_ppPatchRadius[x][z]  = sqrtf(fHalfXZ * fHalfXZ * 2.0f + fHalfY * fHalfY);
+			}
 		}
 
 		int iLoading  = (x + 1) * 100 / m_pat_MapSize;

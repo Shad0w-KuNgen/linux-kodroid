@@ -706,7 +706,8 @@ int main(int argc, char** argv)
 				CN3Base::s_lpD3DDev->SetSamplerState(st, D3DSAMP_MIPFILTER, dwFilter);
 			}
 			pWorld->RenderTerrain();
-			pWorld->RenderShape();
+			if (!std::getenv("KO_TERRAIN_TEST_NOSHAPE"))
+				pWorld->RenderShape();
 			CN3Base::s_AlphaMgr.Render();
 			CN3Base::s_lpD3DDev->EndScene();
 			if (pshot && f == maxF - 1)
