@@ -183,7 +183,9 @@ void AudioDecoderThread::decode_impl_pcm(StreamedAudioHandle* handle)
 
 	const size_t ChunksToDecode = MAX_AUDIO_STREAM_BUFFER_COUNT - handle->DecodedChunks.size();
 	FileReader* file            = asset->File.get();
-	const size_t fileSize       = static_cast<size_t>(file->Size());
+	// Ogg: dosya yerine bellek içi PCM (OwnedPcm)
+	const uint8_t* memBase      = file ? static_cast<const uint8_t*>(file->Memory()) : asset->PcmDataBuffer;
+	const size_t fileSize       = file ? static_cast<size_t>(file->Size()) : asset->PcmDataSize;
 
 	for (size_t i = 0; i < ChunksToDecode; i++)
 	{
@@ -224,9 +226,7 @@ void AudioDecoderThread::decode_impl_pcm(StreamedAudioHandle* handle)
 		// Read a chunk.
 		decodedChunk.Data.resize(bytesToRead);
 
-		std::memcpy(&decodedChunk.Data[0],
-			static_cast<const uint8_t*>(file->Memory()) + handle->FileReaderHandle.Offset,
-			bytesToRead);
+		std::memcpy(&decodedChunk.Data[0], memBase + handle->FileReaderHandle.Offset, bytesToRead);
 
 		handle->FileReaderHandle.Offset += bytesToRead;
 

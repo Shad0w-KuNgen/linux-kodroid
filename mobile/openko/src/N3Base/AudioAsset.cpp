@@ -25,16 +25,60 @@ BufferedAudioAsset::~BufferedAudioAsset()
 	BufferId = INVALID_AUDIO_BUFFER_ID;
 }
 
-bool BufferedAudioAsset::LoadFromFile(const std::string& filename)
+bool KoDecodeOggToPcm(const uint8_t* data, size_t size, std::vector<uint8_t>& pcm, int& channels, int& sampleRate);
+
+// 2369: sound.tbl adları .mp3/.wav olabilir ama Snd/ klasöründe .ogg bulunur (ya da tersi). Var olan dosyayı seç.
+static std::string KoResolveAudioPath(const std::string& filename)
 {
-	// Expect ".wav", 4 characters long.
-	constexpr size_t ExtensionLength = 4;
+	auto exists = [](const std::string& fn) {
+		FileReader f;
+		return f.OpenExisting(fn);
+	};
+	if (exists(filename))
+		return filename;
+	size_t dot = filename.find_last_of('.');
+	if (dot == std::string::npos)
+		return filename;
+	std::string base = filename.substr(0, dot);
+	for (const char* ext : {".ogg", ".mp3", ".wav"})
+	{
+		std::string alt = base + ext;
+		if (alt != filename && exists(alt))
+			return alt;
+	}
+	return filename;
+}
 
-	if (filename.length() < ExtensionLength)
-		return false;
+static bool KoHasExt(const std::string& fn, const char* ext)
+{
+	return fn.size() >= 4 && strnicmp(fn.data() + fn.size() - 4, ext, 4) == 0;
+}
 
-	const char* extension = filename.data() + filename.length() - ExtensionLength;
-	if (strnicmp(extension, ".wav", ExtensionLength) != 0)
+bool BufferedAudioAsset::LoadFromFile(const std::string& filenameIn)
+{
+	const std::string filename = KoResolveAudioPath(filenameIn);
+	if (KoHasExt(filename, ".ogg"))
+	{
+		FileReader file;
+		if (!file.OpenExisting(filename))
+			return false;
+		std::vector<uint8_t> pcm;
+		int ch = 0, rate = 0;
+		if (!KoDecodeOggToPcm(static_cast<const uint8_t*>(file.Memory()), (size_t) file.Size(), pcm, ch, rate))
+			return false;
+		alGenBuffers(1, &BufferId);
+		if (AL_CHECK_ERROR())
+			return false;
+		ALenum fmt = ch >= 2 ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16;
+		alBufferData(BufferId, fmt, pcm.data(), (ALsizei) pcm.size(), rate);
+		if (AL_CHECK_ERROR())
+			return false;
+		Filename   = filename;
+		AlFormat   = fmt;
+		SampleRate = rate;
+		return true;
+	}
+	if (!KoHasExt(filename, ".wav"))
 		return false;
 
 	FileReader file;
@@ -71,8 +115,30 @@ StreamedAudioAsset::StreamedAudioAsset()
 	PcmDataBuffer = nullptr;
 }
 
-bool StreamedAudioAsset::LoadFromFile(const std::string& filename)
+bool StreamedAudioAsset::LoadFromFile(const std::string& filenameIn)
 {
+	const std::string filename = KoResolveAudioPath(filenameIn);
+	if (KoHasExt(filename, ".ogg"))
+	{
+		// Tam çözüp bellek içi PCM akışı olarak sun (AudioDecoderThread: File boşsa OwnedPcm'den okur)
+		FileReader file;
+		if (!file.OpenExisting(filename))
+			return false;
+		int ch = 0, rate = 0;
+		if (!KoDecodeOggToPcm(static_cast<const uint8_t*>(file.Memory()), (size_t) file.Size(), OwnedPcm, ch, rate))
+			return false;
+		DecoderType   = AUDIO_DECODER_PCM;
+		File.reset();
+		Filename      = filename;
+		AlFormat      = ch >= 2 ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16;
+		SampleRate    = rate;
+		PcmChunkSize  = (size_t) rate * ch * sizeof(short) / 4; // çeyrek saniyelik parça
+		if (PcmChunkSize == 0)
+			PcmChunkSize = 16384;
+		PcmDataSize   = OwnedPcm.size();
+		PcmDataBuffer = OwnedPcm.data();
+		return true;
+	}
 	// Expect ".mp3" or ".wav", both 4 characters long.
 	constexpr size_t ExtensionLength = 4;
 

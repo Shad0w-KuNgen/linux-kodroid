@@ -94,6 +94,14 @@ public:
 	float m_fLBClickTime;
 	bool m_bTouchInteractThisFrame = false; // dokunmatik: bu karede ikinci dokunuşla etkileşim yapıldı → sol tuş hareketi atla
 	int m_iTouchTalkNpcID          = -1;    // dokunmatik: uzaktaki NPC'ye yürünüyor, menzile girince konuşulacak
+	// Dokunmatik oyuncu menüsü (seçili oyuncuya ikinci dokunuş): kaplama çizer, TouchMenuAction uygular
+	int m_iTouchMenuPlayerID       = -1;
+	std::string m_szTouchMenuPlayer;
+	int m_iTouchMenuX              = 0;
+	int m_iTouchMenuY              = 0;
+	float m_fRegionConfirmTime     = 0.0f;  // alan becerisi onayı (tek atış için bekleme)
+	void TouchMenuAction(int iAction); // 0 parti, 1 ticaret, 2 fısıltı, 3 arkadaş ekle, 4 kapat
+	void MsgSend_FriendAdd(int iTargetID, const std::string& szName);
 
 	int m_iJoinReqClan;
 	int m_iJoinReqClanRequierID;

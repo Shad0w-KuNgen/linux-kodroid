@@ -286,6 +286,8 @@ protected:
 	CN3UIButton* m_pBtn_Quest;
 	CN3UIButton* m_pBtn_Friends;
 	CN3UIButton* m_pBtn_Close;
+	CN3UIButton* m_pBtn_Clan2369 = nullptr;    // 2369 re_various_frame: "btn_clan" (klan sayfası)
+	CN3UIButton* m_pBtnPagePrev  = nullptr;    // son etkin sekme (eski static yeniden yüklemede takılıyordu)
 
 	bool m_bOpenningNow; // 열리고 있다..
 	bool m_bClosingNow;  // 닫히고 있다..

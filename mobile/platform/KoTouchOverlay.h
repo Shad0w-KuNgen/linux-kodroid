@@ -110,6 +110,12 @@ private:
 	void DrawRect(IDirect3DDevice9* dev, float x, float y, float w, float h, uint32_t color);
 	void DrawLabel(IDirect3DDevice9* dev, int index, const std::string& text, float x, float y, uint32_t color, int height);
 	void RenderFps(IDirect3DDevice9* dev);
+	void DrawTexturedQuad(IDirect3DDevice9* dev, float x, float y, float w, float h, void* pTex, uint32_t color);
+	void DrawSkillIcons(IDirect3DDevice9* dev); // kısayol yuvalarındaki beceri ikonları halkaların içine
+	// Oyuncu menüsü (CGameProcMain::m_iTouchMenuPlayerID): satır dikdörtgenleri
+	struct MenuRow { int action; float x, y, w, h; std::string label; };
+	void LayoutPlayerMenu(std::vector<MenuRow>& rows) const;
+	bool HitPlayerMenu(int x, int y);
 
 	bool m_enabled      = false;
 	bool m_showFps      = false;

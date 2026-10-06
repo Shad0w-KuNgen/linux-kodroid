@@ -98,7 +98,8 @@ public:
 	static bool s_bTouchControls;
 	static int s_iTouchInsetTop;    // dokunmatik kaplama: sağ üst kamera düğmelerinin alt kenarı (piksel)
 	static int s_iTouchInsetRight;  // sağ kenardaki hedef sütununun genişliği
-	static int s_iTouchInsetBottom; // alt çubuğun yüksekliği              // Mobil: dokunmatik kaplama etkin (dokunuş = tık; seçili NPC/kapıya ikinci dokunuş = sağ tık)
+	static int s_iTouchInsetBottom; // alt çubuğun yüksekliği
+	static bool s_bTouchLockMove;   // alan becerisi hedef seçimi: joystick/kamera kilitli              // Mobil: dokunmatik kaplama etkin (dokunuş = tık; seçili NPC/kapıya ikinci dokunuş = sağ tık)
 	static int s_iSendLogLeft;                 // Main'e geçişte günlüğe yazılacak kalan gönderim sayısı
 	static int s_iRecvLogLeft;                 // Main'de günlüğe yazılacak kalan alım sayısı
 	// 2369 sunucusu (CUser::HandlePacket) karakter seçildikten sonra oyun başlayana dek yalnız belirli opcode'ları

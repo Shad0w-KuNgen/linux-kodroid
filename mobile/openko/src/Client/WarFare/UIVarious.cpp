@@ -1517,8 +1517,16 @@ bool CUIVarious::Load(File& file)
 		m_pPageFriends->Release();
 	m_pPageFriends->Init(this);
 
+	// 2369 çerçevesi: "btn_clan" ayrı bir sekme; klan sayfasına bağla. Sayfalar taban düzeyde gizlenir
+	// (CUIKnights::SetVisible erken dönüyordu → klan sayfası karakter bilgisinin üstünde açılıyordu).
+	m_pBtn_Clan2369 = GetChildByID<CN3UIButton>("btn_clan");
+	m_pBtnPagePrev  = nullptr;
+	for (CN3UIBase* pPage : {(CN3UIBase*) m_pPageKnights, (CN3UIBase*) m_pPageQuest, (CN3UIBase*) m_pPageFriends})
+		if (pPage)
+			pPage->CN3UIBase::SetVisible(false);
+	if (m_pPageState)
+		m_pPageState->CN3UIBase::SetVisible(true);
 	this->UpdatePageButtons(m_pBtn_State);
-
 	return true;
 }
 
@@ -1532,7 +1540,7 @@ bool CUIVarious::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 			this->UpdatePageButtons(m_pBtn_State);
 		else if (pSender == m_pBtn_Quest)
 			this->UpdatePageButtons(m_pBtn_Quest);   // 퀘스트...
-		else if (pSender == m_pBtn_Knights)
+		else if (pSender == m_pBtn_Knights || (m_pBtn_Clan2369 != nullptr && pSender == m_pBtn_Clan2369))
 			this->UpdatePageButtons(m_pBtn_Knights); // 기사단... 잠시 막자..
 		else if (pSender == m_pBtn_Friends)
 			this->UpdatePageButtons(m_pBtn_Friends);
@@ -1543,10 +1551,9 @@ bool CUIVarious::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 
 void CUIVarious::UpdatePageButtons(CN3UIButton* pButtonToActive)
 {
-	static CN3UIButton* pButtonPrev = nullptr;
-	if (nullptr == pButtonToActive || pButtonToActive == pButtonPrev)
+	if (nullptr == pButtonToActive)
 		return;
-	pButtonPrev           = pButtonToActive;
+	m_pBtnPagePrev        = pButtonToActive;
 
 	CN3UIButton* pBtns[4] = { m_pBtn_Knights, m_pBtn_State, m_pBtn_Quest, m_pBtn_Friends };
 	CN3UIBase* pPages[4]  = { m_pPageKnights, m_pPageState, m_pPageQuest, m_pPageFriends };
@@ -1560,16 +1567,21 @@ void CUIVarious::UpdatePageButtons(CN3UIButton* pButtonToActive)
 		{
 			pBtns[i]->SetState(UI_STATE_BUTTON_DOWN);
 			if (pPages[i])
-				pPages[i]->SetVisible(true);
+			{
+				pPages[i]->CN3UIBase::SetVisible(true);
+				pPages[i]->SetVisible(true); // türetilmiş sınıf yenilemesi (CUIKnights düğmeleri)
+			}
 		}
 		else
 		{
 			pBtns[i]->SetState(UI_STATE_BUTTON_NORMAL);
 			if (pPages[i])
-				pPages[i]->SetVisible(false);
+				pPages[i]->CN3UIBase::SetVisible(false);
 		}
 	}
 
+	if (m_pBtn_Clan2369 != nullptr)
+		m_pBtn_Clan2369->SetState(pButtonToActive == m_pBtn_Knights ? UI_STATE_BUTTON_DOWN : UI_STATE_BUTTON_NORMAL);
 	if (pButtonToActive == m_pBtn_Friends && m_pPageFriends)
 		m_pPageFriends->MsgSend_MemberInfo(false); // 이러면 친구리스트를 업데이트한다..
 }

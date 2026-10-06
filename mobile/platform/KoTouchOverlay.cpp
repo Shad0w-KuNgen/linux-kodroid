@@ -16,6 +16,9 @@
 #include <N3Base/LogWriter.h>
 #include "GameEng.h"
 #include "GameDef.h"
+#include "UIHotKeyDlg.h"
+#include "MagicSkillMng.h"
+#include <N3Base/N3Texture.h>
 
 #include <N3Base/N3Base.h>
 #include <N3Base/N3UIBase.h>
@@ -431,6 +434,12 @@ void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
 		return;
 	}
 	bool overlayActive = m_enabled && (IsInGame() || m_forceVisible) && CN3UIBase::GetFocusedEdit() == nullptr;
+	if (overlayActive && IsInGame() && HitPlayerMenu(x, y))
+	{
+		f.role = Role::Done;
+		m_fingers.push_back(f);
+		return;
+	}
 	if (overlayActive)
 	{
 		int b = HitButton(x, y);
@@ -447,7 +456,7 @@ void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
 			m_fingers.push_back(f);
 			return;
 		}
-		if (!m_hidden && m_joyFinger < 0 && InJoystickZone(x, y))
+		if (!m_hidden && m_joyFinger < 0 && InJoystickZone(x, y) && !CGameProcedure::s_bTouchLockMove)
 		{
 			f.role      = Role::Joystick;
 			m_joyFinger = id;
@@ -477,7 +486,7 @@ void KoTouchOverlay::OnFingerMotion(int64_t id, int x, int y)
 			{
 				// Arayüz penceresi üstünde başlayan sürükleme = sol tuş sürüklemesi (ikon taşıma,
 				// pencere taşıma, kaydırma çubuğu); 3D dünyada = kamera (sağ tuş sürüklemesi)
-				bool camera = m_enabled && IsInGame() && !IsOverUI(f->startX, f->startY);
+				bool camera = m_enabled && IsInGame() && !IsOverUI(f->startX, f->startY) && !CGameProcedure::s_bTouchLockMove;
 				if (camera)
 				{
 					f->role   = Role::Camera;
@@ -1002,6 +1011,28 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 				break;
 		}
 	}
+	if (!m_hidden)
+	{
+		DrawSkillIcons(dev);
+		setup();
+	}
+	// Oyuncu menüsü
+	{
+		std::vector<MenuRow> rows;
+		LayoutPlayerMenu(rows);
+		if (!rows.empty())
+		{
+			setup();
+			int fontBase = 200;
+			for (const MenuRow& r : rows)
+			{
+				DrawRect(dev, r.x, r.y, r.w, r.h, r.action == 4 ? 0xD0603030 : 0xD0203050);
+				DrawRect(dev, r.x, r.y, r.w, 2.0f * m_u, COL_SLOT_RING);
+				DrawLabel(dev, fontBase + r.action, r.label, r.x + r.w / 2, r.y + r.h / 2, 0xFFFFFFFF, (int) (18.0f * m_u));
+				setup();
+			}
+		}
+	}
 	for (size_t i = 0; i < m_buttons.size(); ++i)
 	{
 		const Button& b = m_buttons[i];
@@ -1011,4 +1042,106 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 		DrawLabel(dev, (int) i, b.label, b.cx, b.cy, COL_TEXT, height);
 		setup(); // DFont durumları değiştirir
 	}
+}
+
+
+// ---------------------------------------------------------------------------
+// Beceri ikonları: oyunun kısayol penceresi (gizli) veri modelidir; seçili sayfadaki yuvaların ikonları
+// kaplamadaki 1-8 halkalarının içine çizilir.
+// ---------------------------------------------------------------------------
+namespace
+{
+struct RhwTexVertex
+{
+	float x, y, z, rhw;
+	D3DCOLOR color;
+	float u, v;
+};
+} // namespace
+
+void KoTouchOverlay::DrawTexturedQuad(IDirect3DDevice9* dev, float x, float y, float w, float h, void* pTexV, uint32_t color)
+{
+	LPDIRECT3DTEXTURE9 pTex = (LPDIRECT3DTEXTURE9) pTexV;
+	if (pTex == nullptr)
+		return;
+	const float uv = 45.0f / 64.0f; // KO ikon dokuları 64² içinde 45² kullanır
+	RhwTexVertex v[4] = {{x, y, 0.5f, 1.0f, color, 0, 0}, {x + w, y, 0.5f, 1.0f, color, uv, 0}, {x, y + h, 0.5f, 1.0f, color, 0, uv},
+		{x + w, y + h, 0.5f, 1.0f, color, uv, uv}};
+	dev->SetTexture(0, pTex);
+	dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+	dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+	dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+	dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+	dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+	dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+	dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+	dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(RhwTexVertex));
+	dev->SetTexture(0, nullptr);
+}
+
+void KoTouchOverlay::DrawSkillIcons(IDirect3DDevice9* dev)
+{
+	if (!IsInGame() || CGameProcedure::s_pProcMain == nullptr)
+		return;
+	CUIHotKeyDlg* pHK = CGameProcedure::s_pProcMain->m_pUIHotKeyDlg;
+	if (pHK == nullptr)
+		return;
+	const int hotkeys[8] = {KM_HOTKEY1, KM_HOTKEY2, KM_HOTKEY3, KM_HOTKEY4, KM_HOTKEY5, KM_HOTKEY6, KM_HOTKEY7, KM_HOTKEY8};
+	int page = pHK->m_iCurPage;
+	if (page < 0 || page >= MAX_SKILL_HOTKEY_PAGE)
+		return;
+	for (const Button& b : m_buttons)
+	{
+		if (b.action != Action::Key || b.shape != Shape::Ring)
+			continue;
+		int slot = -1;
+		for (int i = 0; i < 8; i++)
+			if (b.dik == hotkeys[i])
+				slot = i;
+		if (slot < 0 || slot >= MAX_SKILL_IN_HOTKEY)
+			continue;
+		__IconItemSkill* pItem = pHK->m_pMyHotkey[page][slot];
+		if (pItem == nullptr || pItem->szIconFN.empty())
+			continue;
+		CN3Texture* pTex = CN3Base::s_MngTex.Get(pItem->szIconFN, false);
+		if (pTex == nullptr || pTex->Get() == nullptr)
+			continue;
+		float s = b.r * 1.3f; // halkanın içine sığan kare
+		DrawTexturedQuad(dev, b.cx - s / 2, b.cy - s / 2, s, s, pTex->Get(), b.down ? 0xFFFFFFFF : 0xE0FFFFFF);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Oyuncu menüsü (seçili dost oyuncuya ikinci dokunuş): PARTI / TICARET / FISILDA / ARKADAS / KAPAT
+// ---------------------------------------------------------------------------
+void KoTouchOverlay::LayoutPlayerMenu(std::vector<MenuRow>& rows) const
+{
+	rows.clear();
+	CGameProcMain* pMain = CGameProcedure::s_pProcMain;
+	if (pMain == nullptr || pMain->m_iTouchMenuPlayerID < 0)
+		return;
+	const float u = m_u, w = 180.0f * u, h = 40.0f * u, gap = 4.0f * u;
+	const char* labels[5] = {"PARTI DAVET", "TICARET", "FISILDA", "ARKADAS EKLE", "KAPAT"};
+	float x = std::clamp((float) pMain->m_iTouchMenuX - w / 2, 8.0f * u, (float) m_w - w - 8.0f * u);
+	float y = std::clamp((float) pMain->m_iTouchMenuY - (5 * (h + gap)) - 10.0f * u, 60.0f * u, (float) m_h - 5 * (h + gap) - 60.0f * u);
+	for (int i = 0; i < 5; i++)
+		rows.push_back({i, x, y + i * (h + gap), w, h, labels[i]});
+}
+
+bool KoTouchOverlay::HitPlayerMenu(int x, int y)
+{
+	CGameProcMain* pMain = CGameProcedure::s_pProcMain;
+	if (pMain == nullptr || pMain->m_iTouchMenuPlayerID < 0)
+		return false;
+	std::vector<MenuRow> rows;
+	LayoutPlayerMenu(rows);
+	for (const MenuRow& r : rows)
+		if (x >= r.x - 4 && x <= r.x + r.w + 4 && y >= r.y - 4 && y <= r.y + r.h + 4)
+		{
+			pMain->TouchMenuAction(r.action);
+			return true;
+		}
+	return false;
 }

@@ -3,7 +3,8 @@
 
 #pragma once
 
-#include <memory> // std::unique_ptr<>
+#include <memory>
+#include <vector> // std::unique_ptr<>
 #include <string> // std::string
 
 /// \enum e_AudioAssetType
@@ -133,6 +134,8 @@ public:
 	/// The underlying file remains open and memory-mapped for the entire lifetime
 	/// of the streamed audio asset.
 	std::unique_ptr<FileReader> File;
+	/// Ogg gibi tam çözülmüş akışlar için bellek içi PCM (File boşken PcmDataBuffer buraya bakar)
+	std::vector<uint8_t> OwnedPcm;
 
 	/// Total size of the decoded PCM data, in bytes.
 	size_t PcmDataSize;

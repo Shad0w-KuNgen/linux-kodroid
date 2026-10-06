@@ -201,7 +201,10 @@ void CGameProcCharacterSelect::Init()
 	switch (s_pPlayer->m_InfoBase.eNation)
 	{
 		case NATION_KARUS:
-			m_pActiveBg->LoadFromFile("ChrSelect\\ka_chairs.n3shape");
+			// 2369 ChrSelect: dış mekân sahnesi (ka_cave) varsa onu, yoksa 1.298 taht sahnesi
+			if (!(KoProto::Is2369() && m_pActiveBg->LoadFromFile("ChrSelect\\ka_cave.n3shape")))
+				m_pActiveBg->LoadFromFile("ChrSelect\\ka_chairs.n3shape");
+			CLogWriter::Write("Karakter seçimi sahnesi: {}", m_pActiveBg->FileName());
 			//			m_pActiveBg->LoadFromFile("Misc\\itembox.n3shape");
 
 			// Light..
@@ -230,7 +233,9 @@ void CGameProcCharacterSelect::Init()
 			break;
 
 		case NATION_ELMORAD:
-			m_pActiveBg->LoadFromFile("ChrSelect\\el_chairs.n3shape");
+			if (!(KoProto::Is2369() && m_pActiveBg->LoadFromFile("ChrSelect\\el_elmo_chairs.n3shape")))
+				m_pActiveBg->LoadFromFile("ChrSelect\\el_chairs.n3shape");
+			CLogWriter::Write("Karakter seçimi sahnesi: {}", m_pActiveBg->FileName());
 
 			// Light..
 			m_pLights[0]->LoadFromFile("ChrSelect\\el_light_0.n3light");

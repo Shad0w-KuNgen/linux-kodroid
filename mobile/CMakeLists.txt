@@ -97,6 +97,7 @@ add_library(ko_n3base STATIC
   ${N3BASE_SOURCES}
   engine-port/WinCrypt_portable.cpp
   engine-port/DFont_ft.cpp
+  engine-port/AudioVorbis.cpp     # Ogg Vorbis (stb_vorbis)
   engine-port/N3UIEdit_portable.cpp
 )
 ko_openko_target(ko_n3base)

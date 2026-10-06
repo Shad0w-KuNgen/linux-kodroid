@@ -491,6 +491,9 @@ void CGameProcMain::InitPlayerPosition(const __Vector3& vPos)              // �
 
 void CGameProcMain::Tick()
 {
+	// Dokunmatik: alan becerisi hedef seçimi sürerken joystick/kamera kilitli (kaplama okur)
+	s_bTouchLockMove = (m_pMagicSkillMng != nullptr && m_pMagicSkillMng->m_dwRegionMagicState == 1);
+
 	CGameProcedure::Tick(); // 키, 마우스 입력 등등..
 
 	if (FALSE == m_bLoadComplete)
@@ -1993,6 +1996,19 @@ bool CGameProcMain::MsgRecv_MyInfo_All(Packet& pkt)
 
 	if (KoProto::Is2369())
 	{
+		{
+			// Alan hizası için ham döküm (ilk 160 bayt), oturum başına bir kez
+			static bool s_bDumped = false;
+			if (!s_bDumped)
+			{
+				s_bDumped = true;
+				std::string szHex;
+				size_t n = std::min<size_t>(pkt.size(), 160);
+				for (size_t i = 0; i < n; i++)
+					szHex += fmt::format("{:02x} ", pkt.contents()[i]);
+				CLogWriter::Write("WIZ_MYINFO ham ({} bayt, okuma konumu {}): {}", pkt.size(), pkt.rpos(), szHex);
+			}
+		}
 		KoProto::MyInfo2369 m;
 		if (!KoProto::ParseMyInfo2369(pkt, m))
 		{
@@ -4208,21 +4224,42 @@ bool CGameProcMain::MsgRecv_MyInfo_LevelChange(Packet& pkt)
 
 		int iLevelPrev               = pInfoBase->iLevel;
 		pInfoBase->iLevel            = iLevel;
-		pInfoExt->iBonusPointRemain  = pkt.read<uint8_t>(); // 남은 보너스 포인트..
+		uint8_t bExtraSkillPoint     = 0;
+		if (KoProto::Is2369())
+		{
+			// UserLevelExperienceSystem.cpp: u16 id, u8 seviye, i16 puan, u8 beceri puanı, i64 maxExp, i64 exp,
+			// i16 maxHp, i16 hp, i16 maxMp, i16 mp, u32 maxAğırlık, u32 ağırlık (eski 1298 okuması HP'yi exp'in içinden alıyordu → 34/34)
+			pInfoExt->iBonusPointRemain = pkt.read<int16_t>();
+			bExtraSkillPoint            = pkt.read<uint8_t>();
+			pInfoExt->iExpNext          = pkt.read<int64_t>();
+			pInfoExt->iExp              = pkt.read<int64_t>();
+			pInfoBase->iHPMax           = pkt.read<int16_t>();
+			pInfoBase->iHP              = pkt.read<int16_t>();
+			pInfoExt->iMSPMax           = pkt.read<int16_t>();
+			pInfoExt->iMSP              = pkt.read<int16_t>();
+			pInfoExt->iWeightMax        = (int) pkt.read<uint32_t>();
+			pInfoExt->iWeight           = (int) pkt.read<uint32_t>();
+			CLogWriter::Write("WIZ_LEVEL_CHANGE (2369): seviye {} HP {}/{} MP {}/{} exp {}/{} ağırlık {}/{}", iLevel, pInfoBase->iHP, pInfoBase->iHPMax,
+				pInfoExt->iMSP, pInfoExt->iMSPMax, pInfoExt->iExp, pInfoExt->iExpNext, pInfoExt->iWeight, pInfoExt->iWeightMax);
+		}
+		else
+		{
+			pInfoExt->iBonusPointRemain  = pkt.read<uint8_t>(); // 남은 보너스 포인트..
 
-		uint8_t bExtraSkillPoint     = pkt.read<uint8_t>(); // 토탈 포인트
+			bExtraSkillPoint             = pkt.read<uint8_t>(); // 토탈 포인트
 
-		pInfoExt->iExpNext           = pkt.read<int32_t>();
-		pInfoExt->iExp               = pkt.read<int32_t>();
+			pInfoExt->iExpNext           = pkt.read<int32_t>();
+			pInfoExt->iExp               = pkt.read<int32_t>();
 
-		pInfoBase->iHPMax            = pkt.read<int16_t>();
-		pInfoBase->iHP               = pkt.read<int16_t>();
+			pInfoBase->iHPMax            = pkt.read<int16_t>();
+			pInfoBase->iHP               = pkt.read<int16_t>();
 
-		pInfoExt->iMSPMax            = pkt.read<int16_t>();
-		pInfoExt->iMSP               = pkt.read<int16_t>();
+			pInfoExt->iMSPMax            = pkt.read<int16_t>();
+			pInfoExt->iMSP               = pkt.read<int16_t>();
 
-		pInfoExt->iWeightMax         = pkt.read<int16_t>();
-		pInfoExt->iWeight            = pkt.read<int16_t>();
+			pInfoExt->iWeightMax         = pkt.read<int16_t>();
+			pInfoExt->iWeight            = pkt.read<int16_t>();
+		}
 
 		m_pUIVar->UpdateAllStates(&(s_pPlayer->m_InfoBase), &(s_pPlayer->m_InfoExt)); // 모든 정보 업데이트..
 
@@ -4421,8 +4458,13 @@ void CGameProcMain::InitUI()
 	m_pUIMsgDlg->MoveOffset(0, -1);
 	if (KoProto::Is2369() && s_bTouchControls)
 	{
-		// Dokunmatik: ayrı bilgi kutusu yok (kaplama düğmeleriyle çakışıyordu); MsgOutput iletileri sohbet kutusuna yazılır
-		m_pUIMsgDlg->SetVisibleWithNoSound(false);
+		// Dokunmatik: bilgi (hasar) kutusu orijinaldeki gibi ayrı kalır; sağ alt kaplama kümesiyle çakışmasın diye
+		// kamera düğmelerinin altına, ekranın sağ yarısına (hedef sütununun soluna) konur
+		RECT rcMsg = m_pUIMsgDlg->GetRegion();
+		int iMW    = rcMsg.right - rcMsg.left;
+		int iTop   = s_iTouchInsetTop > 0 ? s_iTouchInsetTop : iH / 6;
+		int iRight = s_iTouchInsetRight > 0 ? s_iTouchInsetRight : iW / 12;
+		m_pUIMsgDlg->SetPos(std::max(iW / 2, iW - iRight - iMW - 4), iTop + 4);
 	}
 
 	m_pUIStateBarAndMiniMap->Init(s_pUIMgr);
@@ -5468,12 +5510,59 @@ void CGameProcMain::CommandCameraChange() // 카메라 시점 바꾸기..
 
 void CGameProcMain::MsgOutput(const std::string& szMsg, D3DCOLOR crMsg)
 {
-	if (KoProto::Is2369() && s_bTouchControls && m_pUIChatDlg != nullptr && m_pUIMsgDlg != nullptr && !m_pUIMsgDlg->IsVisible())
-	{
-		m_pUIChatDlg->AddChatMsg(N3_CHAT_PUBLIC, szMsg, crMsg); // dokunmatik: tek yazı alanı (sohbet kutusu)
-		return;
-	}
 	m_pUIMsgDlg->AddMsg(szMsg, crMsg);
+}
+
+void CGameProcMain::MsgSend_FriendAdd(int iTargetID, const std::string& szName)
+{
+	// 2369 (DatabaseThread.cpp ReqAddFriend): WIZ_FRIEND_PROCESS | u8 FRIEND_ADD(3) | u16 hedefID | str8 ad
+	if (szName.empty() || szName.size() > 20)
+		return;
+	uint8_t byBuff[32];
+	int iOffset = 0;
+	CAPISocket::MP_AddByte(byBuff, iOffset, WIZ_FRIEND_PROCESS);
+	CAPISocket::MP_AddByte(byBuff, iOffset, 3);
+	CAPISocket::MP_AddShort(byBuff, iOffset, (int16_t) iTargetID);
+	CAPISocket::MP_AddByte(byBuff, iOffset, (uint8_t) szName.size());
+	CAPISocket::MP_AddString(byBuff, iOffset, szName);
+	s_pSocket->Send(byBuff, iOffset);
+}
+
+void CGameProcMain::TouchMenuAction(int iAction)
+{
+	const int iID             = m_iTouchMenuPlayerID;
+	const std::string szName  = m_szTouchMenuPlayer;
+	m_iTouchMenuPlayerID      = -1;
+	if (iID < 0 || szName.empty())
+		return;
+	switch (iAction)
+	{
+		case 0: // parti daveti
+			if (!MsgSend_PartyOrForceCreate(szName))
+				MsgOutput(KoTextUtf8To1254("Parti daveti gÃ¶nderilemedi (zaten partide ve lider deÄilsiniz)"), 0xffff9b9b);
+			else
+				MsgOutput(KoTextUtf8To1254("Parti daveti: ") + szName, 0xff9bff9b);
+			break;
+		case 1: // ticaret
+			MsgSend_PerTradeReq(iID, true);
+			break;
+		case 2: // fısıltı: sohbet kutusuna "@ad " yaz, odakla
+			if (m_pUIChatDlg)
+			{
+				if (!m_pUIChatDlg->IsVisible())
+					CommandToggleUIChat();
+				m_pUIChatDlg->SetString("@" + szName + " ");
+				m_pUIChatDlg->SetFocus();
+			}
+			break;
+		case 3: // arkadaş ekle
+			MsgSend_FriendAdd(iID, szName);
+			MsgOutput(KoTextUtf8To1254("ArkadaÅ isteÄi: ") + szName, 0xff9bff9b);
+			break;
+		default:
+			break;
+	}
+	CLogWriter::Write("Dokunmatik oyuncu menüsü: eylem {} -> {} ({})", iAction, szName, iID);
 }
 
 bool CGameProcMain::MsgRecv_ItemDroppedGetResult(Packet& pkt) // 땅에 떨어진 아이템 먹기 결과..
@@ -8266,6 +8355,20 @@ bool CGameProcMain::OnMouseLBtnPress(POINT ptCur, POINT /*ptPrev*/)
 	m_bTouchInteractThisFrame  = false;
 	pTarget             = s_pOPMgr->PickPrecisely(ptCur.x, ptCur.y, iID, &m_vMouseLBClickedPos);              // 사방에 깔린넘들 픽킹..
 	this->TargetSelect(iID, false);                                                                           // 타겟을 잡는다..
+	if (CGameProcedure::s_bTouchControls && m_iTouchMenuPlayerID >= 0)
+		m_iTouchMenuPlayerID = -1; // açık oyuncu menüsü: dünyaya dokunuş menüyü kapatır
+	if (CGameProcedure::s_bTouchControls && pTarget != nullptr && iID != -1 && iID == iPrevTarget && !s_pPlayer->IsHostileTarget(pTarget)
+		&& pTarget->PlayerType() == PLAYER_OTHER)
+	{
+		// Dokunmatik: seçili dost oyuncuya ikinci dokunuş = oyuncu menüsü (parti, ticaret, fısıltı, arkadaş)
+		m_bTouchInteractThisFrame = true;
+		m_iTouchMenuPlayerID      = iID;
+		m_szTouchMenuPlayer       = pTarget->IDString();
+		m_iTouchMenuX             = ptCur.x;
+		m_iTouchMenuY             = ptCur.y;
+		CLogWriter::Write("Dokunmatik: oyuncu menüsü {} ({})", iID, m_szTouchMenuPlayer);
+		return true;
+	}
 	if (CGameProcedure::s_bTouchControls && pTarget != nullptr && iID != -1 && iID == iPrevTarget && !s_pPlayer->IsHostileTarget(pTarget))
 	{
 		// Dokunmatik: zaten seçili dost NPC'ye ikinci dokunuş = sağ tık (konuş / dükkân / depo / kapı NPC'si).
@@ -8309,8 +8412,14 @@ bool CGameProcMain::OnMouseLBtnPress(POINT ptCur, POINT /*ptPrev*/)
 		}
 	}
 
+	if (m_pMagicSkillMng->m_dwRegionMagicState == 1 && CN3Base::TimeGet() - m_fRegionConfirmTime < 0.6f)
+	{
+		m_bTouchInteractThisFrame = true; // aynı dokunuş dizisinden gelen yinelenen onay: yoksay (nova 4 kez çıkmasın)
+		return true;
+	}
 	if (m_pMagicSkillMng->m_dwRegionMagicState == 1)
 	{
+		m_fRegionConfirmTime = CN3Base::TimeGet();
 		//		s_pFX->SetBundlePos(m_pMagicSkillMng->m_iMyRegionTargetFXID, m_pMagicSkillMng->m_iMyRegionTargetFXID, m_vMouseLBClickedPos);
 		// Dokunmatik: dokunuşta imleç yeni yere atlar; OnMouseMove aynı karede çalışmamış olabilir → alanı burada da hesapla
 		ACT_WORLD->PickWideWithTerrain(ptCur.x, ptCur.y, m_vMouseSkillPos);
