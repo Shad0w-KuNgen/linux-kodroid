@@ -34,6 +34,7 @@ public:
 	class CUIMessageWnd2* m_pUIMsgDlg2;
 
 	class CUIStateBar* m_pUIStateBarAndMiniMap; // mp,hp,exp, minimap....
+	class CUIStateBar* m_pUIMiniMap2369 = nullptr; // 2369: mini harita ayrı pencere (UIs [159] re_minimap.uif)
 	class CUICmd* m_pUICmd;                     // 왼쪽 하단의 명령버튼 창..
 	class CUITargetBar* m_pUITargetBar;         // 타겟 상태창..
 	class CUICmdList* m_pUICmdList;

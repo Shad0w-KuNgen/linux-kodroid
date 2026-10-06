@@ -83,6 +83,7 @@ public:
 	void TickMiniMap();
 
 	bool ToggleMiniMap();
+	void ShowMiniMapGroup(); // 2369 mini harita penceresi: harita grubunu görünür yap
 
 	void UpdateExp(int64_t iExp, int64_t iExpNext, bool bUpdateImmediately);
 	void UpdateMSP(int iMSP, int iMSPMax, bool bUpdateImmediately);

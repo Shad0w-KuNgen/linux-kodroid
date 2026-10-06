@@ -219,6 +219,11 @@ bool CUIStateBar::Load(File& file)
 		N3_VERIFY_UI_COMPONENT(m_pBtn_ZoomIn, m_pGroup_MiniMap->GetChildByID<CN3UIButton>("Btn_ZoomIn"));
 		N3_VERIFY_UI_COMPONENT(m_pBtn_ZoomOut, m_pGroup_MiniMap->GetChildByID<CN3UIButton>("Btn_ZoomOut"));
 	}
+	// 2369 re_minimap.uif: yakınlaştırma düğmeleri grubun değil pencerenin çocuğu
+	if (CN3UIButton* p = GetChildByID<CN3UIButton>("Btn_ZoomIn"))
+		m_pBtn_ZoomIn = p;
+	if (CN3UIButton* p = GetChildByID<CN3UIButton>("Btn_ZoomOut"))
+		m_pBtn_ZoomOut = p;
 
 	m_pBtn_Quest = GetChildByID<CN3UIButton>("btn_quest");
 	m_pBtn_Power = GetChildByID<CN3UIButton>("btn_power");
@@ -756,6 +761,12 @@ void CUIStateBar::ZoomSet(float fZoom)
 	{
 		m_fZoom = fZoom;
 	}
+}
+
+void CUIStateBar::ShowMiniMapGroup()
+{
+	if (m_pGroup_MiniMap != nullptr)
+		m_pGroup_MiniMap->SetVisible(true);
 }
 
 bool CUIStateBar::ToggleMiniMap()

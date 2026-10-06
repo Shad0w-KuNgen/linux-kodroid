@@ -169,6 +169,8 @@ CGameProcMain::~CGameProcMain()
 	delete m_pUIChatDlg;
 	delete m_pUIChatDlg2;
 	delete m_pUIStateBarAndMiniMap;
+	delete m_pUIMiniMap2369;
+	m_pUIMiniMap2369 = nullptr;
 	delete m_pUIVar;
 	delete m_pUICmd;
 	delete m_pUITargetBar;
@@ -234,6 +236,8 @@ void CGameProcMain::ReleaseUIs()
 	m_pUICmd->Release();
 	m_pUIVar->Release();
 	m_pUIStateBarAndMiniMap->Release();
+	if (m_pUIMiniMap2369)
+		m_pUIMiniMap2369->Release();
 	m_pUITargetBar->Release();
 	m_pUIExitMenu->Release();
 	m_pUIHelp->Release();
@@ -584,6 +588,8 @@ void CGameProcMain::Tick()
 #endif
 
 	m_pUIStateBarAndMiniMap->UpdatePosition(s_pPlayer->Position(), s_pPlayer->Yaw()); // 위치 업데이트.
+	if (m_pUIMiniMap2369)
+		m_pUIMiniMap2369->UpdatePosition(s_pPlayer->Position(), s_pPlayer->Yaw());
 
 	if (m_pMagicSkillMng)
 		m_pMagicSkillMng->Tick();
@@ -4557,6 +4563,27 @@ void CGameProcMain::InitUI()
 
 	m_pUIStateBarAndMiniMap->Init(s_pUIMgr);
 	m_pUIStateBarAndMiniMap->LoadFromFile(pTbl->szStateBar);
+	if (KoProto::Is2369() && m_pUIMiniMap2369 == nullptr)
+	{
+		// 2369'da mini harita durum çubuğunda değil, ayrı pencere (re_minimap.uif). Aynı sınıfla yüklenir; harita
+		// çağrıları ikisine de gider. Sağ üstte, kamera düğmelerinin altında; HARİTA düğmesiyle açılır.
+		m_pUIMiniMap2369 = new CUIStateBar();
+		m_pUIMiniMap2369->Init(s_pUIMgr);
+		if (m_pUIMiniMap2369->LoadFromFile("ui\\re_minimap.uif"))
+		{
+			m_pUIMiniMap2369->SetStyle(UISTYLE_FOCUS_UNABLE | UISTYLE_HIDE_UNABLE);
+			RECT rcM = m_pUIMiniMap2369->GetRegion();
+			m_pUIMiniMap2369->SetPos(iW - (rcM.right - rcM.left) - 8, 100);
+			m_pUIMiniMap2369->SetVisibleWithNoSound(false);
+			CLogWriter::Write("Mini harita penceresi (2369) yüklendi: {}x{}", rcM.right - rcM.left, rcM.bottom - rcM.top);
+		}
+		else
+		{
+			delete m_pUIMiniMap2369;
+			m_pUIMiniMap2369 = nullptr;
+			CLogWriter::Write("Mini harita penceresi (2369) yüklenemedi");
+		}
+	}
 	m_pUIStateBarAndMiniMap->SetStyle(UISTYLE_FOCUS_UNABLE | UISTYLE_HIDE_UNABLE);
 	{
 		std::string szSB = pTbl->szStateBar;
@@ -5181,6 +5208,8 @@ void CGameProcMain::InitZone(int iZone, const __Vector3& vPosPlayer)
 		// 미니맵 로딩..
 		float fWidth = ACT_WORLD->GetWidthByMeterWithTerrain();
 		m_pUIStateBarAndMiniMap->LoadMap(pZoneData->szMiniMapFN, fWidth, fWidth);
+		if (m_pUIMiniMap2369)
+			m_pUIMiniMap2369->LoadMap(pZoneData->szMiniMapFN, fWidth, fWidth);
 
 		// 줌 비율 정하기..
 		float fZoom           = 6.0f;
@@ -5188,6 +5217,8 @@ void CGameProcMain::InitZone(int iZone, const __Vector3& vPosPlayer)
 		if (CLASS_REPRESENT_ROGUE == eCR)
 			fZoom = 3.0f; // 로그 계열은 맵이 좀더 널리 자세히 보인다..
 		m_pUIStateBarAndMiniMap->ZoomSet(fZoom);
+		if (m_pUIMiniMap2369)
+			m_pUIMiniMap2369->ZoomSet(fZoom);
 
 		//char szBuf[256];
 		char szFName[_MAX_PATH] {};
@@ -5575,6 +5606,16 @@ bool CGameProcMain::CommandToggleUISkillTree()
 
 bool CGameProcMain::CommandToggleUIMiniMap()
 {
+	if (m_pUIMiniMap2369 != nullptr)
+	{
+		// 2369: HARİTA = mini harita penceresini aç/kapat (harita grubu pencereyle birlikte görünür)
+		bool bOpen = !m_pUIMiniMap2369->IsVisible();
+		m_pUIMiniMap2369->SetVisible(bOpen);
+		if (bOpen)
+			m_pUIMiniMap2369->ShowMiniMapGroup();
+		CLogWriter::Write("Mini harita {}", bOpen ? "açıldı" : "kapandı");
+		return bOpen;
+	}
 	return m_pUIStateBarAndMiniMap->ToggleMiniMap();
 }
 
@@ -7035,6 +7076,8 @@ void CGameProcMain::UpdateUI_MiniMap()
 		return;
 
 	m_pUIStateBarAndMiniMap->PositionInfoClear();
+	if (m_pUIMiniMap2369)
+		m_pUIMiniMap2369->PositionInfoClear();
 
 	D3DCOLOR crType = 0xffffffff;
 
@@ -7050,6 +7093,8 @@ void CGameProcMain::UpdateUI_MiniMap()
 			crType = 0xff00a0ff; // 같은 국가 NPC 하늘색
 
 		m_pUIStateBarAndMiniMap->PositionInfoAdd(pNPC->IDNumber(), pNPC->Position(), crType, false);
+		if (m_pUIMiniMap2369)
+			m_pUIMiniMap2369->PositionInfoAdd(pNPC->IDNumber(), pNPC->Position(), crType, false);
 	}
 
 	it_UPC it2 = s_pOPMgr->m_UPCs.begin(), itEnd2 = s_pOPMgr->m_UPCs.end();
@@ -7094,6 +7139,8 @@ void CGameProcMain::UpdateUI_MiniMap()
 
 		if (pUPC && pUPC->m_InfoBase.iAuthority != AUTHORITY_MANAGER) // 운영자가 아닌경우만 미니맵에 포인트를 찍어준다.
 			m_pUIStateBarAndMiniMap->PositionInfoAdd(pUPC->IDNumber(), pUPC->Position(), crType, bDrawTop);
+			if (m_pUIMiniMap2369)
+				m_pUIMiniMap2369->PositionInfoAdd(pUPC->IDNumber(), pUPC->Position(), crType, bDrawTop);
 	}
 }
 
