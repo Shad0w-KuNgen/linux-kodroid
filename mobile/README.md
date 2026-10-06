@@ -382,6 +382,9 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
 - v168: HP 0/34'ün kök nedeni `WIZ_ITEM_MOVE` yetenek paketi (1298 okuması); 2369 düzeni eklendi, ham MYINFO birim testi.
   Ses: sessiz dosya çözümleme + bir kez günlük, bölge müziği (Zones.tbl), ayak sesi tablosu. Kaplama: yuva sürükle (boşalt /
   yer değiştir), iletişim penceresi önceliği, küçük bilgi satırları; 2369 klan penceresi; bilgi kutusu sözcük kırma.
+- v169: stat puanı (`WIZ_POINT_CHANGE` 2369 yanıtı + `re_page_state` düğme adları), kaplama kaybolma kök nedeni (GİZLE
+  içinde yeniden yerleşim → geçersiz referans) + çizim günlükleri, yuva sürükleme güvenliği (≥300 ms), 2369 klan penceresi
+  üye listesi/duyuru/düğmeler, `Snd/<bölge>_<ad>.ogg` bölge müziği taraması. Notlar: `docs/2369-durum.md` v169.
 
 ### Oyun verisini telefona kurma
 

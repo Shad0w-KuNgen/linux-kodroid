@@ -55,6 +55,36 @@ tutulur. Her büyük değişiklik commit mesajında ve burada kısaca açıklan�
 6. **Bilgi/hasar satırları**: büyük kutu gizli; `MsgOutput` iletileri kaplamada beceri kümesinin üstünde, sağa hizalı,
    yarı saydam 6 satır (9 sn sonra solar). Sözcük ortasından bölünme ("he wrong") için bilgi kutusu satır kırma boşluktan.
 
+## v169 (v168 geri bildirimi)
+1. **Stat puanı (WIZ_POINT_CHANGE 0x28)**: `re_page_state.istirap` düğmeleri birden çok adla aranır
+   (`Btn_Strength…` / `Btn_Str`, `Btn_Sta`, `Btn_Dex`, `Btn_Magic`/`Btn_Int`, `Btn_Cha`); bulunan/bulunamayan adlar Log'a
+   (`Stat düğmeleri (2369)`). İstek: `0x28 | u8 tür` (1 STR, 2 STA, 3 DEX, 4 INT, 5 CHA). Yanıt 2369 düzeni:
+   `u8 tür, u16 yeniStat, i16 maxHP, i16 maxMP, u16 vuruş, u32 maxAğırlık, u16 HP, u16 MP` → `MsgRecv_MyInfo_PointChange`
+   2369 dalı; kalan puan 1 azaltılır, düğmeler puan 0 olunca gizlenir (`UpdateBonusPointAndButtons`). Log:
+   `WIZ_POINT_CHANGE (2369) tür…`. Beceri puanı (`WIZ_SKILLPT_CHANGE`) için beceri ağacı UIF düğme adları henüz
+   bağlanmadı (Log'daki `UI ağacı` dökümünden `btn_…` adları alınıp `CUISkillTreeDlg` içinde aynı yöntemle bağlanacak).
+2. **Kaplama kaybolması**: `GIZLE` dokunuşu düğme döngüsünün içinde `Layout()` çağırıp `m_buttons` vektörünü yeniden
+   kuruyordu → döngüdeki referans geçersiz (bellek bozulması; düğmeler/etiket rastgele kayboluyordu). Artık
+   `m_relayout` bayrağıyla döngü bittikten sonra yapılır. Ek güvence: kaplama çizilmeyince bir kez Log
+   (`Dokunmatik: kaplama çizilmiyor (etkin, oyunda, aktif süreç)`), yeniden çizilince `kaplama yeniden çiziliyor`,
+   GİZLE/GÖSTER durumu Log'a yazılır. Yeni günlükte bunlar yoksa ve düğmeler yine kayboluyorsa neden çizim değil,
+   giriş (dokunuş) tarafındadır. Bilgi satırı fontları yalnız metin değişince yeniden üretilir (doku sızıntısı/yavaşlama önlemi).
+3. **Beceri yuvası sürükleme**: v168'de 4 sn içinde 8 yuva boşalmıştı. Artık yuvayı boşaltmak/değiştirmek için
+   ≥300 ms basılı tutup parmağı gerçekten kaydırmak ve 2.4r dışına bırakmak gerekir; kısa kaymalar beceri kullanır.
+4. **Klan penceresi** (`UIClanWindow2369`): açılınca `WIZ_KNIGHTS_PROCESS | 13` ister; yanıt
+   `u8 sonuç, u16 boyut, u16 2, u16 MAX, str16 duyuru, u16 sayı, üye×(str16 ad, u8 fame, u8 0, u8 seviye, u16 sınıf,
+   u8 çevrimiçi, str16 memo, u32 saat)` → 5 satır/sayfa (`grp_member_list_0..4`), satır seçimi `btn_selected*`.
+   Düğmeler: refresh (yeniden iste), whisper (sohbete `@ad `), Clan_party (parti daveti), remove/appoint/admit
+   (sunucu `MsgSend_Knights…`), notice grubu (`edit_notice` → `WIZ_KNIGHTS_PROCESS | 80 | str16`), memo/purge iptal.
+   `btn_bank`/`btn_transfer` Log'a "bağlı değil" yazar (XSafe CLANBANK düzeni gerekir).
+   `GameProcMain::MsgRecv_Knights` 2369'da alt kod 13'ü pencereye yönlendirir.
+5. **Bölge müziği**: `Zones.tbl` sütunu boşsa `Snd` klasörü taranır: `Snd/<bölgeId>_<ad>.ogg|mp3|wav`
+   (örn. `Snd/21_moradon.ogg`, `Snd/1_karus.ogg`); Log `Bölge müziği örnekleri` artık bulunan dosya adını yazar.
+   Yerel Claude: istemci `Snd` klasörüne bu adlarla dosya koyması yeterli.
+6. **Joystick ayarları**: `Option.ini` [Mobile] anahtarları okunuyor: `CameraSens` (25–600, varsayılan 260),
+   `JoyDeadZone` (5–60, 22), `JoyRotateSpeed` (30–400 °/sn, 220), `JoyTurnAndRun` (0/1), `LongPressMs`, `PotHpSlot`,
+   `PotMpSlot`, `UiScale`, `RenderScale`. Launcher Settings ve oyun içi menü UI'si bu anahtarları yazmalı (kolay iş, yerel Claude).
+
 ## Açık işler (kolaylar — yerel Claude)
 - Metin/etiket düzeltmeleri (kaplama etiketleri ASCII: PARTI, FISILDA…; Türkçe karakterli etiketler için fontta ğ/ş var).
 - Klan sayfası metinleri ("Membe", "LevelClas") kesiliyor: yazı tipi genişliği; `co_page_clan.uif` yerine
@@ -62,6 +92,9 @@ tutulur. Her büyük değişiklik commit mesajında ve burada kısaca açıklan�
 - Tablo adı karşılıkları (NPC_us/mob_us), küçük ikon/yol eşlemeleri (`itemicon_*` adları ui.hdr ile aynı), log temizliği.
 - `re_minimenu.uif` (orijinal oyuncu menüsü UIF'i) ile kaplama menüsünü değiştirmek (ID'leri Log'a dökerek).
 - PUS satın alma yanıtının doğrulanması (CASHCHANGE sonrası `txt_cash`).
+- Beceri puanı (`WIZ_SKILLPT_CHANGE | u8 tür`) düğmelerini beceri ağacı UIF'inde bağlamak (stat düğmeleriyle aynı yöntem).
+- Joystick ayar ekranı (launcher Settings + oyun içi menü; `Option.ini` [Mobile] anahtarları, bkz. v169/6).
+- Klan bankası/transfer (XSafe CLANBANK) ve klan davet (`admit` hedef oyuncu seçimi) cihazda doğrulama.
 
 ## Test komutları
 - Masaüstü: `cmake --build mobile/build && (cd mobile/build && ctest)`; başsız arazi:

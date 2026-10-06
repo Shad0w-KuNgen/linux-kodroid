@@ -347,6 +347,7 @@ void KoTouchOverlay::Layout(int w, int h)
 	for (CDFont* f : m_fonts)
 		delete f;
 	m_fonts.clear();
+	m_infoFontText.clear();
 }
 
 void KoTouchOverlay::ButtonBox(size_t i, float* x0, float* y0, float* x1, float* y1, std::string* label) const
@@ -562,16 +563,19 @@ void KoTouchOverlay::ReleaseFinger(Finger& f)
 				{
 					CUIHotKeyDlg* pHK = (CGameProcedure::s_pProcMain != nullptr) ? CGameProcedure::s_pProcMain->m_pUIHotKeyDlg : nullptr;
 					float dx = (float) f.x - b.cx, dy = (float) f.y - b.cy;
-					bool bOutside = (dx * dx + dy * dy) > (b.r * 1.6f) * (b.r * 1.6f);
-					if (!f.slotDrag && !bOutside)
-						b.tapQueued = true; // dokunuş = beceriyi kullan
-					else if (pHK != nullptr)
+					float dist2   = dx * dx + dy * dy;
+					uint32_t held = timeGetTime() - f.downTicks;
+					bool bFarOut  = dist2 > (b.r * 2.4f) * (b.r * 2.4f);
+					if (!f.slotDrag)
+						b.tapQueued = true; // dokunuş (kısa kayma dahil) = beceriyi kullan
+					else if (pHK != nullptr && held >= 300)
 					{
+						// Gerçek sürükleme (≥300 ms basılı + parmak hareket etti)
 						int iOther = HitHotkeyRing(f.x, f.y);
 						if (iOther >= 0 && iOther != b.hotkeySlot)
 							pHK->SwapSlots(b.hotkeySlot, iOther); // başka yuvaya bırak = yer değiştir
-						else if (bOutside)
-							pHK->ClearSlot(b.hotkeySlot);          // dışarı bırak = yuvadan kaldır
+						else if (bFarOut)
+							pHK->ClearSlot(b.hotkeySlot);          // çok dışarı bırak = yuvadan kaldır
 					}
 				}
 			}
@@ -743,8 +747,9 @@ void KoTouchOverlay::Update()
 			case Action::ToggleHide:
 				if (!b.fired)
 				{
-					m_hidden = !m_hidden;
-					Layout(m_w, m_h); // etiket GIZLE/GOSTER
+					m_hidden   = !m_hidden;
+					m_relayout = true; // döngü içinde m_buttons değiştirilemez (referanslar geçersiz olurdu)
+					CLogWriter::Write("Dokunmatik: kaplama {}", m_hidden ? "GİZLENDİ" : "GÖSTERİLDİ");
 				}
 				b.fired = true;
 				break;
@@ -787,6 +792,11 @@ void KoTouchOverlay::Update()
 	}
 	else
 		m_pinchDist = 0.0f;
+	if (m_relayout)
+	{
+		m_relayout = false;
+		Layout(m_w, m_h); // etiket GIZLE/GOSTER
+	}
 }
 
 // --- Çizim yardımcıları --------------------------------------------------------
@@ -930,7 +940,16 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 		return;
 	bool bPreGame = IsServerSelect() || IsCharacterCreate() || IsCharacterSelect();
 	if (!bPreGame && (!m_enabled || (!IsInGame() && !m_forceVisible)))
+	{
+		if (!m_lastRenderSkipped)
+			CLogWriter::Write("Dokunmatik: kaplama çizilmiyor (etkin {}, oyunda {}, aktif süreç {})", m_enabled ? 1 : 0, IsInGame() ? 1 : 0,
+				(void*) CGameProcedure::s_pProcActive);
+		m_lastRenderSkipped = true;
 		return;
+	}
+	if (m_lastRenderSkipped)
+		CLogWriter::Write("Dokunmatik: kaplama yeniden çiziliyor");
+	m_lastRenderSkipped = false;
 
 	KoRenderStateGuard guard(dev);
 
@@ -1252,7 +1271,13 @@ void KoTouchOverlay::DrawInfoLines(IDirect3DDevice9* dev)
 			f->InitDeviceObjects(dev);
 			f->RestoreDeviceObjects();
 		}
-		f->SetText(l.text);
+		while (m_infoFontText.size() <= (size_t) idx)
+			m_infoFontText.emplace_back();
+		if (m_infoFontText[idx] != l.text)
+		{
+			f->SetText(l.text); // yalnız metin değişince doku üretilir
+			m_infoFontText[idx] = l.text;
+		}
 		f->DrawText(right - w + pad, y - lh / 2, col, 0);
 		y += lh;
 		idx++;

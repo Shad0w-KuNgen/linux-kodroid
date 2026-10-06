@@ -118,6 +118,9 @@ private:
 	std::deque<InfoLine> m_infoLines;
 	void DrawInfoLines(IDirect3DDevice9* dev);
 	float m_clusterTop = 0; // beceri kümesinin üst kenarı (F1-F8 satırı)
+	bool m_relayout    = false; // ToggleHide: düğme dizisi döngü dışında yeniden kurulur
+	std::vector<std::string> m_infoFontText; // DrawInfoLines: satır metni değişmedikçe SetText çağrılmaz
+	bool m_lastRenderSkipped = false;
 	void DrawCircle(IDirect3DDevice9* dev, float cx, float cy, float r, uint32_t color, int segs = 32);
 	void DrawRing(IDirect3DDevice9* dev, float cx, float cy, float r, float thickness, uint32_t color, int segs = 40);
 	void DrawRect(IDirect3DDevice9* dev, float x, float y, float w, float h, uint32_t color);

@@ -3,6 +3,8 @@
 #include "GameDef.h"
 #include <N3Base/LogWriter.h>
 #include <map>
+#include <dirent.h>
+#include <N3Base/LogWriter.h>
 #include <regex>
 
 namespace
@@ -125,8 +127,48 @@ void KoZoneRowCapture(const std::string& /*szFile*/, uint32_t dwKey, const std::
 	g_ZoneRows[dwKey] = cols;
 }
 
+std::string KoResolvePath(const std::string& path); // compat/win32/paths.cpp
+
+// Snd/ klasöründe "<bölge>_<ad>.ogg" deseni (ör. Snd/21_moradon.ogg, Snd/1_karus.ogg)
+static std::string KoZoneBgmFromSndDir(int iZone)
+{
+	static std::vector<std::string> s_Files;
+	static bool s_bScanned = false;
+	if (!s_bScanned)
+	{
+		s_bScanned      = true;
+		std::string dir = KoResolvePath("Snd");
+		if (DIR* d = dir.empty() ? nullptr : opendir(dir.c_str()))
+		{
+			while (dirent* e = readdir(d))
+				if (e->d_name[0] != '.')
+					s_Files.emplace_back(e->d_name);
+			closedir(d);
+		}
+		CLogWriter::Write("Snd klasörü: {} dosya ({})", s_Files.size(), dir);
+	}
+	for (int key : {iZone, iZone / 10})
+	{
+		if (key <= 0)
+			continue;
+		std::string prefix = std::to_string(key) + "_";
+		for (const std::string& f : s_Files)
+		{
+			std::string low = f;
+			for (char& ch : low)
+				ch = (char) tolower((unsigned char) ch);
+			if (low.rfind(prefix, 0) == 0 && (low.size() > 4) && (low.substr(low.size() - 4) == ".ogg" || low.substr(low.size() - 4) == ".mp3" || low.substr(low.size() - 4) == ".wav"))
+				return "Snd\\" + f;
+		}
+	}
+	return std::string();
+}
+
 std::string KoZoneBgmFile(int iZone)
 {
+	std::string szDir = KoZoneBgmFromSndDir(iZone);
+	if (!szDir.empty())
+		return szDir;
 	for (int key : {iZone, iZone / 10, iZone * 10})
 	{
 		auto it = g_ZoneRows.find((uint32_t) key);

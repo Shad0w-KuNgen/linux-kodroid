@@ -48,6 +48,7 @@
 #include "UINPCChangeEvent.h"
 #include "UIWarp.h"
 #include "UIPowerUpStore2369.h"
+#include "UIClanWindow2369.h"
 #include "KoUiSlots2369.h"
 #include "UIInn.h"
 #include "UICreateClanName.h"
@@ -4415,10 +4416,32 @@ void CGameProcMain::MsgRecv_MyInfo_PointChange(Packet& pkt)
 	int iType                       = pkt.read<uint8_t>();
 	int iVal                        = pkt.read<int16_t>();
 
+	if (KoProto::Is2369())
+	{
+		// UserSkillStatPointSystem.cpp: u8 tür, u16 yeniStat, i16 maxHp, i16 maxMp, u16 vuruş, u32 maxAğırlık, u16 hp, u16 mp
+		s_pPlayer->m_InfoBase.iHPMax    = pkt.read<int16_t>();
+		s_pPlayer->m_InfoExt.iMSPMax    = pkt.read<int16_t>();
+		s_pPlayer->m_InfoExt.iAttack    = pkt.read<uint16_t>();
+		s_pPlayer->m_InfoExt.iWeightMax = static_cast<int>(pkt.read<uint32_t>());
+		if (pkt.size() >= pkt.rpos() + 4)
+		{
+			s_pPlayer->m_InfoBase.iHP = pkt.read<uint16_t>();
+			s_pPlayer->m_InfoExt.iMSP = pkt.read<uint16_t>();
+		}
+		if (iType >= 1 && iType <= 5 && s_pPlayer->m_InfoExt.iBonusPointRemain > 0)
+			s_pPlayer->m_InfoExt.iBonusPointRemain--; // sunucu her başarılı yanıtta bir puan düşer
+		CLogWriter::Write("WIZ_POINT_CHANGE (2369): tür {} yeni {} HP {}/{} MP {}/{} kalan puan {}", iType, iVal, s_pPlayer->m_InfoBase.iHP,
+			s_pPlayer->m_InfoBase.iHPMax, s_pPlayer->m_InfoExt.iMSP, s_pPlayer->m_InfoExt.iMSPMax, s_pPlayer->m_InfoExt.iBonusPointRemain);
+		if (m_pUIVar && m_pUIVar->m_pPageState)
+			m_pUIVar->m_pPageState->UpdateBonusPointAndButtons(s_pPlayer->m_InfoExt.iBonusPointRemain);
+	}
+	else
+	{
 	s_pPlayer->m_InfoBase.iHPMax    = pkt.read<int16_t>();
 	s_pPlayer->m_InfoExt.iMSPMax    = pkt.read<int16_t>();
 	s_pPlayer->m_InfoExt.iAttack    = pkt.read<int16_t>();
 	s_pPlayer->m_InfoExt.iWeightMax = static_cast<int>(pkt.read<uint16_t>());
+	}
 
 	m_pUIVar->m_pPageState->UpdateHP(s_pPlayer->m_InfoBase.iHP, s_pPlayer->m_InfoBase.iHPMax);
 	m_pUIStateBarAndMiniMap->UpdateHP(s_pPlayer->m_InfoBase.iHP, s_pPlayer->m_InfoBase.iHPMax, false);
@@ -7115,6 +7138,14 @@ void CGameProcMain::MsgRecv_NpcEvent(Packet& pkt) // Npc Event(Exchange, Repair 
 
 void CGameProcMain::MsgRecv_Knights(Packet& pkt)
 {
+	if (KoProto::Is2369() && m_pUIVar != nullptr && m_pUIVar->m_pClanWnd2369 != nullptr && pkt.size() > pkt.rpos()
+		&& pkt.contents()[pkt.rpos()] == 13)
+	{
+		// 2369 klan penceresi: üye listesi yanıtı (alt op 13)
+		pkt.read<uint8_t>();
+		m_pUIVar->m_pClanWnd2369->OnMemberList(pkt);
+		return;
+	}
 	e_SubPacket_Knights eSP = (e_SubPacket_Knights) pkt.read<uint8_t>(); // Sub Packet
 
 	switch (eSP)

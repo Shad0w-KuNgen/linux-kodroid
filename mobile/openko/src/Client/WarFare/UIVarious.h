@@ -287,7 +287,6 @@ protected:
 	CN3UIButton* m_pBtn_Friends;
 	CN3UIButton* m_pBtn_Close;
 	CN3UIButton* m_pBtn_Clan2369 = nullptr;    // 2369 re_various_frame: "btn_clan" (klan sayfası)
-	class CUIGeneric2369* m_pClanWnd2369 = nullptr; // 2369: ISTIRAP\re_clan_window.istirap (1.298 co_page_clan yerine)
 	CN3UIButton* m_pBtnPagePrev  = nullptr;    // son etkin sekme (eski static yeniden yüklemede takılıyordu)
 
 	bool m_bOpenningNow; // 열리고 있다..
@@ -295,6 +294,7 @@ protected:
 	float m_fMoveDelta;  // 부드럽게 열리고 닫히게 만들기 위해서 현재위치 계산에 부동소수점을 쓴다..
 
 public:
+	class CUIClanWindow2369* m_pClanWnd2369 = nullptr; // 2369: ISTIRAP\re_clan_window.istirap (1.298 co_page_clan yerine); GameProcMain KNIGHTS yanıtını buraya yönlendirir
 	void SetVisibleWithNoSound(bool bVisible, bool bWork = false, bool bReFocus = false) override;
 	void SetVisible(bool bVisible) override;
 	bool OnKeyPress(int iKey) override;

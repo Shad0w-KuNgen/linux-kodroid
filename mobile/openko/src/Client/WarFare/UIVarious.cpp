@@ -8,6 +8,7 @@
 #include "KoProtocol.h"
 #include "KoUiSlots2369.h"
 #include "UIGeneric2369.h"
+#include "UIClanWindow2369.h"
 #include "UIManager.h"
 #include "UIInventory.h"
 #include "UITransactionDlg.h"
@@ -195,6 +196,9 @@ void CUIState::UpdateBonusPointAndButtons(int iBonusPointRemain) // 보너스 �
 		m_pBtn_Intelligence->SetVisible(bEnable);
 	if (m_pBtn_MagicAttak)
 		m_pBtn_MagicAttak->SetVisible(bEnable);
+	for (const char* szAlt : {"Btn_Str", "Btn_Sta", "Btn_Dex", "Btn_Magic", "Btn_Int"})
+		if (CN3UIBase* p = GetChildByID(szAlt))
+			p->SetVisible(bEnable); // 2369 ikinci düğme takımı
 }
 
 void CUIState::UpdateID(const std::string& szID)
@@ -498,16 +502,21 @@ bool CUIState::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 	}
 	if (dwMsg == UIMSG_BUTTON_CLICK)
 	{
-		if (pSender == m_pBtn_Strength) // 경험치 체인지..
-			this->MsgSendAblityPointChange(0x01, +1);
-		else if (pSender == m_pBtn_Stamina)
-			this->MsgSendAblityPointChange(0x02, +1);
-		else if (pSender == m_pBtn_Dexterity)
-			this->MsgSendAblityPointChange(0x03, +1);
-		else if (pSender == m_pBtn_Intelligence)
-			this->MsgSendAblityPointChange(0x04, +1);
-		else if (pSender == m_pBtn_MagicAttak)
-			this->MsgSendAblityPointChange(0x05, +1);
+		// 2369 re_page_state.istirap'ta iki düğme takımı var: Btn_Strength… ve Btn_Str/Btn_Sta/Btn_Dex/Btn_Magic/Btn_Int
+		std::string szLow = pSender->m_szID;
+		for (char& c : szLow)
+			c = (char) tolower((unsigned char) c);
+		int iType = 0;
+		if (pSender == m_pBtn_Strength || szLow == "btn_str") iType = 1;
+		else if (pSender == m_pBtn_Stamina || szLow == "btn_sta") iType = 2;
+		else if (pSender == m_pBtn_Dexterity || szLow == "btn_dex") iType = 3;
+		else if (pSender == m_pBtn_Intelligence || szLow == "btn_int") iType = 4;
+		else if (pSender == m_pBtn_MagicAttak || szLow == "btn_magic") iType = 5;
+		if (iType != 0)
+		{
+			CLogWriter::Write("Stat puanı: tür {} ({}), kalan {}", iType, pSender->m_szID, CGameBase::s_pPlayer ? CGameBase::s_pPlayer->m_InfoExt.iBonusPointRemain : -1);
+			this->MsgSendAblityPointChange((uint8_t) iType, +1);
+		}
 	}
 
 	return true;
@@ -1545,7 +1554,7 @@ bool CUIVarious::Load(File& file)
 			}
 		if (!szFile.empty())
 		{
-			m_pClanWnd2369 = new CUIGeneric2369();
+			m_pClanWnd2369 = new CUIClanWindow2369();
 			m_pClanWnd2369->Init(CGameProcedure::s_pUIMgr);
 			if (!m_pClanWnd2369->LoadCentered(szFile, CN3Base::s_CameraData.vp.Width, CN3Base::s_CameraData.vp.Height, "Klan"))
 			{
@@ -1577,17 +1586,11 @@ bool CUIVarious::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 		{
 			if (m_pClanWnd2369 != nullptr)
 			{
-				// 2369: klan sekmesi kendi penceresini açar; ad/derece bilgisi yazılır (üye listesi: sunucu paketi bekliyor)
-				for (CN3UIBase* pChild : m_pClanWnd2369->GetChildren())
-				{
-					if (pChild == nullptr || pChild->UIType() != UI_TYPE_STRING)
-						continue;
-					std::string low = pChild->m_szID;
-					for (char& ch : low) ch = (char) tolower((unsigned char) ch);
-					if (low.find("clan") != std::string::npos && low.find("name") != std::string::npos)
-						static_cast<CN3UIString*>(pChild)->SetString(CGameBase::s_pPlayer->m_InfoExt.szKnights);
-				}
-				m_pClanWnd2369->Toggle();
+				// 2369: klan sekmesi kendi penceresini açar (üye listesi sunucudan, WIZ_KNIGHTS_PROCESS|13)
+				if (m_pClanWnd2369->IsVisible())
+					m_pClanWnd2369->Close();
+				else
+					m_pClanWnd2369->Open();
 			}
 			else
 				this->UpdatePageButtons(m_pBtn_Knights); // 기사단... 잠시 막자..
