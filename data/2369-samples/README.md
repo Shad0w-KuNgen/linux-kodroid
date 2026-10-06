@@ -11,3 +11,4 @@ ISTIRAP 2369 istemcisinin `Zones/` klasöründen değiştirilmeden alındı. Bi�
 - `2017_esl_a001_0.gtt`: moradon.gtd'nin ilk GTT döşeme dokusu (DTex)
 - `moradon.tct`, `moradon.tlt`: Moradon zemin renk/ışık dosyaları
 - `mob_kecoon.n3joint/.n3anim`, `mob_snowman.n3joint/.n3anim`: mob modeli örnekleri (NPC_Looks satır 100 = kecoon)
+- `DTex/`: moradon.gtd'nin kullandığı 42 GTT döşeme dokusunun tamamı (gtd ofset 607016, 260 bayt adım)
