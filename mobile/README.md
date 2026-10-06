@@ -375,6 +375,10 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
   - **Karakter seçimi (2369)**: orijinal gibi panel (`Group_SelectWindow`) sağ kenarda dikey ortada, oklar
     (`Group_OtherCharacter`) alt ortada; dokunmatikte seçili karakterin ad/seviye/sınıf yazıları fare üzerinde durmadan
     her zaman dolu (`DoProcPreselect`). Sahne hâlâ 1.298 `ChrSelect\*_chairs` (24xx dış mekân sahne dosyaları elde yok).
+- v165: HP 34/34'ün gerçek nedeni `WIZ_LEVEL_CHANGE` 1298 okuması (i64 tecrübe → HP kayması); 2369 düzeni eklendi.
+  Beceri ikonları kaplama halkalarında, alan becerisi hedef seçiminde joystick/kamera kilidi + tek onay; oyuncu menüsü
+  (parti/ticaret/fısıltı/arkadaş); klan sayfası görünürlük düzeltmesi + `btn_clan`; ogg ses (stb_vorbis) ve uzantı
+  seçimi; 2369 karakter seçim sahnesi denemesi; bilgi kutusu geri (sağ üst). Devir notları: `docs/2369-durum.md`.
 
 ### Oyun verisini telefona kurma
 
