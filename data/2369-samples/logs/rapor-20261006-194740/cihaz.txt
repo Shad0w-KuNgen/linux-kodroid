@@ -1,0 +1,9 @@
+Tarih: Tue Oct 06 19:47:40 GMT+03:00 2026
+Uygulama: online.knight.mobile 0.1.68+eafb594 (168)
+Android: 16 (API 36)
+Cihaz: INFINIX Infinix X6873 (Infinix-X6873, Infinix-X6873, mt6897)
+ABI: arm64-v8a
+Ekran: 2603x1177 @480 dpi
+Bellek: toplam 11488 MB, boş 6060 MB, düşük=false
+Veri dizini: /storage/emulated/0/Android/data/online.knight.mobile/files
+Sunucu: 86.105.4.195, veri sürümü 2500
