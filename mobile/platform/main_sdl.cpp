@@ -8,6 +8,12 @@
 #include "GameProcMain.h"
 #include "GameProcLogIn.h"
 #include "GameEng.h"
+#include "N3WorldManager.h"
+#include "N3WorldBase.h"
+#include "PlayerMySelf.h"
+#include "LightMgr.h"
+#include <N3Base/N3Camera.h>
+#include <cmath>
 #include "APISocket.h"
 #include "KoProtocol.h"
 #include "UIManager.h"
@@ -140,7 +146,8 @@ void LoadOptions(const std::string& iniPath)
 	g_inputDebug = std::getenv("KO_INPUT_DEBUG") != nullptr || ini.GetBool("Mobile", "InputDebug", false);
 	g_showFps    = std::getenv("KO_SHOW_FPS") != nullptr || ini.GetBool("Mobile", "ShowFps", false);
 	g_uiScalePct = std::clamp(ini.GetInt("Mobile", "UiScale", 100), 100, 200);
-	g_touchTuning.camSens     = std::clamp(ini.GetInt("Mobile", "CameraSens", 170), 25, 400) / 100.0f;
+	g_touchTuning.camSens     = std::clamp(ini.GetInt("Mobile", "CameraSens", 260), 25, 600) / 100.0f;
+	g_touchTuning.joyTurnAndRun = ini.GetBool("Mobile", "JoyTurnAndRun", true); // joystick yönü = karakter yönü (kameraya göre), ileri koş
 	g_touchTuning.joyDeadZone = std::clamp(ini.GetInt("Mobile", "JoyDeadZone", 22), 5, 60) / 100.0f;
 	g_touchTuning.longPressMs = (uint32_t) std::clamp(ini.GetInt("Mobile", "LongPressMs", 450), 200, 1500);
 	g_touchTuning.hpSlot      = std::clamp(ini.GetInt("Mobile", "PotHpSlot", 7), 1, 8);
@@ -542,6 +549,7 @@ int main(int argc, char** argv)
 
 	// Mantıksal çözünürlük (mobilde ekran yüksekliği 768'e ölçeklenir; d3d9gles FBO ile büyütür)
 	KoTouch().SetEnabled(g_touchControls);
+	CGameProcedure::s_bTouchControls = g_touchControls;
 	if (std::getenv("KO_TOUCH_DEBUG"))
 		KoTouch().SetForceVisible(true);
 	UpdateLogicalSize();
@@ -603,6 +611,117 @@ int main(int argc, char** argv)
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Knight Online Mobile", msg.c_str(), g_window);
 		CGameProcedure::StaticMemberRelease();
 		return 1;
+	}
+
+	// Başsız zemin testi: KO_TERRAIN_TEST="bölge,x,z[,uzaklık,yükseklik,açı°]" → sunucusuz, yalnız bölge
+	// dosyalarını (gtd/tct/tlt/gtt/opd) yükleyip kamerayı (x,z) noktasına bakacak şekilde kurar ve
+	// KO_MAX_FRAMES kare çizip KO_SCREENSHOT/KO_SCREENSHOT_PHYSICAL'a kaydeder (2369 arazi hatalarını masaüstünde görmek için).
+	if (const char* tt = std::getenv("KO_TERRAIN_TEST"))
+	{
+		int iZone = 210;
+		float fx = 0.f, fz = 0.f, fDist = 25.f, fHeight = 12.f, fAngleDeg = 0.f;
+		std::sscanf(tt, "%d,%f,%f,%f,%f,%f", &iZone, &fx, &fz, &fDist, &fHeight, &fAngleDeg);
+		long maxF = std::getenv("KO_MAX_FRAMES") ? std::atol(std::getenv("KO_MAX_FRAMES")) : 10;
+		const char* shot  = std::getenv("KO_SCREENSHOT");
+		const char* pshot = std::getenv("KO_SCREENSHOT_PHYSICAL");
+		CGameBase::s_pPlayer->m_InfoExt.iZoneCur = iZone;
+		if (__TABLE_ZONE* pZ = CGameBase::s_pTbl_Zones.Find(iZone))
+			CLogWriter::Write("[terrain-test] bölge {} dosyaları: zemin={} renk={} ışık={} nesne={}", iZone, pZ->szTerrainFN, pZ->szColorMapFN,
+				pZ->szLightMapFN, pZ->szObjectPostDataFN);
+		else
+			CLogWriter::Write("[terrain-test] bölge {} Zones.tbl'de yok", iZone);
+		try
+		{
+			CGameBase::s_pWorldMgr->InitWorld(iZone);
+		}
+		catch (const std::exception& ex)
+		{
+			CLogWriter::Write("[terrain-test] InitWorld({}) hata: {}", iZone, ex.what());
+			std::fprintf(stderr, "terrain-test: InitWorld hata: %s\n", ex.what());
+			return 2;
+		}
+		CN3WorldBase* pWorld = CGameBase::s_pWorldMgr->GetActiveWorld();
+		CN3Camera* pCam      = CGameProcedure::s_pEng->CameraGetActive();
+		// Işıklar: oyun içindeki gibi bölge ışık dosyası (.glo); KO_TERRAIN_TEST_NOLIGHT=1 ile aydınlatma kapatılır.
+		CLightMgr* pLightMgr = new CLightMgr;
+		pLightMgr->Release(); // varsayılan 3 ışığı Release() oluşturur (CGameProcMain::Init ile aynı)
+		CGameProcedure::s_pEng->SetDefaultLight(pLightMgr->Light(0), pLightMgr->Light(1), pLightMgr->Light(2));
+		if (__TABLE_ZONE* pZ = CGameBase::s_pTbl_Zones.Find(iZone))
+			pLightMgr->LoadZoneLight(pZ->szLightObjFN.c_str());
+		const bool bNoLight   = std::getenv("KO_TERRAIN_TEST_NOLIGHT") != nullptr;
+		pWorld->SetGameTimeWithSky(2024, 6, 1, 12, 0); // öğlen ışığı (sunucudan WIZ_TIME gelmeden gece = kapkara)
+		const bool bManualCam = std::getenv("KO_TERRAIN_TEST_MANUALCAM") != nullptr;
+		float fY             = pWorld->GetHeightWithTerrain(fx, fz);
+		if (fY < -100000.f)
+			fY = 0.f;
+		std::fprintf(stderr, "terrain-test: bölge %d (%.1f, %.1f) zemin y=%.2f, %ld kare\n", iZone, fx, fz, fY, maxF);
+		const float fRad = fAngleDeg * 3.14159265f / 180.f;
+		__Vector3 vAt(fx, fY + 1.0f, fz);
+		__Vector3 vEye(fx - fDist * std::sin(fRad), fY + fHeight, fz - fDist * std::cos(fRad));
+		for (long f = 0; f < maxF && !g_quit; ++f)
+		{
+			PumpEvents();
+			CGameBase::s_pWorldMgr->Tick();
+			if (bManualCam && pCam)
+			{
+				pCam->m_Data.fFOV = DegreesToRadians(70);
+				pCam->m_Data.fFP  = 512.0f;
+				pCam->m_Data.fNP  = 0.5f;
+				pCam->LookAt(vEye, vAt, __Vector3(0, 1, 0));
+				pCam->Tick();
+				pCam->Apply();
+			}
+			else
+			{
+				// Oyun içindeki gibi: gökyüzünden ışık/sis renkleri, oyuncu konumuna göre kamera (CGameProcMain::UpdateCameraAndLight)
+				D3DCOLOR crDiffuses[MAX_GAME_LIGHT], crAmbients[MAX_GAME_LIGHT];
+				for (int i = 0; i < MAX_GAME_LIGHT; i++)
+				{
+					crDiffuses[i] = pWorld->GetLightDiffuseColorWithSky(i);
+					crAmbients[i] = pWorld->GetLightAmbientColorWithSky(i);
+					if (crDiffuses[i] == 0) // gökyüzü dosyası yoksa (ışık rengi 0 = kapkara) beyaz güneş
+						crDiffuses[i] = 0xffffffff;
+					if (crAmbients[i] == 0)
+						crAmbients[i] = 0xff808080;
+				}
+				__Quaternion qt;
+				qt.RotationAxis(__Vector3(0, 1, 0), fRad);
+				CGameProcedure::s_pEng->Tick(crDiffuses, crAmbients, pWorld->GetFogColorWithSky(), vAt, qt, 1.8f, pWorld->GetSunAngleByRadinWithSky());
+				CGameProcedure::s_pEng->ApplyCameraAndLight();
+			}
+			pLightMgr->Tick();
+			if (bNoLight)
+				CN3Base::s_lpD3DDev->SetRenderState(D3DRS_LIGHTING, FALSE);
+			D3DCOLOR crSky = pWorld->GetSkyColorWithSky();
+			CGameProcedure::s_pEng->Clear(crSky);
+			CN3Base::s_lpD3DDev->BeginScene();
+			pWorld->RenderSky();
+			uint32_t dwFilter = D3DTEXF_LINEAR;
+			for (int st = 0; st < 2; ++st)
+			{
+				CN3Base::s_lpD3DDev->SetSamplerState(st, D3DSAMP_MINFILTER, dwFilter);
+				CN3Base::s_lpD3DDev->SetSamplerState(st, D3DSAMP_MAGFILTER, dwFilter);
+				CN3Base::s_lpD3DDev->SetSamplerState(st, D3DSAMP_MIPFILTER, dwFilter);
+			}
+			pWorld->RenderTerrain();
+			pWorld->RenderShape();
+			CN3Base::s_AlphaMgr.Render();
+			CN3Base::s_lpD3DDev->EndScene();
+			if (pshot && f == maxF - 1)
+			{
+				g_physicalShotPending = true;
+				g_physicalShotPath    = pshot;
+			}
+			CGameProcedure::s_pEng->Present(CN3Base::s_hWndBase);
+			if (shot && f == maxF - 1)
+				SaveScreenshotPPM(shot);
+		}
+		delete pLightMgr;
+		CGameProcedure::StaticMemberRelease();
+		SDL_GL_DeleteContext(g_glContext);
+		SDL_DestroyWindow(g_window);
+		SDL_Quit();
+		return 0;
 	}
 
 	CGameProcedure::ProcActiveSet((CGameProcedure*) CGameProcedure::s_pProcLogIn);

@@ -654,10 +654,28 @@ void KoTouchOverlay::Update()
 			if (len > m_joyR * m_tuning.joyDeadZone)
 			{
 				float nx = dx / len, ny = dy / len;
-				if (ny < -0.35f) in.virtualKeysDIK[KM_MOVE_FOWARD] = 0x80;
-				if (ny > 0.35f) in.virtualKeysDIK[KM_MOVE_BACKWARD] = 0x80;
-				if (nx < -0.45f) in.virtualKeysDIK[KM_ROTATE_LEFT] = 0x80;
-				if (nx > 0.45f) in.virtualKeysDIK[KM_ROTATE_RIGHT] = 0x80;
+				CGameEng* pEng = CGameProcedure::s_pEng;
+				CPlayerMySelf* pMe = CGameProcedure::s_pPlayer;
+				if (m_tuning.joyTurnAndRun && pEng != nullptr && pMe != nullptr && IsInGame() && pMe->IsAlive())
+				{
+					// Mobil "dön ve koş": joystick yönü kameraya göre dünya yönüne çevrilir, karakter anında
+					// o yöne döndürülür ve ileri koşar (60°/sn'lik A/D dönüşü yerine)
+					__Vector3 vDir(nx, 0.0f, -ny);
+					__Matrix44 mtxRot;
+					mtxRot.RotationY(pEng->CameraYaw());
+					vDir *= mtxRot;
+					vDir.y = 0.0f;
+					vDir.Normalize();
+					pMe->RotateTo(::_Yaw2D(vDir.x, vDir.z), true);
+					in.virtualKeysDIK[KM_MOVE_FOWARD] = 0x80;
+				}
+				else
+				{
+					if (ny < -0.35f) in.virtualKeysDIK[KM_MOVE_FOWARD] = 0x80;
+					if (ny > 0.35f) in.virtualKeysDIK[KM_MOVE_BACKWARD] = 0x80;
+					if (nx < -0.45f) in.virtualKeysDIK[KM_ROTATE_LEFT] = 0x80;
+					if (nx > 0.45f) in.virtualKeysDIK[KM_ROTATE_RIGHT] = 0x80;
+				}
 			}
 		}
 	}

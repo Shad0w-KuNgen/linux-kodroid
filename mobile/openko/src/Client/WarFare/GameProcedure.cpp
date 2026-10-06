@@ -89,6 +89,7 @@ int CGameProcedure::s_iChrSelectIndex              = 0;
 bool CGameProcedure::s_bNeedReportConnectionClosed = false;   // 서버접속이 끊어진걸 보고해야 하는지..
 bool CGameProcedure::s_bReconnectLogInRequested    = false;
 bool CGameProcedure::s_bGameStarted2369             = false;
+bool CGameProcedure::s_bTouchControls               = false;
 int CGameProcedure::s_iSendLogLeft                  = 0;
 int CGameProcedure::s_iRecvLogLeft                  = 0;
 

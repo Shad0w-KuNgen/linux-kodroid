@@ -10,6 +10,7 @@
 #include "text_resources.h"
 
 #include <N3Base/N3UIString.h>
+#include <N3Base/LogWriter.h>
 #include <N3Base/N3UITooltip.h>
 
 CUICharacterSelect::CUICharacterSelect()
@@ -36,6 +37,11 @@ void CUICharacterSelect::Release()
 	m_pBtnDelete   = nullptr;
 	m_pBtnBack     = nullptr;
 	m_pUserInfoStr = nullptr;
+	m_pBtnStart    = nullptr;
+	m_pBtnCreate   = nullptr;
+	m_pStrId       = nullptr;
+	m_pStrLevel    = nullptr;
+	m_pStrJob      = nullptr;
 
 	CN3UIBase::Release();
 }
@@ -45,12 +51,38 @@ bool CUICharacterSelect::Load(File& file)
 	if (!CN3UIBase::Load(file))
 		return false;
 
-	N3_VERIFY_UI_COMPONENT(m_pBtnLeft, GetChildByID("bt_left"));
-	N3_VERIFY_UI_COMPONENT(m_pBtnRight, GetChildByID("bt_right"));
-	N3_VERIFY_UI_COMPONENT(m_pBtnExit, GetChildByID("bt_exit"));
-	N3_VERIFY_UI_COMPONENT(m_pBtnDelete, GetChildByID("bt_delete"));
-	N3_VERIFY_UI_COMPONENT(m_pBtnBack, GetChildByID("bt_back"));
-	N3_VERIFY_UI_COMPONENT(m_pUserInfoStr, GetChildByID<CN3UIString>("text00"));
+	// 2369 re_characterselect.uif kimlikleri: btn_left/btn_right (Group_OtherCharacter), btn_exit/btn_back/btn_start/
+	// btn_create ve str_id/str_lev/str_job (Group_SelectWindow); 1298: bt_left/bt_right/bt_exit/bt_delete/bt_back/text00.
+	auto findAny = [this](const char* szA, const char* szB) -> CN3UIBase* {
+		CN3UIBase* p = GetChildByID(szA);
+		return p ? p : GetChildByID(szB);
+	};
+	const bool b2369Layout = GetChildByID("bt_left") == nullptr && GetChildByID("btn_left") != nullptr;
+	N3_VERIFY_UI_COMPONENT(m_pBtnLeft, findAny("bt_left", "btn_left"));
+	N3_VERIFY_UI_COMPONENT(m_pBtnRight, findAny("bt_right", "btn_right"));
+	N3_VERIFY_UI_COMPONENT(m_pBtnExit, findAny("bt_exit", "btn_exit"));
+	N3_VERIFY_UI_COMPONENT(m_pBtnDelete, findAny("bt_delete", "btn_delete"));
+	N3_VERIFY_UI_COMPONENT(m_pBtnBack, findAny("bt_back", "btn_back"));
+	m_pBtnStart  = GetChildByID("btn_start");
+	m_pBtnCreate = GetChildByID("btn_create");
+	m_pStrId     = GetChildByID<CN3UIString>("str_id");
+	m_pStrLevel  = GetChildByID<CN3UIString>("str_lev");
+	m_pStrJob    = GetChildByID<CN3UIString>("str_job");
+	if (m_pStrId != nullptr && GetChildByID<CN3UIString>("text00") == nullptr)
+		m_pUserInfoStr = nullptr; // 2369: bilgi üç ayrı yazıda (DisplayChrInfo)
+	else
+		N3_VERIFY_UI_COMPONENT(m_pUserInfoStr, GetChildByID<CN3UIString>("text00"));
+	if (b2369Layout)
+	{
+		CLogWriter::Write("CUICharacterSelect: 2369 düzeni (başlat {}, oluştur {}, ad/seviye/sınıf yazıları {}/{}/{})",
+			m_pBtnStart ? "var" : "yok", m_pBtnCreate ? "var" : "yok", m_pStrId ? "var" : "yok", m_pStrLevel ? "var" : "yok",
+			m_pStrJob ? "var" : "yok");
+		// 2369 arayüzü ekran boyutuna göre tasarlanmış: 1298'in düğme taşıma düzeltmeleri gereksiz
+		RECT rc2369;
+		SetRect(&rc2369, 0, 0, s_CameraData.vp.Width, s_CameraData.vp.Height);
+		SetRegion(rc2369);
+		return true;
+	}
 
 	// 위치를 화면 해상도에 맞게 바꾸기...
 	POINT pt {};
@@ -145,6 +177,11 @@ bool CUICharacterSelect::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 
 			CGameProcedure::ProcActiveSet((CGameProcedure*) CGameProcedure::s_pProcLogIn); // 로그인으로 돌아간다..
 		}
+		else if (pSender != nullptr && (pSender == m_pBtnStart || pSender == m_pBtnCreate))
+		{
+			// 2369: BAŞLAT = seçili karakterle oyuna gir; OLUŞTUR = boş yuvada karakter yarat (Enter ile aynı yol)
+			CGameProcedure::s_pProcCharacterSelect->ProcessOnReturn();
+		}
 		else if (pSender == m_pBtnDelete)
 		{
 			std::string szMsg = fmt::format_text_resource(IDS_CONFIRM_DELETE_CHR);
@@ -184,12 +221,39 @@ void CUICharacterSelect::DisplayChrInfo(__CharacterSelectInfo* pCSInfo)
 		m_pUserInfoStr->SetVisible(true);
 		m_pUserInfoStr->SetString(szTotal);
 	}
+	// 2369: ad / seviye / sınıf ayrı yazılar
+	const bool bHasChr = !pCSInfo->szID.empty();
+	if (m_pStrId != nullptr)
+	{
+		m_pStrId->SetVisible(true);
+		m_pStrId->SetString(bHasChr ? pCSInfo->szID : std::string());
+	}
+	if (m_pStrLevel != nullptr)
+	{
+		m_pStrLevel->SetVisible(true);
+		m_pStrLevel->SetString(bHasChr ? fmt::format("{}", pCSInfo->iLevel) : std::string());
+	}
+	if (m_pStrJob != nullptr)
+	{
+		std::string szClass;
+		if (bHasChr)
+			CGameBase::GetTextByClass(pCSInfo->eClass, szClass);
+		m_pStrJob->SetVisible(true);
+		m_pStrJob->SetString(szClass);
+	}
+	if (m_pBtnStart != nullptr)
+		m_pBtnStart->SetVisible(bHasChr);
+	if (m_pBtnCreate != nullptr)
+		m_pBtnCreate->SetVisible(!bHasChr);
 }
 
 void CUICharacterSelect::DontDisplayInfo()
 {
 	if (m_pUserInfoStr != nullptr)
 		m_pUserInfoStr->SetVisible(false);
+	for (CN3UIString* p : { m_pStrId, m_pStrLevel, m_pStrJob })
+		if (p != nullptr)
+			p->SetVisible(false);
 }
 
 bool CUICharacterSelect::OnKeyPress(int iKey)

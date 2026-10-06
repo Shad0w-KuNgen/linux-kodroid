@@ -19,6 +19,12 @@ protected:
 	CN3UIBase* m_pBtnDelete;
 	CN3UIBase* m_pBtnBack;
 	CN3UIString* m_pUserInfoStr;
+	// 2369 re_characterselect.uif: btn_start / btn_create düğmeleri ve str_id / str_lev / str_job yazıları
+	CN3UIBase* m_pBtnStart     = nullptr;
+	CN3UIBase* m_pBtnCreate    = nullptr;
+	CN3UIString* m_pStrId      = nullptr;
+	CN3UIString* m_pStrLevel   = nullptr;
+	CN3UIString* m_pStrJob     = nullptr;
 
 public:
 	uint32_t MouseProc(uint32_t dwFlags, const POINT& ptCur, const POINT& ptOld) override;

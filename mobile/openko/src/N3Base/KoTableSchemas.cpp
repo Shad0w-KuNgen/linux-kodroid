@@ -48,6 +48,7 @@ const Entry SCHEMAS[] = {
 	{ "item_ext_9_us.tbl", "DTDTDDDBSSSSSSSSSSSSSBBBBBBBBBSSSSSSSSSSSSSDDSSSSSSSS" },
 	{ "item_org_us.tbl", "DBTTDBDDDDBBBBBSSSSSIISBDDCCBBBBBBBBB" },
 	{ "npc_looks.tbl", "DTTTTTTTTTTTTTTTTIIIIIIIIIIIIIIIIIIBBB" },
+	{ "npc_us.tbl", "DTDDDDD" },
 	{ "npc_shout_us.tbl", "DT" },
 	{ "newchrvalue.tbl", "DTIIIIIIDDDDDDDDDDDD" },
 	{ "quest_content_us.tbl", "DIITTT" },

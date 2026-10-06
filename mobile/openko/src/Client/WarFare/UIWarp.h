@@ -35,6 +35,15 @@ protected:
 
 	std::list<__WarpInfo> m_ListInfos;
 
+	// 2369 (re_warp.istirap): liste yerine 9 satır yazısı (str_warp0..8) + seçim resmi (img_select)
+	static constexpr int MAX_ROWS_2369 = 9;
+	bool m_bRows2369 = false;
+	class CN3UIString* m_pRowStrs[MAX_ROWS_2369] = {};
+	CN3UIBase* m_pImgSelect  = nullptr;
+	CN3UIBase* m_pBtnClose   = nullptr;
+	int m_iCurSel2369        = -1;
+	void SelectRow2369(int iRow);
+
 public:
 	bool OnKeyPress(int iKey) override;
 	void SetVisible(bool bVisible) override;

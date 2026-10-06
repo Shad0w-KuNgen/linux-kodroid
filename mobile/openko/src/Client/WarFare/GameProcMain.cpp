@@ -1,4 +1,4 @@
-// GameProcMain.cpp: implementation of the CGameProcMain class.
+﻿// GameProcMain.cpp: implementation of the CGameProcMain class.
 //
 //////////////////////////////////////////////////////////////////////
 #include "StdAfx.h"
@@ -3075,8 +3075,11 @@ bool CGameProcMain::MsgRecv_NPCIn(Packet& pkt)
 		fYPos    = n.y / 10.0f;
 		dwStatus = n.gateOpen;
 		dwType   = n.objectType;
-		if (__TABLE_PLAYER_LOOKS* pLooksName = s_pTbl_NPC_Looks.Find(iIDResrc))
-			szName = pLooksName->szName;
+		if (__TABLE_NPC_NAME* pNpcName = s_pTbl_NPC_Names.Find(n.protoID)) // NPC_us.tbl: görünen ad
+			szName = pNpcName->szName;
+		if (szName.empty())
+			if (__TABLE_PLAYER_LOOKS* pLooksName = s_pTbl_NPC_Looks.Find(iIDResrc))
+				szName = pLooksName->szName;
 		if (szName.empty())
 			szName = fmt::format("NPC {}", iIDResrc);
 	}
@@ -7913,14 +7916,30 @@ bool CGameProcMain::OnMouseLBtnPress(POINT ptCur, POINT /*ptPrev*/)
 	BOOL bFindCorpse    = false;
 
 	int iID             = -1;
+	const int iPrevTarget      = s_pPlayer->m_iIDTarget;      // dokunmatik: önceki seçim (ikinci dokunuş = etkileşim)
+	CN3Shape* pPrevObjTarget   = s_pPlayer->m_pObjectTarget;
+	m_bTouchInteractThisFrame  = false;
 	pTarget             = s_pOPMgr->PickPrecisely(ptCur.x, ptCur.y, iID, &m_vMouseLBClickedPos);              // 사방에 깔린넘들 픽킹..
 	this->TargetSelect(iID, false);                                                                           // 타겟을 잡는다..
+	if (CGameProcedure::s_bTouchControls && pTarget != nullptr && iID != -1 && iID == iPrevTarget && !s_pPlayer->IsHostileTarget(pTarget))
+	{
+		// Dokunmatik: zaten seçili dost NPC'ye ikinci dokunuş = sağ tık (konuş / dükkân / depo / kapı NPC'si)
+		m_bTouchInteractThisFrame = true;
+		return OnMouseRBtnPress(ptCur, ptCur);
+	}
 	if (nullptr == pTarget)                                                                                   // 타겟이 없으면..
 	{
 		if (s_pPlayer->m_bAttackContinous)                                                                    // 계속 공격하는 중이면..
 			this->CommandEnableAttackContinous(false, nullptr);                                               // 계속 공격 취소..
 
 		s_pPlayer->m_pObjectTarget = ACT_WORLD->PickWithShape(ptCur.x, ptCur.y, true, &m_vMouseLBClickedPos); // 찍힌 위치를 저장한다..
+		if (CGameProcedure::s_bTouchControls && s_pPlayer->m_pObjectTarget != nullptr && s_pPlayer->m_pObjectTarget == pPrevObjTarget
+			&& s_pPlayer->m_pObjectTarget->m_iEventID != 0)
+		{
+			// Dokunmatik: zaten seçili olay nesnesine (kapı / bind noktası) ikinci dokunuş = sağ tık
+			m_bTouchInteractThisFrame = true;
+			return OnMouseRBtnPress(ptCur, ptCur);
+		}
 		if (nullptr == s_pPlayer->m_pObjectTarget)                                                            // 타겟도 없으면..
 		{
 			// 시체 뒤저서 아이템 상자 열기..
@@ -8028,6 +8047,11 @@ bool CGameProcMain::OnMouseLbtnDown(POINT ptCur, POINT /*ptPrev*/)
 {
 	if (s_pUIMgr->m_bDoneSomething)
 		return false;
+	if (m_bTouchInteractThisFrame)
+	{
+		m_bTouchInteractThisFrame = false; // etkileşim dokunuşu: tıklanan yere yürüme
+		return true;
+	}
 
 	_POINT ptPlayer = ::_Convert3D_To_2DCoordinate(s_pPlayer->Position(), CN3Base::s_CameraData.mtxView,
 		CN3Base::s_CameraData.mtxProjection, CN3Base::s_CameraData.vp.Width, CN3Base::s_CameraData.vp.Height);

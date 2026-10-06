@@ -1014,6 +1014,14 @@ enum e_ItemSlot : int8_t
 };
 
 // Manages NPC/mob/player appearance
+// 2369 Data\NPC_us.tbl (DTDDDDD): sunucu K_NPC kimliği → görünen ad ("<Bind Stone>" gibi); NPC_Looks'ta ad yok (Korece)
+struct __TABLE_NPC_NAME
+{
+	uint32_t dwID      = 0;
+	std::string szName = {};
+	uint32_t dwIdk[5]  = {};
+};
+
 struct __TABLE_PLAYER_LOOKS
 {
 	uint32_t dwID             = 0;  // NPC resource ID

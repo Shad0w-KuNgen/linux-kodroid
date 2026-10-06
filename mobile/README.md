@@ -287,6 +287,12 @@ sonrasında oyun içi seçenek geçerlidir. Başlangıçta `Seçenekler: ses bgm
 ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya/yükseltme, klan/kral/PUS,
 2369 arayüzü, 2369 veri uyumluluğu (bölge numaraları, `UI` klasörü, NPC ad tablosu).
 
+- 2369 arayüz uyarlamaları: `re_warp.istirap` (liste yok) → `str_warp0..8` satırları + `img_select`
+  seçim resmi, satıra dokunma seçer, çift dokunma/`Btn_Ok` ışınlar; `re_characterselect.uif`
+  → `btn_left/btn_right/btn_exit/btn_back` takma adları, `btn_start`/`btn_create` Enter ile aynı yolu
+  izler, `str_id/str_lev/str_job` ayrı yazılır. NPC adları `Data\NPC_us.tbl` (DTDDDDD, K_NPC kimliği →
+  ad) ile gösterilir; görünüm (`NPC_Looks`) Korece adı yalnız yedektir.
+
 ### Oyun verisini telefona kurma
 
 Launcher oyun verisini arar; yoksa "Veriyi indir ve kur" (varsayılan adres) ya da "Veriyi onar /
@@ -319,6 +325,23 @@ adb shell run-as online.knight.mobile sh -c 'mkdir -p files && cd files && unzip
 
 Yazı tipi için `<veri>/fonts/default.ttf` koyun (yoksa `/system/fonts/` denenir).
 
+### Başsız zemin testi (2369 arazi hataları için)
+
+`KO_TERRAIN_TEST="bölge,x,z[,uzaklık,yükseklik,açı°]"` ile istemci sunucusuz yalnız bölge dosyalarını
+(gtd/tct/tlt/gtt/opd) yükler, bölge ışığını (.glo) ve öğlen gök ışığını kurar, kamerayı (x,z)
+noktasına bakacak şekilde yerleştirir ve `KO_MAX_FRAMES` kare çizip `KO_SCREENSHOT` dosyasına
+kaydeder. `KO_TERRAIN_TEST_NOLIGHT=1` aydınlatmayı kapatır, `KO_TERRAIN_TEST_MANUALCAM=1` serbest
+kamera kullanır. Örnek (2369 Moradon dosyaları 1.298 veri dizininde `Zones/moradon_xmas.*` adıyla):
+
+```
+SDL_VIDEODRIVER=offscreen EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 \
+KO_CLIENT_DIR=/veri KO_TERRAIN_TEST="210,709,426,25,12,0" KO_MAX_FRAMES=6 KO_SCREENSHOT=/tmp/t.ppm build/KnightOnLine
+```
+
+Log.txt'ye `CN3Terrain: döşeme dokuları: N döşeme, M gtt dosyası, K dosyası eksik döşeme, F okunamayan`
+ve `CN3Pond: havuz …` satırları yazılır; eksik `.gtt` dosyaları adıyla listelenir (o döşemeler beyaz
+çizilir).
+
 ### Tanılama ve performans seçenekleri
 
 - Launcher'da **Hata raporu gönder**: `Log.txt`, `gpu.txt` (GL_VENDOR/RENDERER/VERSION, S3TC, sınırlar,
@@ -334,12 +357,15 @@ Yazı tipi için `<veri>/fonts/default.ttf` koyun (yoksa `/system/fonts/` deneni
 
 ### Dokunmatik kontroller (oyun içi)
 
-- Sol yarı: parmağın bastığı yerde beliren joystick (W/S ileri-geri, A/D dönüş; ölü bölge
-  `JoyDeadZone`). Serbest alanda sürükleme: kamera (sağ tuş sürüklemesi, hız `CameraSens`);
-  iki parmak: yakınlaştırma.
-- Tek dokunuş = sol tık (yürü / hedef seç / arayüz). 3D dünyada çift dokunuş = oyunun çift tıkı
-  = hedefe saldır; uzun basış (`LongPressMs`, varsayılan 450 ms) = sağ tık: NPC ile konuş,
-  ceset/kutu aç, kapı/nesne olayı.
+- Sol yarı: parmağın bastığı yerde beliren joystick. Varsayılan **dön ve koş** (`JoyTurnAndRun=1`):
+  joystick yönü kameraya göre dünya yönüne çevrilir, karakter anında o yöne döner ve ileri koşar
+  (oyunun 60°/sn A/D dönüşü yerine). `JoyTurnAndRun=0`: eski W/S ileri-geri, A/D dönüş. Ölü bölge
+  `JoyDeadZone`. Serbest alanda sürükleme: kamera (sağ tuş sürüklemesi, hız `CameraSens`, varsayılan
+  260 %); iki parmak: yakınlaştırma.
+- Tek dokunuş = sol tık (yürü / hedef seç / arayüz). **Seçili dost NPC'ye veya seçili kapı/bind
+  nesnesine ikinci dokunuş = sağ tık** (konuş, dükkân, kapı olayı; uzaksa oyunun "çok uzak" iletisi
+  çıkar). 3D dünyada çift dokunuş = oyunun çift tıkı = hedefe saldır; uzun basış (`LongPressMs`,
+  varsayılan 450 ms) = sağ tık: NPC ile konuş, ceset/kutu aç, kapı/nesne olayı.
 - Arayüz pencereleri üstünde (çanta, beceri, skill bar, ticaret, depo, pazar, ekipman):
   sürükleme = sol tuş sürüklemesi (ikon taşıma, pencere taşıma, kaydırma çubuğu; LBCLICK ve ilk
   LBDOWN ikonun üstünde iki kare tutulur); uzun basış = ikonu tut, parmak kıpırdamadan kalkarsa

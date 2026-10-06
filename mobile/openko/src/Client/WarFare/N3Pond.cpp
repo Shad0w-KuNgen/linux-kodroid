@@ -4,6 +4,9 @@
 
 #include "StdAfx.h"
 #include "N3Pond.h"
+#include <N3Base/LogWriter.h>
+#include <algorithm>
+#include <cfloat>
 
 #include <N3Base/N3Texture.h>
 
@@ -160,6 +163,17 @@ bool CN3Pond::Load(File& file, int iGtdVersion, bool b2369)
 			}
 			x++;
 			y++;
+		}
+
+		{
+			float fYMin = FLT_MAX, fYMax = -FLT_MAX;
+			for (int v = 0; v < iVC; v++)
+			{
+				fYMin = std::min(fYMin, mesh.m_pVertices[v].y);
+				fYMax = std::max(fYMax, mesh.m_pVertices[v].y);
+			}
+			CLogWriter::Write("CN3Pond: havuz {}x{} köşe, doku {}, x {:.0f}..{:.0f} z {:.0f}..{:.0f} y {:.1f}..{:.1f} dalga {:.2f}", iWidth + 1, iHeight,
+				mesh.m_pTexWave ? mesh.m_pTexWave->FileName() : std::string("yok"), StX, EnX, StZ, EnZ, fYMin, fYMax, fWaveVariance);
 		}
 
 		float fmin = 0.0f, fmax = 0.0f, fmaxcal = 0.0f, fmincal = 0.0f;

@@ -6,6 +6,7 @@
 
 #include "StdAfx.h"
 #include "N3Terrain.h"
+#include <set>
 #include "N3TerrainPatch.h"
 #include "PlayerMySelf.h"
 #include "GameProcedure.h"
@@ -525,6 +526,8 @@ bool CN3Terrain::Load(File& file)
 
 	if (pUILoading != nullptr)
 		pUILoading->Render("", 100);
+	CLogWriter::Write("CN3Terrain: {} yüklendi (başlık {}, harita {}x{}, yama {}x{})", m_szFileName, m_bHeader2369 ? "2369" : "1264",
+		m_ti_MapSize, m_ti_MapSize, m_pat_MapSize, m_pat_MapSize);
 	return true;
 }
 
@@ -629,6 +632,8 @@ void CN3Terrain::LoadTileInfo(File& file)
 	}
 
 	std::string szLoadingBuff;
+	std::set<std::string> missingGtt;
+	int iMissingTiles = 0, iFailedTiles = 0;
 	for (size_t i = 0; i < m_TileTex.size(); i++)
 	{
 		CN3Texture& tex = m_TileTex[i];
@@ -645,7 +650,12 @@ void CN3Terrain::LoadTileInfo(File& file)
 
 		FileReader gttFile;
 		if (!gttFile.OpenExisting(srcNames[SrcIdx]))
+		{
+			if (missingGtt.insert(srcNames[SrcIdx]).second)
+				CLogWriter::Write("CN3Terrain: döşeme dokusu dosyası yok: {} (bu dosyaya bağlı döşemeler beyaz/boş çizilir)", srcNames[SrcIdx]);
+			iMissingTiles++;
 			continue;
+		}
 
 		tex.m_iFileFormatVersion = m_iFileFormatVersion;
 
@@ -653,7 +663,8 @@ void CN3Terrain::LoadTileInfo(File& file)
 			tex.SkipFileHandle(gttFile);        // 앞에 있는 쓸때 없는 것들...
 
 		tex.m_iLOD = s_Options.iTexLOD_Terrain; // LOD 적용후 읽기..
-		tex.Load(gttFile);                      // 진짜 타일...
+		if (!tex.Load(gttFile) || tex.Get() == nullptr) // 진짜 타일...
+			iFailedTiles++;
 
 		// loading bar...
 		size_t loadingPercentage = (i + 1) * 100 / m_TileTex.size();
@@ -661,6 +672,8 @@ void CN3Terrain::LoadTileInfo(File& file)
 		if (pUILoading != nullptr)
 			pUILoading->Render(szLoadingBuff, static_cast<int>(loadingPercentage));
 	}
+	CLogWriter::Write("CN3Terrain: döşeme dokuları: {} döşeme, {} gtt dosyası, {} dosyası eksik döşeme, {} okunamayan döşeme", m_TileTex.size(),
+		NumTileTexSrc, iMissingTiles, iFailedTiles);
 }
 
 //
