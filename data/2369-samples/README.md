@@ -18,3 +18,4 @@ ISTIRAP 2369 istemcisinin `Zones/` klasöründen değiştirilmeden alındı. Bi�
 - `ui/`: 2369 HUD dosyaları (re_hpbar, re_taskbar_main/sub, re_minimap, re_uisubhpbar, co_hpbar .uif; re_taskbar_main.istirap + çözülmüş .uif) ve her biri için `.agac.txt` (ui_tool uif ağaç dökümü)
 - `logs/Log-v161.txt` + `logs/rapor-20261006-162504/` (video-kareleri/: 6 dk videodan 5 sn'de bir kare, 2x3 tablolar; hud.png = sol üst can barı yakın çekim)
 - `ChrSelect/` (314 dosya, 11 MB: 24xx karakter seçim sahnesi), `Scene/` (33 .n3scene/.n3scenex), `Intro/` (61 dosya): istemcideki klasörlerin aynısı
+- `referans/pc-orijinal-istirap.png`: PC'deki orijinal ISTIRAP ekranı (hedef yerleşim). Tam istemci verisi: Release `veri-2369`.
