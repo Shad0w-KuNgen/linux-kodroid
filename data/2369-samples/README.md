@@ -16,3 +16,4 @@ ISTIRAP 2369 istemcisinin `Zones/` klasöründen değiştirilmeden alındı. Bi�
 - `ui-hdr-list.txt` (6374 ad + boyut), `data-list.txt` (Data/, 270 dosya), `istirap-list.txt` (ISTIRAP/, 40 dosya)
 - `logs/Log-v160.txt` + `logs/rapor-20261006-154517/`: v160 telefon raporunun tamamı (Log.txt, logcat, Option.ini, gpu, cihaz, veri-dizini)
 - `ui/`: 2369 HUD dosyaları (re_hpbar, re_taskbar_main/sub, re_minimap, re_uisubhpbar, co_hpbar .uif; re_taskbar_main.istirap + çözülmüş .uif) ve her biri için `.agac.txt` (ui_tool uif ağaç dökümü)
+- `logs/Log-v161.txt` + `logs/rapor-20261006-162504/` (video-kareleri/: 6 dk videodan 5 sn'de bir kare, 2x3 tablolar; hud.png = sol üst can barı yakın çekim)
