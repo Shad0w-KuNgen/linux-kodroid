@@ -119,13 +119,26 @@ bool DecodeBMP(const std::vector<uint8_t>& f, UINT& w, UINT& h, std::vector<uint
 	int32_t bw = (int32_t) u32(18), bh = (int32_t) u32(22);
 	uint16_t bpp = u16(28);
 	uint32_t comp = hdr >= 40 ? u32(30) : 0;
-	if (bw <= 0 || bh == 0 || (bpp != 24 && bpp != 32) || (comp != 0 && comp != 3))
+	if (bw <= 0 || bh == 0 || (bpp != 8 && bpp != 24 && bpp != 32) || (comp != 0 && comp != 3))
 		return false;
 	bool topDown = bh < 0;
 	UINT ah = (UINT) (bh < 0 ? -bh : bh);
 	size_t stride = ((size_t) bw * bpp / 8 + 3) & ~(size_t) 3;
 	if (off + stride * ah > f.size())
 		return false;
+	// 8 bit: palet (BGRA girdileri) başlıktan sonra; girdi sayısı biClrUsed (0 → 256)
+	const uint8_t* pal = nullptr;
+	uint32_t palCount  = 0;
+	if (bpp == 8)
+	{
+		palCount = hdr >= 40 ? u32(46) : 0;
+		if (palCount == 0 || palCount > 256)
+			palCount = 256;
+		size_t palOff = 14 + hdr;
+		if (palOff + palCount * 4 > f.size())
+			return false;
+		pal = f.data() + palOff;
+	}
 	w = (UINT) bw;
 	h = ah;
 	rgba.resize((size_t) w * h * 4);
@@ -135,6 +148,18 @@ bool DecodeBMP(const std::vector<uint8_t>& f, UINT& w, UINT& h, std::vector<uint
 		uint8_t* d         = rgba.data() + (size_t) y * w * 4;
 		for (UINT x = 0; x < w; ++x)
 		{
+			if (bpp == 8)
+			{
+				uint32_t idx = row[x];
+				if (idx >= palCount)
+					idx = palCount - 1;
+				const uint8_t* s = pal + idx * 4;
+				d[x * 4 + 0] = s[2];
+				d[x * 4 + 1] = s[1];
+				d[x * 4 + 2] = s[0];
+				d[x * 4 + 3] = 255;
+				continue;
+			}
 			const uint8_t* s = row + (size_t) x * bpp / 8;
 			d[x * 4 + 0] = s[2];
 			d[x * 4 + 1] = s[1];

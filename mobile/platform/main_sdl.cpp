@@ -22,6 +22,7 @@
 #include <N3Base/LogWriter.h>
 #include <N3Base/KoText.h>
 #include <shared/Ini.h>
+#include <shared/ByteBuffer.h>
 
 #include <d3d9.h>
 #include <winsock2.h>
@@ -139,7 +140,7 @@ void LoadOptions(const std::string& iniPath)
 	g_inputDebug = std::getenv("KO_INPUT_DEBUG") != nullptr || ini.GetBool("Mobile", "InputDebug", false);
 	g_showFps    = std::getenv("KO_SHOW_FPS") != nullptr || ini.GetBool("Mobile", "ShowFps", false);
 	g_uiScalePct = std::clamp(ini.GetInt("Mobile", "UiScale", 100), 100, 200);
-	g_touchTuning.camSens     = std::clamp(ini.GetInt("Mobile", "CameraSens", 100), 25, 400) / 100.0f;
+	g_touchTuning.camSens     = std::clamp(ini.GetInt("Mobile", "CameraSens", 170), 25, 400) / 100.0f;
 	g_touchTuning.joyDeadZone = std::clamp(ini.GetInt("Mobile", "JoyDeadZone", 22), 5, 60) / 100.0f;
 	g_touchTuning.longPressMs = (uint32_t) std::clamp(ini.GetInt("Mobile", "LongPressMs", 450), 200, 1500);
 	g_touchTuning.hpSlot      = std::clamp(ini.GetInt("Mobile", "PotHpSlot", 7), 1, 8);
@@ -494,6 +495,8 @@ int main(int argc, char** argv)
 		CIni ini(clientDir + "Option.ini");
 		int iCP = ini.GetInt("Text", "CodePage", KoProto::Is2369() ? 1254 : 949);
 		KoSetTextCodePage(iCP);
+		// Sunucudan gelen UTF-8 dizeler (ISTIRAP sohbet/duyuru) 1254'e çevrilir
+		ByteBuffer::s_pfnStringFilter = [](std::string& s) { s = KoTextNormalizeIncoming(s); };
 		SDL_Log("KO: metin kod sayfası %d", KoTextCodePage());
 	}
 	SDL_Log("KO: protokol %d, giriş portu %d, oyun portu %d", KoProto::Version(), KoProto::LoginPort(), KoProto::GamePort());

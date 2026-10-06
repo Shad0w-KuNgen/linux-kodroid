@@ -299,7 +299,9 @@ bool CN3Texture::Load(File& file)
 	if (HeaderOrg.szID[3] < 3)
 	{
 #ifdef _N3GAME
-		CLogWriter::Write("N3Texture Warning - Old format DXT file ({})", m_szFileName);
+		static int s_iOldFmt = 0; // 2369 GTT döşemeleri sürüm 3 değil: binlerce satır yerine ilk 5 + her 500.
+		if (++s_iOldFmt <= 5 || s_iOldFmt % 500 == 0)
+			CLogWriter::Write("N3Texture Warning - Old format DXT file ({}, sürüm {}, toplam {})", m_szFileName, (int) HeaderOrg.szID[3], s_iOldFmt);
 #endif
 	}
 
@@ -601,7 +603,9 @@ bool CN3Texture::SkipFileHandle(File& file)
 	if (3 != HeaderOrg.szID[3])
 	{
 #ifdef _N3GAME
-		CLogWriter::Write("N3Texture Warning - Old format DXT file ({})", m_szFileName);
+		static int s_iOldFmt = 0; // 2369 GTT döşemeleri sürüm 3 değil: binlerce satır yerine ilk 5 + her 500.
+		if (++s_iOldFmt <= 5 || s_iOldFmt % 500 == 0)
+			CLogWriter::Write("N3Texture Warning - Old format DXT file ({}, sürüm {}, toplam {})", m_szFileName, (int) HeaderOrg.szID[3], s_iOldFmt);
 #endif
 	}
 

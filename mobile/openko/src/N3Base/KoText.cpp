@@ -66,6 +66,59 @@ uint8_t KoTextUnicodeTo1254(uint32_t cp)
 	return 0;
 }
 
+std::string KoTextNormalizeIncoming(const std::string& s)
+{
+	if (g_codePage != 1254)
+		return s;
+	bool bMulti = false;
+	for (size_t i = 0; i < s.size();)
+	{
+		uint8_t c = (uint8_t) s[i];
+		if (c < 0x80)
+		{
+			++i;
+			continue;
+		}
+		int n = (c >= 0xF0) ? 4 : (c >= 0xE0) ? 3 : (c >= 0xC2) ? 2 : 0;
+		if (n == 0 || i + n > s.size())
+			return s; // geçerli UTF-8 değil → 1254 varsay
+		for (int k = 1; k < n; k++)
+			if (((uint8_t) s[i + k] & 0xC0) != 0x80)
+				return s;
+		bMulti = true;
+		i += n;
+	}
+	if (!bMulti)
+		return s;
+	std::string out;
+	out.reserve(s.size());
+	for (size_t i = 0; i < s.size();)
+	{
+		uint8_t c   = (uint8_t) s[i];
+		uint32_t cp = c;
+		int n       = 1;
+		if (c >= 0xF0)
+		{
+			cp = ((c & 0x07u) << 18) | ((s[i + 1] & 0x3Fu) << 12) | ((s[i + 2] & 0x3Fu) << 6) | (s[i + 3] & 0x3Fu);
+			n  = 4;
+		}
+		else if (c >= 0xE0)
+		{
+			cp = ((c & 0x0Fu) << 12) | ((s[i + 1] & 0x3Fu) << 6) | (s[i + 2] & 0x3Fu);
+			n  = 3;
+		}
+		else if (c >= 0xC0)
+		{
+			cp = ((c & 0x1Fu) << 6) | (s[i + 1] & 0x3Fu);
+			n  = 2;
+		}
+		i += n;
+		uint8_t by = KoTextUnicodeTo1254(cp);
+		out.push_back(by != 0 ? (char) by : '?');
+	}
+	return out;
+}
+
 std::string KoTextUtf8To1254(const std::string& in)
 {
 	std::string out;

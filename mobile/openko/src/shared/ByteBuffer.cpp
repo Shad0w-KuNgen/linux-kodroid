@@ -160,6 +160,8 @@ bool ByteBuffer::read(void* dest, size_t len)
 	return true;
 }
 
+void (*ByteBuffer::s_pfnStringFilter)(std::string&) = nullptr;
+
 bool ByteBuffer::readString(size_t pos, std::string& dest) const
 {
 	dest.clear();
@@ -208,7 +210,11 @@ bool ByteBuffer::readString(std::string& dest)
 			return false;
 
 		dest.assign(len, '\0');
-		return read(&dest[0], len);
+		if (!read(&dest[0], len))
+			return false;
+		if (s_pfnStringFilter)
+			s_pfnStringFilter(dest);
+		return true;
 	}
 	else
 	{
@@ -217,7 +223,11 @@ bool ByteBuffer::readString(std::string& dest)
 			return false;
 
 		dest.assign(len, '\0');
-		return read(&dest[0], len);
+		if (!read(&dest[0], len))
+			return false;
+		if (s_pfnStringFilter)
+			s_pfnStringFilter(dest);
+		return true;
 	}
 }
 
@@ -225,7 +235,11 @@ bool ByteBuffer::readString(std::string& dest, size_t len)
 {
 	dest.clear();
 	dest.assign(len, '\0');
-	return read(&dest[0], len);
+	if (!read(&dest[0], len))
+		return false;
+	if (s_pfnStringFilter)
+		s_pfnStringFilter(dest);
+	return true;
 }
 
 const std::vector<uint8_t>& ByteBuffer::storage() const

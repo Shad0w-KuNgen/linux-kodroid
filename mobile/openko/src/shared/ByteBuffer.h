@@ -51,6 +51,9 @@ public:
 	bool readString(std::string& dest);
 	bool readString(std::string& dest, size_t len);
 
+	// İstemci: paketten okunan her dizeye uygulanır (kod sayfası normalizasyonu); varsayılan yok
+	static void (*s_pfnStringFilter)(std::string&);
+
 	const std::vector<uint8_t>& storage() const;
 	std::vector<uint8_t>& storage();
 	const uint8_t* contents() const;

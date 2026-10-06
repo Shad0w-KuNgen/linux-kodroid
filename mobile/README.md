@@ -272,6 +272,12 @@ bitli baytı CP949 çift baytlı karakterin ilk baytı sayıyordu ("Geçici" →
 kutusu imleci ve klavyeden UTF-8 → 1254 dönüşümü buna uyar. Glifler yazı tipinden gelir; `fonts/default.ttf`
 Türkçe karakter içermiyorsa `/system/fonts/Roboto` kullanılır.
 
+Sunucudan gelen sohbet/duyuru dizeleri UTF-8 gelir (`47 65 ef bf bd 69 63 69` = "Ge\uFFFDici"); `ByteBuffer`
+dize süzgeci (`s_pfnStringFilter`) 1254 kipinde geçerli UTF-8'i 1254'e çevirir (`KoTextNormalizeIncoming`,
+U+FFFD → `?`). Yer tutucu üretilen her UIF için gerçek çocuk ağacı bir kez `UI ağacı (<uif>): id(tür)…` olarak
+yazılır (2369 ID eşlemesi için). `Old format DXT` uyarısı kısılır. `d3d9gles` BMP 8 bit paletli dosyaları da okur
+(`sundisk.bmp`). Varsayılan kamera hassasiyeti `[Mobile] CameraSens` 170.
+
 **Ses:** istemciyle gelen `Option.ini` `[Sound] Bgm=0 Effect=0` olduğundan `s_SndMgr.Init()` hiç çağrılmıyor,
 OpenAL bağlamı olmadan `alListener*` her kare A004 (`AL_INVALID_OPERATION`) üretiyordu. Dinleyici çağrıları
 ses kapalıyken atlanır; telefonda ilk açılışta (`[Mobile] SoundInit` yoksa) ses açılıp Option.ini'ye yazılır,

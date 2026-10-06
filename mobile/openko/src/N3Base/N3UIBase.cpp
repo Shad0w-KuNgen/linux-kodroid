@@ -259,10 +259,31 @@ void N3UIPlaceholderRegister(CN3UIBase* pPlaceholder, const char* szExpr)
 #endif
 }
 
+namespace
+{
+void DumpUITreeForMapping(const CN3UIBase* p, int depth, std::string& out)
+{
+	if (p == nullptr || depth > 3)
+		return;
+	for (const CN3UIBase* c : p->GetChildren())
+	{
+		if (c == nullptr)
+			continue;
+		out += fmt::format("{}{}({})", depth > 1 ? std::string((size_t) (depth - 1) * 2, ' ') : "", c->m_szID, (int) c->UIType());
+		out += c->GetChildren().empty() ? ", " : ": [";
+		DumpUITreeForMapping(c, depth + 1, out);
+		if (!c->GetChildren().empty())
+			out += "], ";
+	}
+}
+} // namespace
+
 bool CN3UIBase::LoadSupportedVersions(File& file)
 {
-	if (!m_szFileName.empty())
+	const bool bRoot = !m_szFileName.empty();
+	if (bRoot)
 		s_szUILoadingFile = m_szFileName;
+	const size_t nPlaceholdersBefore = s_PlaceholderUIs.size();
 	// Release will unset the filename.
 	// We should preserve and restore it.
 	std::string szFNBackup;
@@ -280,7 +301,18 @@ bool CN3UIBase::LoadSupportedVersions(File& file)
 		try
 		{
 			if (Load(file))
+			{
+#ifdef _N3GAME
+				if (bRoot && s_PlaceholderUIs.size() != nPlaceholdersBefore)
+				{
+					// 2369 ID eşlemesi için: bu UIF'in gerçek çocuk ağacı (ID(tür), 3 seviye)
+					std::string szTree;
+					DumpUITreeForMapping(this, 1, szTree);
+					CLogWriter::Write("UI ağacı ({}): {}", m_szFileName, szTree);
+				}
+#endif
 				return true;
+			}
 #ifdef _N3GAME
 			CLogWriter::Write("CN3UIBase: Failed to load {} for format version {} (Load() failed).",
 				szFNBackup, iFileFormatVersion);

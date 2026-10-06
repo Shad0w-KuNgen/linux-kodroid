@@ -22,3 +22,6 @@ uint32_t KoText1254ToUnicode(uint8_t by);
 uint8_t KoTextUnicodeTo1254(uint32_t cp);
 // UTF-8 → oyun kodlaması (1254: tabloyla; temsil edilemeyen karakterler atlanır)
 std::string KoTextUtf8To1254(const std::string& utf8);
+// Sunucudan gelen metin: kod sayfası 1254 iken dize geçerli UTF-8 çok baytlı diziler içeriyorsa 1254'e çevrilir
+// (ISTIRAP sohbet/duyuruları UTF-8 gelir, U+FFFD → '?'); değilse olduğu gibi kalır.
+std::string KoTextNormalizeIncoming(const std::string& s);
