@@ -348,6 +348,23 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
   - **Yazı tipi çökmesi** (`CDFont::DrawText` SIGSEGV 0x58): köşe tamponu denetimi üçgen sayısını köşe sayısıyla
     kıyaslıyordu (300 üçgen > 300 köşe → tampon taşması); düzeltildi. Ayrıca doku yokken çizim yok, aygıt
     sıfırlamada yedek yüz ve ilkel sayısı sıfırlanır, glif/yüz boşsa atlanır.
+- v163 (v162 geri bildirimi, yerleşim gerilemesi geri alındı):
+  - **Yerleşim**: v161 düzeni. 2369 kısayol penceresi (`re_HotKey.uif`, 468×459 L biçimli) dokunmatikte **gizli**
+    (veri modeli durur, 1-8 tuşları çalışır; görsel olarak kaplamanın 1-8 / F1-F8 kümesi). Bilgi kutusu dokunmatikte gizli,
+    `MsgOutput` iletileri sohbet kutusuna yazılır; ölüm bildirimi tek yerde (sohbet). Hiçbir pencere taşınmaz.
+  - **HUD orijinal gibi**: HP/MP + altında konum satırı (`Text_VP` = "Moradon (824, 517)", `UpdatePosition`);
+    `progress_VP` ve burning çubukları gizli. Tecrübe orijinalde alt görev çubuğundadır (re_taskbar, henüz yüklenmiyor).
+  - **Karakter bilgisi (U)**: `re_page_state.istirap` içindeki `base_perks` alt sayfası varsayılan gizli; `btn_perks` açar,
+    `back_character_page` kapatır. HP/MP değerleri sunucudan int16 çift olarak geliyor (ör. 34/34): paket düzeni
+    `UserInfoSystem.cpp` ile birebir doğrulandı; değer sunucunun hesapladığıdır.
+  - **PUS gerçek liste**: `CUIPowerUpStore2369` — açılınca `WIZ_XSAFE(0xE9) | PUS(0xA8) | 0` ister; sunucu
+    `XSafe|PUS|u32 n|n×(u32 id,u32 eşya,u32 fiyat,u8 kategori,u32 adet,u8 fiyatTürü)`, `XSafe|PusCat|u32 n|n×(u32 id,str16 ad,u8 durum)`
+    ve `XSafe|CASHCHANGE|u32 KC[,u32 TL]` yollar (XGuard.cpp `XSafe_SendPUS`). Sekmeler = kategoriler, 16 yuva/sayfa,
+    adlar/ikonlar eşya tablosundan, `btn_purchase` → `XSafe|PUS|1|u32 kayıt|u8 1`. Sepet/iade/ESN grupları gizli.
+  - **Kutudan para alınamıyor**: sunucu `GetLootUser`'da `GetCoins()+adet > COIN_MAX (2.100.000.000)` ise `LootError` döner;
+    osman'ın altını 2.100.000.000 olduğundan para her zaman reddedilir (istemci hatası değil). Eşya için `u32 kutu|u32 eşya|u16 yuva`
+    gönderimi günlükte doğru (yuva = kutudaki sıra).
+  - **FX**: `CN3FXPartParticles::Duplicate` kaynak şekil yoksa çökmez (PartMesh'teki koruma gibi).
 
 ### Oyun verisini telefona kurma
 

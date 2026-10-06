@@ -47,7 +47,7 @@
 #include "UIWareHouseDlg.h"
 #include "UINPCChangeEvent.h"
 #include "UIWarp.h"
-#include "UIGeneric2369.h"
+#include "UIPowerUpStore2369.h"
 #include "KoUiSlots2369.h"
 #include "UIInn.h"
 #include "UICreateClanName.h"
@@ -137,7 +137,7 @@ CGameProcMain::CGameProcMain()     // r기본 생성자.. 각 변수의 역활�
 	m_pUIWareHouseDlg       = new CUIWareHouseDlg();
 	m_pUINpcChange          = new CUINPCChangeEvent();
 	m_pUIWarp               = new CUIWarp();
-	m_pUIPowerUpStore       = new CUIGeneric2369();
+	m_pUIPowerUpStore       = new CUIPowerUpStore2369();
 	m_pUIInn                = new CUIInn();
 	m_pUICreateClanName     = new CUICreateClanName();
 	m_pUITradeBBS           = new CUITradeSellBBS();
@@ -1174,7 +1174,17 @@ bool CGameProcMain::ProcessPacket(Packet& pkt)
 			}
 			return true;
 		}
-		case WIZ_TERRAIN_EFFECTS: case WIZ_STORY: case WIZ_PRESET: case WIZ_MINING: case WIZ_XSAFE: case WIZ_KILLASSIST:
+		case WIZ_XSAFE:
+		{
+			// ISTIRAP XSafe (0xE9) alt paketleri: PUS listesi/kategorileri/KC bakiyesi → PUS penceresi; kalanı sessiz
+			if (m_pUIPowerUpStore != nullptr && m_pUIPowerUpStore->OnXSafePacket(pkt))
+				return true;
+			static std::set<int> s_KnownSub;
+			if (s_KnownSub.insert((int) pkt.read<uint8_t>()).second)
+				CLogWriter::Write("XSafe alt paketi 0x{:02x} ({} bayt) işlenmiyor", (int) *(pkt.contents() + 1), pkt.size());
+			return true;
+		}
+		case WIZ_TERRAIN_EFFECTS: case WIZ_STORY: case WIZ_PRESET: case WIZ_MINING: case WIZ_KILLASSIST:
 		case WIZ_DAILYRANK: case WIZ_LOADING_LOGIN: case WIZ_RANK: case WIZ_GENIE: case WIZ_USER_INFORMATIN: case WIZ_HELMET:
 		case WIZ_CAPTURE: case WIZ_MOVING_TOWER: case WIZ_EXP_SEAL: case WIZ_VANGUARD: case WIZ_AKARA: case WIZ_LOYALTY_SHOP:
 		{
@@ -2521,9 +2531,7 @@ bool CGameProcMain::MsgRecv_Chat(Packet& pkt)
 				// Texts_us.tbl'de aynı kalıp varsa o kullanılır (KoDeathNoticeFormat), yoksa yerleşik İngilizce kalıp.
 				std::string szLine = KoDeathNoticeFormat(byNoticeType, szKiller, szVictim, iPosX, iPosZ);
 				if (m_pUIChatDlg != nullptr)
-					m_pUIChatDlg->AddChatMsg(N3_CHAT_PUBLIC, szLine, D3DCOLOR_ARGB(255, 255, 255, 0)); // sohbet: sarı
-				if (byNoticeType != 1)
-					MsgOutput(szLine, D3DCOLOR_ARGB(255, 255, 255, 0)); // bilgi kutusu (orijinalde ekranın üstünde kayar yazı)
+					m_pUIChatDlg->AddChatMsg(N3_CHAT_PUBLIC, szLine, D3DCOLOR_ARGB(255, 255, 255, 0)); // sohbet: sarı (tek yerde)
 			}
 			return true;
 		}
@@ -4413,10 +4421,8 @@ void CGameProcMain::InitUI()
 	m_pUIMsgDlg->MoveOffset(0, -1);
 	if (KoProto::Is2369() && s_bTouchControls)
 	{
-		// Dokunmatik: bilgi kutusu sohbetin sağında kaplama düğmeleriyle (HP/MP, 1-8) çakışıyordu; sol üste, durum çubuğunun altına
-		RECT rcMsg = m_pUIMsgDlg->GetRegion();
-		int iTop   = s_iTouchInsetTop > 0 ? s_iTouchInsetTop : iH / 6;
-		m_pUIMsgDlg->SetPos(0, std::min(iH - (rcMsg.bottom - rcMsg.top), iTop + 4));
+		// Dokunmatik: ayrı bilgi kutusu yok (kaplama düğmeleriyle çakışıyordu); MsgOutput iletileri sohbet kutusuna yazılır
+		m_pUIMsgDlg->SetVisibleWithNoSound(false);
 	}
 
 	m_pUIStateBarAndMiniMap->Init(s_pUIMgr);
@@ -4644,17 +4650,14 @@ void CGameProcMain::InitUI()
 	}
 	m_pUIHotKeyDlg->SetStyle(UISTYLE_HIDE_UNABLE);
 	UIPostData_Read(UI_POST_WND_HOTKEY, m_pUIHotKeyDlg, rc.left, rc.bottom);
+	m_pUIHotKeyDlg->SetVisibleWithNoSound(true); // 무조건 보인다!!!
 	if (KoProto::Is2369() && s_bTouchControls)
 	{
-		// Dokunmatik: kısayol çubuğu sohbetin üstünden kalkar, sağ üstte (kamera düğmelerinin altı, hedef sütununun solu)
-		RECT rcHK  = m_pUIHotKeyDlg->GetRegion();
-		int iWH    = rcHK.right - rcHK.left, iHH = rcHK.bottom - rcHK.top;
-		int iRight = s_iTouchInsetRight > 0 ? s_iTouchInsetRight : iW / 12;
-		int iTop   = s_iTouchInsetTop > 0 ? s_iTouchInsetTop : iH / 6;
-		m_pUIHotKeyDlg->SetPos(std::max(0, iW - iRight - iWH), std::min(iH - iHH, iTop + 4));
-		CLogWriter::Write("Kısayol çubuğu dokunmatik konumu: ({}, {}) boyut {}x{}", iW - iRight - iWH, iTop + 4, iWH, iHH);
+		// Dokunmatik: 2369 kısayol penceresi (468x459, L biçimli) ekranı kaplıyordu; veri modeli kalır (1-8 tuşları,
+		// beceri sürükleme hedefi), görsel olarak kaplamanın 1-8 / F1-F8 kümesi kullanılır
+		m_pUIHotKeyDlg->SetVisibleWithNoSound(false);
+		CLogWriter::Write("Kısayol penceresi dokunmatikte gizli ({}); kaplama 1-8 kullanılır", pTbl->szHotKey);
 	}
-	m_pUIHotKeyDlg->SetVisibleWithNoSound(true); // 무조건 보인다!!!
 	m_pUIHotKeyDlg->InitIconWnd(UIWND_HOTKEY);
 	m_pUIHotKeyDlg->SetUIType(UI_TYPE_ICON_MANAGER);
 	m_pUIHotKeyDlg->SetState(UI_STATE_COMMON_NONE);
@@ -5465,6 +5468,11 @@ void CGameProcMain::CommandCameraChange() // 카메라 시점 바꾸기..
 
 void CGameProcMain::MsgOutput(const std::string& szMsg, D3DCOLOR crMsg)
 {
+	if (KoProto::Is2369() && s_bTouchControls && m_pUIChatDlg != nullptr && m_pUIMsgDlg != nullptr && !m_pUIMsgDlg->IsVisible())
+	{
+		m_pUIChatDlg->AddChatMsg(N3_CHAT_PUBLIC, szMsg, crMsg); // dokunmatik: tek yazı alanı (sohbet kutusu)
+		return;
+	}
 	m_pUIMsgDlg->AddMsg(szMsg, crMsg);
 }
 

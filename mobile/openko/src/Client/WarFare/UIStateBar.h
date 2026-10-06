@@ -31,7 +31,8 @@ class CUIStateBar : public CN3UIBase
 {
 protected:
 	CN3UIString* m_pText_LevelID = nullptr; // 2369 re_hpbar: "Lv.N ad"
-	bool m_bExpAsCount2369       = false;   // 2369: tecrübe metni "exp / sonraki" (Text_VP)
+	bool m_bExpAsCount2369       = false;   // (kullanılmıyor; tecrübe orijinalde görev çubuğunda)
+	bool m_bPositionZone2369     = false;   // 2369: Text_VP konum satırı "Bölge (x, z)"
 	CN3UIString* m_pText_HP;
 	CN3UIString* m_pText_MP;
 	CN3UIString* m_pText_Exp;

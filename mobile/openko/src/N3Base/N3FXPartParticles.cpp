@@ -4,6 +4,7 @@
 
 #include "StdAfxBase.h"
 #include "N3FXPartParticles.h"
+#include "LogWriter.h"
 #include "N3FXBundle.h"
 #include "N3FXParticle.h"
 #include "N3FXDef.h"
@@ -1379,8 +1380,16 @@ void CN3FXPartParticles::Duplicate(CN3FXPartParticles* pSrc)
 
 		m_pShape    = new CN3FXShape;
 
-		m_pRefShape = s_MngFXShape.Get(pSrc->m_pRefShape->FileName());
-		m_pShape->Duplicate(m_pRefShape);
+		// Kaynak parçanın şekli yüklenememiş olabilir (2369'da eksik/kırpılmış dosya yolu): null ile çökmek yerine şekilsiz
+		m_pRefShape = pSrc->m_pRefShape != nullptr ? s_MngFXShape.Get(pSrc->m_pRefShape->FileName()) : nullptr;
+		if (m_pRefShape != nullptr)
+			m_pShape->Duplicate(m_pRefShape);
+		else
+		{
+			static int s_iLogged = 0;
+			if (s_iLogged++ < 5)
+				CLogWriter::Write("CN3FXPartParticles: parçacık şekli yok (kaynak şekil yüklenememiş), efekt şekilsiz çalışır");
+		}
 	}
 
 	m_fTexRotateVelocity = pSrc->m_fTexRotateVelocity;

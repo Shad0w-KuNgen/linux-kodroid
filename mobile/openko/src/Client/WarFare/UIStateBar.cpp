@@ -145,14 +145,13 @@ bool CUIStateBar::Load(File& file)
 	N3_VERIFY_UI_COMPONENT(m_pProgress_MSP, GetChildByID<CN3UIProgress>("Progress_MSP"));
 	N3_VERIFY_UI_COMPONENT(m_pProgress_ExpC, GetChildByID<CN3UIProgress>("Progress_ExpC"));
 	// 2369 re_hpbar.uif: tecrübe çubuğu "progress_VP", metni "Text_VP"; seviye+ad "text_level_id"; "burning" çerçevesi kullanılmıyor
-	CN3UIProgress* pExpP = GetChildByID<CN3UIProgress>("Progress_ExpP");
-	if (pExpP == nullptr)
-		pExpP = GetChildByID<CN3UIProgress>("progress_VP");
-	N3_VERIFY_UI_COMPONENT(m_pProgress_ExpP, pExpP);
+	// Orijinal 2369 ekranında HP/MP altında yalnız konum satırı var ("Moradon-1 (824,517)"); tecrübe alt görev çubuğunda.
+	// progress_VP/burning çubukları gizlenir, Text_VP konum metni olur (UpdatePosition).
+	N3_VERIFY_UI_COMPONENT(m_pProgress_ExpP, GetChildByID<CN3UIProgress>("Progress_ExpP"));
 	m_pText_LevelID = GetChildByID<CN3UIString>("text_level_id");
 	if (m_pText_LevelID)
 		m_pText_LevelID->SetString("");
-	for (const char* szHide : {"base_burning_frame", "Text_burning", "img_Reporter", "img_mail_on", "img_mail_normal"})
+	for (const char* szHide : {"base_burning_frame", "Text_burning", "img_Reporter", "img_mail_on", "img_mail_normal", "progress_VP"})
 		if (CN3UIBase* pHide = GetChildByID(szHide))
 			pHide->SetVisible(false);
 
@@ -191,14 +190,16 @@ bool CUIStateBar::Load(File& file)
 	// NOTE: new components to display the text
 	N3_VERIFY_UI_COMPONENT(m_pText_HP, GetChildByID<CN3UIString>("Text_HP"));
 	N3_VERIFY_UI_COMPONENT(m_pText_MP, GetChildByID<CN3UIString>("Text_MSP"));
-	CN3UIString* pTextExp = GetChildByID<CN3UIString>("Text_ExpP");
-	if (pTextExp == nullptr)
+	N3_VERIFY_UI_COMPONENT(m_pText_Exp, GetChildByID<CN3UIString>("Text_ExpP"));
+	if (m_pText_Position == nullptr || GetChildByID<CN3UIString>("Text_Position") == nullptr)
 	{
-		pTextExp = GetChildByID<CN3UIString>("Text_VP");
-		m_bExpAsCount2369 = (pTextExp != nullptr);
+		if (CN3UIString* pVP = GetChildByID<CN3UIString>("Text_VP"))
+		{
+			m_pText_Position  = pVP; // 2369: konum satırı
+			m_bPositionZone2369 = true;
+		}
 	}
-	N3_VERIFY_UI_COMPONENT(m_pText_Exp, pTextExp);
-	for (CN3UIString* pSample : {m_pText_HP, m_pText_MP, m_pText_Exp})
+	for (CN3UIString* pSample : {m_pText_HP, m_pText_MP, m_pText_Exp, m_pText_Position})
 		if (pSample)
 			pSample->SetString(""); // UIF'deki örnek metinler (34/34, 12345/12345) veri gelene kadar görünmesin
 
@@ -338,7 +339,22 @@ void CUIStateBar::UpdatePosition(const __Vector3& vPos, float fYaw)
 	if (m_pText_Position == nullptr)
 		return;
 
-	std::string pos = fmt::format("{:.1f}, {:.1f}", vPos.x, vPos.z);
+	std::string pos;
+	if (m_bPositionZone2369)
+	{
+		std::string szZone;
+		if (CGameBase::s_pPlayer)
+		{
+			int iZone = CGameBase::s_pPlayer->m_InfoExt.iZoneCur;
+			__TABLE_ZONE* pZone = CGameBase::s_pTbl_Zones.Find(iZone);
+			if (pZone == nullptr && iZone % 10 == 0)
+				pZone = CGameBase::s_pTbl_Zones.Find(iZone / 10);
+			szZone = pZone ? pZone->szName : fmt::format("Zone {}", iZone);
+		}
+		pos = fmt::format("{} ({}, {})", szZone, (int) vPos.x, (int) vPos.z); // orijinal: "Moradon-1 (824,517)"
+	}
+	else
+		pos = fmt::format("{:.1f}, {:.1f}", vPos.x, vPos.z);
 	m_pText_Position->SetString(pos);
 
 	// 미니맵.

@@ -163,6 +163,10 @@ bool CUIState::Load(File& file)
 	N3_VERIFY_UI_COMPONENT(m_pImg_Int, GetChildByID("img_int"));
 	N3_VERIFY_UI_COMPONENT(m_pImg_MAP, GetChildByID("img_map"));
 
+	// 2369 re_page_state.istirap: "base_perks" alt sayfası karakter bilgisinin üstünde açılıyordu; btn_perks ile açılır
+	if (CN3UIBase* pPerks = GetChildByID("base_perks"))
+		pPerks->SetVisible(false);
+
 	return true;
 }
 
@@ -478,6 +482,16 @@ std::string CUIState::FormatWithDelta(int iVal, int iDelta)
 
 bool CUIState::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 {
+	if (dwMsg == UIMSG_BUTTON_CLICK && pSender != nullptr)
+	{
+		// 2369: perk alt sayfası aç/kapat
+		if (pSender->m_szID == "btn_perks" || pSender->m_szID == "back_character_page")
+		{
+			if (CN3UIBase* pPerks = GetChildByID("base_perks"))
+				pPerks->SetVisible(pSender->m_szID == "btn_perks");
+			return true;
+		}
+	}
 	if (dwMsg == UIMSG_BUTTON_CLICK)
 	{
 		if (pSender == m_pBtn_Strength) // 경험치 체인지..
