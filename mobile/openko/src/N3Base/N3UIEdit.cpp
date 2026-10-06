@@ -4,6 +4,7 @@
 
 #include "StdAfxBase.h"
 #include "N3UIEdit.h"
+#include "KoText.h"
 #include "N3UIString.h"
 #include "N3UIImage.h"
 #include "DFont.h"
@@ -397,7 +398,7 @@ BOOL CN3UIEdit::IsHangulMiddleByte(const char* lpszStr, int iPos)
 	int nLength = lstrlen(lpszStr);
 	if (iPos >= nLength)
 		return FALSE;
-	if (!(lpszStr[iPos] & 0x80))
+	if (!(lpszStr[iPos] & 0x80) || KoTextCodePage() == 1254)
 		return FALSE;
 
 	BOOL bMiddle = FALSE;

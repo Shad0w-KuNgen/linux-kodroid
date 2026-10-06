@@ -4,6 +4,7 @@
 
 #include "StdAfx.h"
 #include "UIChat.h"
+#include <N3Base/KoText.h>
 #include "PacketDef.h"
 #include "GameProcMain.h"
 #include "UIMessageWnd.h"
@@ -478,11 +479,7 @@ void CUIChat::AddLineBuffer(const std::string& szString, D3DCOLOR color)
 		}
 		else
 		{
-			int iCC = 0;
-			if (0x80 & szString[iCount])
-				iCC = 2; // 2BYTE 문자
-			else
-				iCC = 1; // 1BYTE 문자
+			int iCC = KoTextCharLen(szString[iCount]); // 2BYTE / 1BYTE 문자
 
 			BOOL bFlag = m_pChatOut->GetTextExtent(&(szString[iCount]), iCC, &size);
 			__ASSERT(bFlag, "cannot get size of dfont");

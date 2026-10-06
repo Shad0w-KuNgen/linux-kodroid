@@ -5,6 +5,7 @@
 // olaylarını InputText/InputKey'e iletir; tampon odaklı CN3UIEdit'e yazılır.
 #if !defined(_WIN32)
 
+#include <N3Base/KoText.h>
 #include <N3Base/StdAfxBase.h>
 #include <N3Base/N3UIEdit.h>
 #include <N3Base/N3UIString.h>
@@ -25,7 +26,7 @@ size_t g_caret = 0;   // bayt konumu
 // Dizede iPos'taki baytın bir çift baytlı karakterin ikinci baytı olup olmadığı
 bool IsTrailByte(const std::string& s, size_t pos)
 {
-	if (pos == 0 || pos >= s.size() || !((unsigned char) s[pos] & 0x80))
+	if (pos == 0 || pos >= s.size() || !((unsigned char) s[pos] & 0x80) || KoTextCodePage() == 1254)
 		return false;
 	bool middle = false;
 	for (size_t i = 0; i < pos; ++i)
@@ -62,6 +63,8 @@ std::string Utf8ToGame(const char* utf8)
 	bool ascii = std::all_of(in.begin(), in.end(), [](char c) { return !((unsigned char) c & 0x80); });
 	if (ascii)
 		return in;
+	if (KoTextCodePage() == 1254)
+		return KoTextUtf8To1254(in); // Türkçe klavye → Windows-1254
 #if KO_HAVE_ICONV
 	static iconv_t cd = iconv_open("CP949//IGNORE", "UTF-8");
 	if (cd != (iconv_t) -1)

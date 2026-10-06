@@ -4,6 +4,7 @@
 
 #include "StdAfxBase.h"
 #include "N3UIString.h"
+#include "KoText.h"
 
 CN3UIString::CN3UIString()
 {
@@ -235,7 +236,7 @@ void CN3UIString::WordWrap()
 				if ('\n' == szString[iCount]) // \n
 					break;
 
-				if (0x80 & szString[iCount])  // 2BYTE 문자
+				if (KoTextCharLen(szString[iCount]) == 2) // 2BYTE 문자
 				{
 					BOOL bFlag = m_pDFont->GetTextExtent(szString.c_str(), iCount + 2, &size);
 					__ASSERT(bFlag, "cannot get size of dfont");
@@ -310,11 +311,7 @@ void CN3UIString::WordWrap()
 			}
 			else
 			{
-				int iCC = 0;
-				if (0x80 & szString[iCount])
-					iCC = 2; // 2BYTE 문자
-				else
-					iCC = 1; // 1BYTE 문자
+				int iCC = KoTextCharLen(szString[iCount]); // 2BYTE / 1BYTE 문자
 
 				BOOL bFlag = m_pDFont->GetTextExtent(&(szString[iCount]), iCC, &size);
 				__ASSERT(bFlag, "cannot get size of dfont");
@@ -579,7 +576,7 @@ int CN3UIString::GetStringRealWidth(const std::string& szText) const
 		char c    = szText[i];
 
 		SIZE size = { 0, 0 };
-		if (c & 0x80)
+		if (KoTextCharLen(c) == 2)
 		{
 			m_pDFont->GetTextExtent(&szText[i], 2, &size);
 			i += 2;

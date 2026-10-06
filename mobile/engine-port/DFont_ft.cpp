@@ -1,3 +1,4 @@
+#include "KoText.h"
 // DFont_ft.cpp — CDFont'un FreeType ile taşınabilir uygulaması (Windows GDI yerine).
 //
 // Davranış orijinal DFont.cpp ile aynı tutuldu: metin, satır satır bir A4R4G4B4 dokuya
@@ -113,7 +114,12 @@ std::vector<uint32_t> DecodeText(const std::string& s)
 	for (size_t i = 0; i < s.size();)
 	{
 		unsigned char c = (unsigned char) s[i];
-		if (c & 0x80)
+		if ((c & 0x80) && KoTextCodePage() == 1254) // Türkçe tek bayt
+		{
+			out.push_back(KoText1254ToUnicode(c));
+			++i;
+		}
+		else if (c & 0x80)
 		{
 			if (i + 1 >= s.size())
 				break;
@@ -481,7 +487,7 @@ void CDFont::Make2DVertex(const int iFontHeight, const std::string& szText)
 			continue;
 		}
 		std::string chunk;
-		if (0x80 & szText[iCount])
+		if (KoTextCharLen(szText[iCount]) == 2)
 		{
 			if (iCount + 1 >= iStrLen)
 				break;

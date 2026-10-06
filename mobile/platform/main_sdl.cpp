@@ -20,6 +20,7 @@
 #include <N3Base/N3UIBase.h>
 #include <N3Base/N3UIEdit.h>
 #include <N3Base/LogWriter.h>
+#include <N3Base/KoText.h>
 #include <shared/Ini.h>
 
 #include <d3d9.h>
@@ -488,6 +489,13 @@ int main(int argc, char** argv)
 	LoadOptions(clientDir + "Option.ini");
 	// Sunucu protokolü (1298 / 2369) ve portlar: Server.ini [Server] Protocol/LoginPort/GamePort
 	KoProto::LoadFromServerIni(clientDir + "Server.ini");
+	{
+		// Metin kod sayfası: 2369 (ISTIRAP, Türkçe) Windows-1254 tek bayt; 1.298 CP949. Option.ini [Text] CodePage ile geçersiz kılınır
+		CIni ini(clientDir + "Option.ini");
+		int iCP = ini.GetInt("Text", "CodePage", KoProto::Is2369() ? 1254 : 949);
+		KoSetTextCodePage(iCP);
+		SDL_Log("KO: metin kod sayfası %d", KoTextCodePage());
+	}
 	SDL_Log("KO: protokol %d, giriş portu %d, oyun portu %d", KoProto::Version(), KoProto::LoginPort(), KoProto::GamePort());
 
 	SDL_SetHint(SDL_HINT_ENABLE_SCREEN_KEYBOARD, "1");  // Android: odaklanınca ekran klavyesi açılsın

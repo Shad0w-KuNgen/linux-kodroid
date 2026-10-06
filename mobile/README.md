@@ -265,6 +265,13 @@ opcode başına bir kez günlüklenir.
 anahtarlıdır (1.298'de de `100 = mob_kecoon` gibi), `protoID` sunucunun K_NPC kimliğidir. `MsgRecv_NPCIn` 2369'da
 modeli `pid` ile arar (bulunamazsa `protoID`), eksik satırları bir kez günlükler.
 
+**Türkçe metin (kod sayfası):** ISTIRAP sunucusu ve verisi Windows-1254 (tek bayt) kullanır; 1.298 kodu her yüksek
+bitli baytı CP949 çift baytlı karakterin ilk baytı sayıyordu ("Geçici" → "Ge??ci"). `N3Base/KoText.h`:
+`KoSetTextCodePage(1254|949)` (2369'da 1254, `Option.ini [Text] CodePage` ile değişir), `KoTextCharLen`,
+1254↔Unicode tabloları. Yazı tipi çözücüsü (`DFont_ft`), satır kırma (`CN3UIString`, `CUIChat`), düzenleme
+kutusu imleci ve klavyeden UTF-8 → 1254 dönüşümü buna uyar. Glifler yazı tipinden gelir; `fonts/default.ttf`
+Türkçe karakter içermiyorsa `/system/fonts/Roboto` kullanılır.
+
 **Ses:** istemciyle gelen `Option.ini` `[Sound] Bgm=0 Effect=0` olduğundan `s_SndMgr.Init()` hiç çağrılmıyor,
 OpenAL bağlamı olmadan `alListener*` her kare A004 (`AL_INVALID_OPERATION`) üretiyordu. Dinleyici çağrıları
 ses kapalıyken atlanır; telefonda ilk açılışta (`[Mobile] SoundInit` yoksa) ses açılıp Option.ini'ye yazılır,
