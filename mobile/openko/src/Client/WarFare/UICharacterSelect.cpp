@@ -4,6 +4,7 @@
 
 #include "StdAfx.h"
 #include "UICharacterSelect.h"
+#include <algorithm>
 #include "APISocket.h"
 #include "GameProcCharacterSelect.h"
 #include "UIManager.h"
@@ -81,6 +82,23 @@ bool CUICharacterSelect::Load(File& file)
 		RECT rc2369;
 		SetRect(&rc2369, 0, 0, s_CameraData.vp.Width, s_CameraData.vp.Height);
 		SetRegion(rc2369);
+		// Orijinal 24xx ekranı: seçim paneli sağ kenarda dikey ortada, karakter okları alt ortada, logo sol üstte
+		const int iW = s_CameraData.vp.Width, iH = s_CameraData.vp.Height;
+		if (CN3UIBase* pWin = GetChildByID("Group_SelectWindow"))
+		{
+			RECT r = pWin->GetRegion();
+			pWin->SetPos(iW - (r.right - r.left) - 8, std::max(0, (iH - (r.bottom - r.top)) / 2));
+		}
+		if (CN3UIBase* pArrows = GetChildByID("Group_OtherCharacter"))
+		{
+			RECT r = pArrows->GetRegion();
+			pArrows->SetPos((iW - (r.right - r.left)) / 2, std::max(0, (int) (iH * 0.80f) - (r.bottom - r.top)));
+		}
+		if (CN3UIBase* pBottom = GetChildByID("Group_Bottom_Img"))
+		{
+			RECT r = pBottom->GetRegion();
+			pBottom->SetPos(r.left, iH - (r.bottom - r.top)); // alt kenar görselleri
+		}
 		return true;
 	}
 

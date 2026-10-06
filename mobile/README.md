@@ -365,6 +365,16 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
     osman'ın altını 2.100.000.000 olduğundan para her zaman reddedilir (istemci hatası değil). Eşya için `u32 kutu|u32 eşya|u16 yuva`
     gönderimi günlükte doğru (yuva = kutudaki sıra).
   - **FX**: `CN3FXPartParticles::Duplicate` kaynak şekil yoksa çökmez (PartMesh'teki koruma gibi).
+- v164 (v163 çökmesi, MYINFO hizası, karakter seçimi):
+  - **Oyuna girişte çökme** (`CUIStateBar::Load → CN3UIString::SetString → CDFont::SetText`): v163 örnek metin temizliği
+    yer tutucu (eksik bileşen) yazıya `SetString` çağırıyordu; yer tutucuların yazı tipi yok. `CN3UIString::SetString`
+    `m_pDFont == nullptr` ise döner, temizlik yalnız gerçek çocuklarda.
+  - **MYINFO HP/MP kayması (34/34)**: sunucu HP bloğundan önce sabit `02 03 04 05` yazar; istemci artık seviyeden sonra bu
+    işaretçiyi arar, klan bloğunu (str8 ad + 10 bayt) geriye doğru doğrular, aradaki bölge boyutuna göre tecrübe alanlarını
+    (i64 ya da u32) çözer ve HP/MP/ağırlık/stat/altın işaretçiden itibaren okur. Log: `WIZ_MYINFO (2369): HP işaretçisi …`.
+  - **Karakter seçimi (2369)**: orijinal gibi panel (`Group_SelectWindow`) sağ kenarda dikey ortada, oklar
+    (`Group_OtherCharacter`) alt ortada; dokunmatikte seçili karakterin ad/seviye/sınıf yazıları fare üzerinde durmadan
+    her zaman dolu (`DoProcPreselect`). Sahne hâlâ 1.298 `ChrSelect\*_chairs` (24xx dış mekân sahne dosyaları elde yok).
 
 ### Oyun verisini telefona kurma
 

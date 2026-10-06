@@ -199,9 +199,9 @@ bool CUIStateBar::Load(File& file)
 			m_bPositionZone2369 = true;
 		}
 	}
-	for (CN3UIString* pSample : {m_pText_HP, m_pText_MP, m_pText_Exp, m_pText_Position})
-		if (pSample)
-			pSample->SetString(""); // UIF'deki örnek metinler (34/34, 12345/12345) veri gelene kadar görünmesin
+	for (const char* szSample : {"Text_HP", "Text_MSP", "Text_ExpP", "Text_VP", "Text_Position"})
+		if (CN3UIString* pSample = GetChildByID<CN3UIString>(szSample)) // yalnız gerçek çocuklar (yer tutucu değil)
+			pSample->SetString("");                                      // UIF örnek metinleri (34/34, 12345/12345) veri gelene dek boş
 
 	CN3UIString* m_pText_SysTime = GetChildByID<CN3UIString>("SystemTime");
 	if (m_pText_SysTime)

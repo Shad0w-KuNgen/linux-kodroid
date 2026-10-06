@@ -6,6 +6,7 @@
 //   GameServer/CharacterMovementHandler.cpp (MoveProcess), CharacterSelectionHandler.cpp (GameStart)
 #include "StdAfx.h"
 #include "KoProtocol.h"
+#include <N3Base/LogWriter.h>
 #include "PacketDef.h"
 #include "APISocket.h"
 
@@ -286,19 +287,115 @@ bool ParseMyInfo2369(Packet& pkt, MyInfo2369& o)
 	pkt.read<uint8_t>(); // 0 (miğfer gizle)
 	pkt.read<uint8_t>(); // 0 (kostüm gizle)
 	o.level          = pkt.read<uint8_t>();
-	o.points         = pkt.read<int16_t>();
-	o.maxExp         = pkt.read<int64_t>();
-	o.exp            = pkt.read<int64_t>();
-	o.loyalty        = pkt.read<uint32_t>();
-	o.monthlyLoyalty = pkt.read<uint32_t>();
-	o.clanID         = pkt.read<int16_t>();
-	o.fame           = pkt.read<uint8_t>();
-	if (!ReadClan(pkt, o.clan, true))
-		return false;
-	if (!Remaining(pkt, 4 + 2 * 4 + 4 + 4 + 10 + 2 + 2 + 6 + 4 + 1 + 2 + 9))
-		return false;
-	for (int i = 0; i < 4; i++)
-		pkt.read<uint8_t>(); // 2,3,4,5 bilinmiyor
+	// Sunucu (UserInfoSystem.cpp) HP bloğundan hemen önce sabit "02 03 04 05" yazar. Bu derlemede seviye ile klan
+	// bloğu arasındaki alanların boyutu kaynaktan farklı olabiliyor (ör. tecrübe alanları); HP 34/34 gibi kaymalar
+	// yaşandı. Bu yüzden önce işaretçi aranır, aradaki bölge boyutuna göre tecrübe alanları çözülür, HP işaretçiden okunur.
+	{
+		const size_t posAfterLevel = pkt.rpos();
+		const uint8_t* d           = pkt.contents();
+		const size_t n             = pkt.size();
+		size_t anchor              = 0;
+		size_t clanStart           = 0; // ittifak(u16) başlangıcı
+		bool bNoClan               = false;
+		for (size_t p = posAfterLevel + 8; p + 4 + 8 <= n && p < posAfterLevel + 96; p++)
+		{
+			if (!(d[p] == 2 && d[p + 1] == 3 && d[p + 2] == 4 && d[p + 3] == 5))
+				continue;
+			// klan yok: u64 0, u16 0xffff, u32 0 (14 bayt)
+			if (p >= posAfterLevel + 14 + 3)
+			{
+				bool z = true;
+				for (int i = 0; i < 8; i++) z = z && d[p - 14 + i] == 0;
+				z = z && d[p - 6] == 0xff && d[p - 5] == 0xff;
+				for (int i = 0; i < 4; i++) z = z && d[p - 4 + i] == 0;
+				if (z)
+				{
+					anchor = p; clanStart = p - 14; bNoClan = true;
+					break;
+				}
+			}
+			// klan var: ... u16 ittifak, u8 bayrak, str8 ad, u8 derece, u8 sıra, u16 işaret, u16 pelerin, u8 r g b, u8 bayrak(10 bayt) | 02 03 04 05
+			if (p >= posAfterLevel + 3 + 1 + 1 + 10)
+			{
+				size_t nameEnd = p - 10; // adın bittiği yer (dışlayıcı)
+				for (size_t len = 1; len <= 21 && nameEnd >= len + 1 + 3 + posAfterLevel; len++)
+				{
+					size_t lenPos = nameEnd - len - 1;
+					if (d[lenPos] != len)
+						continue;
+					bool ok = true;
+					for (size_t i = 0; i < len; i++)
+						ok = ok && d[lenPos + 1 + i] >= 0x20;
+					if (!ok)
+						continue;
+					anchor = p; clanStart = lenPos - 3;
+					break;
+				}
+				if (anchor)
+					break;
+			}
+		}
+		if (anchor != 0 && clanStart > posAfterLevel)
+		{
+			const size_t mid = clanStart - posAfterLevel; // puan(2) + 2×tecrübe + 2×ulusal puan(4) + klan(2) + ünvan(1)
+			int expSize       = 0;
+			if (mid == 2 + 16 + 8 + 3) expSize = 8;
+			else if (mid == 2 + 8 + 8 + 3) expSize = 4;
+			o.points = pkt.read<int16_t>();
+			if (expSize == 8)
+			{
+				o.maxExp = pkt.read<int64_t>();
+				o.exp    = pkt.read<int64_t>();
+			}
+			else if (expSize == 4)
+			{
+				o.maxExp = pkt.read<uint32_t>();
+				o.exp    = pkt.read<uint32_t>();
+			}
+			if (expSize != 0)
+			{
+				o.loyalty        = pkt.read<uint32_t>();
+				o.monthlyLoyalty = pkt.read<uint32_t>();
+				o.clanID         = pkt.read<int16_t>();
+				o.fame           = pkt.read<uint8_t>();
+			}
+			static bool s_bLogged = false;
+			if (!s_bLogged)
+			{
+				s_bLogged = true;
+				CLogWriter::Write("WIZ_MYINFO (2369): HP işaretçisi {} konumunda (seviye sonrası {} bayt, klan {}), tecrübe alanı {} bayt",
+					anchor, mid, bNoClan ? "yok" : "var", expSize);
+			}
+			if (expSize == 0)
+				CLogWriter::Write("WIZ_MYINFO (2369): seviye-klan arası {} bayt tanınmadı; puan/tecrübe/NP atlandı", mid);
+			if (!bNoClan)
+			{
+				pkt.rpos(clanStart);
+				if (!ReadClan(pkt, o.clan, true))
+					return false;
+			}
+			pkt.rpos(anchor + 4);
+			if (!Remaining(pkt, 2 * 4 + 4 + 4 + 10 + 2 + 2 + 6 + 4 + 1 + 2 + 9))
+				return false;
+		}
+		else
+		{
+			// İşaretçi bulunamadı: kaynak düzeni (i64 tecrübe) sırayla
+			o.points         = pkt.read<int16_t>();
+			o.maxExp         = pkt.read<int64_t>();
+			o.exp            = pkt.read<int64_t>();
+			o.loyalty        = pkt.read<uint32_t>();
+			o.monthlyLoyalty = pkt.read<uint32_t>();
+			o.clanID         = pkt.read<int16_t>();
+			o.fame           = pkt.read<uint8_t>();
+			if (!ReadClan(pkt, o.clan, true))
+				return false;
+			if (!Remaining(pkt, 4 + 2 * 4 + 4 + 4 + 10 + 2 + 2 + 6 + 4 + 1 + 2 + 9))
+				return false;
+			for (int i = 0; i < 4; i++)
+				pkt.read<uint8_t>(); // 2,3,4,5
+		}
+	}
 	o.maxHp     = pkt.read<int16_t>();
 	o.hp        = pkt.read<int16_t>();
 	o.maxMp     = pkt.read<int16_t>();

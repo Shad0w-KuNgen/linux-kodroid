@@ -65,6 +65,8 @@ void CN3UIString::Init(CN3UIBase* pParent)
 void CN3UIString::SetString(const std::string& szString)
 {
 	m_szString = szString;
+	if (m_pDFont == nullptr)
+		return; // yer tutucu (eksik bileşen) ya da Init edilmemiş yazı: çizilecek yazı tipi yok
 
 	if (m_szString.empty())
 		m_pDFont->SetText("");

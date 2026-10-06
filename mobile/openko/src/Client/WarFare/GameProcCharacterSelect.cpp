@@ -1352,7 +1352,9 @@ void CGameProcCharacterSelect::DoProcPreselect()
 			return;
 	}
 
-	if ((pt.x > left) && (pt.x < right) && (pt.y < bottom) && (pt.y > top))
+	// Dokunmatikte fare "üzerinde durma" yok: seçili yuvanın bilgisi (ad/seviye/sınıf) her zaman gösterilir
+	const bool bAlwaysShow = KoProto::Is2369() || CGameProcedure::s_bTouchControls;
+	if (bAlwaysShow || ((pt.x > left) && (pt.x < right) && (pt.y < bottom) && (pt.y > top)))
 	{
 		// Doing..
 		if (m_pChrs[iPosIndex] != nullptr)
