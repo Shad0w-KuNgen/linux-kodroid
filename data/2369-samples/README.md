@@ -8,3 +8,5 @@ ISTIRAP 2369 istemcisinin `Zones/` klasöründen değiştirilmeden alındı. Bi�
 - `upc_el_ba.n3anim`: 2369 oyuncu animasyonu (14516 B, kayıt başına DES'li parça)
 - `upc_el_ba.1298.n3anim`: aynı dosyanın 1.298 sürümü (8822 B, düz), karşılaştırma için
 - `upc_el_ba.n3joint`, `upc_el_ba.n3chr`, `npc_el_ba.n3Anim`: 2369 Chr örnekleri
+- `2017_esl_a001_0.gtt`: moradon.gtd'nin ilk GTT döşeme dokusu (DTex)
+- `moradon.tct`, `moradon.tlt`: Moradon zemin renk/ışık dosyaları
