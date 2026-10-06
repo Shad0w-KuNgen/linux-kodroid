@@ -322,7 +322,7 @@ void KoTouchOverlay::Layout(int w, int h)
 		float cy       = atkCy - atkR - gap - tr;
 		CGameProcedure::s_iTouchInsetRight = (int) (w - (cx - tr) + gap); // hedef sütunu: oyun pencereleri bunun soluna
 		circle(Action::Key, KM_TARGET_NEAREST_ENEMY, "HEDEF", cx, cy, tr, COL_TARGET); cy -= step;
-		circle(Action::Key, KM_TARGET_NEAREST_NPC, "NPC", cx, cy, tr, COL_TARGET); cy -= step;
+		circle(Action::Key, KM_TARGET_NEAREST_NPC, "NPC AC", cx, cy, tr, COL_TARGET); cy -= step; // seçili NPC yoksa en yakını seçer, varsa açar
 		circle(Action::Key, KM_TARGET_NEAREST_PARTY, "PARTI", cx, cy, tr, COL_TARGET); cy -= step;
 		circle(Action::Key, KM_TARGET_NEAREST_FRIEND, "DOST", cx, cy, tr, COL_TARGET);
 	}
