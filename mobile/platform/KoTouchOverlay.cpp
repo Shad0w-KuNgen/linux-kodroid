@@ -17,6 +17,7 @@
 #include "GameEng.h"
 #include "GameDef.h"
 #include "UIHotKeyDlg.h"
+#include "N3UIWndBase.h"
 #include "MagicSkillMng.h"
 #include <N3Base/N3Texture.h>
 
@@ -32,7 +33,7 @@
 
 namespace
 {
-constexpr int TAP_SLOP           = 14;         // piksel: bundan az kayarsa "tık"
+constexpr int TAP_SLOP           = 20;         // piksel: bundan az kayarsa "tık" (parmak titremesi tık sayılsın)
 constexpr uint32_t DOUBLE_TAP_MS = 450;        // arayüz ikonunda çift dokunuş = sağ tık
 constexpr uint32_t COL_JOY_BASE  = 0x38FFFFFF;
 constexpr uint32_t COL_JOY_RING  = 0x90E8D8A0;
@@ -449,6 +450,14 @@ void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
 		int b = HitButton(x, y);
 		if (m_hidden && b >= 0 && m_buttons[b].action != Action::ToggleHide)
 			b = -1; // gizliyken yalnız GÖSTER düğmesi
+		// Açık bir iletişim penceresi (çanta, karakter, beceri, NPC, ticaret...) parmağın altındaysa dokunuş
+		// pencereye gider; altında kalan kaplama düğmesi (HP/MP/1-8/OTO/SALDIR...) dokunuşu çalmaz.
+		// GİZLE/GÖSTER her zaman çalışır.
+		if (b >= 0 && m_buttons[b].action != Action::ToggleHide && IsInGame() && IsOverDialogUI(x, y))
+		{
+			CLogWriter::Write("Dokunmatik: '{}' düğmesi açık pencerenin altında, dokunuş pencereye ({})", m_buttons[b].label, DialogNameAt(x, y));
+			b = -1;
+		}
 		if (b >= 0 && m_buttons[b].finger < 0)
 		{
 			f.role        = Role::Button;
@@ -605,6 +614,33 @@ void KoTouchOverlay::ReleaseFinger(Finger& f)
 			m_pinchDist = 0.0f;
 			break;
 		case Role::LeftDrag:
+			// Çanta/beceri penceresinden sürüklenen simge kaplamadaki 1-8 halkasına bırakıldı: kısayol yuvasına koy.
+			// (2369'da oyunun kısayol penceresi dokunmatikte gizli; bırakma normalde ona düşerdi.) Kaynak pencere
+			// simgesini geri alsın diye bırakma, sürüklemenin başladığı noktada yapılır.
+			if (IsInGame() && in.dragHoldFrames == 0)
+			{
+				int iRing = HitHotkeyRing(f.x, f.y);
+				CUIHotKeyDlg* pHK = (CGameProcedure::s_pProcMain != nullptr) ? CGameProcedure::s_pProcMain->m_pUIHotKeyDlg : nullptr;
+				const e_UIWND eSrc = CN3UIWndBase::s_sSelectedIconInfo.UIWndSelect.UIWnd;
+				if (iRing >= 0 && pHK != nullptr && CN3UIWndBase::s_sSelectedIconInfo.pItemSelect != nullptr
+					&& (eSrc == UIWND_INVENTORY || eSrc == UIWND_SKILL_TREE))
+				{
+					bool bOk = true;
+					if (eSrc == UIWND_INVENTORY)
+					{
+						pHK->ClearSlot(iRing); // dolu yuvaya bırakılınca eskisinin yerini alır
+						bOk = pHK->SetReceiveSelectedItem(iRing);
+					}
+					else
+						pHK->SetReceiveSelectedSkill(iRing);
+					CLogWriter::Write("Dokunmatik: {} simgesi {} numaralı yuvaya bırakıldı{}", eSrc == UIWND_INVENTORY ? "çanta" : "beceri",
+						iRing + 1, bOk ? "" : " (kullanılabilir eşya değil)");
+					in.mouseX = f.startX;
+					in.mouseY = f.startY;
+					in.lbDown = false;
+					break;
+				}
+			}
 			if (f.longPressDrag && std::abs(f.x - f.startX) <= TAP_SLOP && std::abs(f.y - f.startY) <= TAP_SLOP)
 			{
 				// Uzun basışla alınan ikon, parmak kıpırdamadan kalktı: yapışkan sürükleme —
@@ -743,6 +779,9 @@ void KoTouchOverlay::Update()
 				if (b.hotkeySlot >= 0 && b.down)
 					break; // yuva basılı tutuluyor: sürükleme olabilir; tuş kalkışta (tapQueued) işlenir
 				in.virtualKeysDIK[b.dik] = 0x80;
+				if (!b.fired)
+					CLogWriter::Write("Dokunmatik düğme '{}' -> tuş {}", b.label, b.dik);
+				b.fired = true;
 				break;
 			case Action::ToggleHide:
 				if (!b.fired)
@@ -1039,6 +1078,9 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 	{
 		if (m_hidden && b.action != Action::ToggleHide)
 			continue;
+		// Açık pencerenin altında kalan düğme dokunuş almaz: soluk çiz ki pencere okunabilsin
+		if (b.action != Action::ToggleHide && IsInGame() && IsOverDialogUI((int) b.cx, (int) b.cy))
+			continue;
 		uint32_t col = b.down ? COL_DOWN : b.color;
 		if (b.action == Action::SkillPage && b.dik == KM_SKILL_PAGE_1 + m_skillPage - 1)
 			col = b.down ? COL_DOWN : COL_PAGE_ON; // seçili beceri sayfası
@@ -1088,6 +1130,8 @@ void KoTouchOverlay::Render(IDirect3DDevice9* dev)
 		const Button& b = m_buttons[i];
 		if (m_hidden && b.action != Action::ToggleHide)
 			continue;
+		if (b.action != Action::ToggleHide && IsInGame() && IsOverDialogUI((int) b.cx, (int) b.cy))
+			continue; // açık pencerenin altında: etiketi de çizme
 		int height      = b.shape == Shape::Rect ? 9 : (b.r > 40.0f * u ? 12 : 9);
 		DrawLabel(dev, (int) i, b.label, b.cx, b.cy, COL_TEXT, height);
 		setup(); // DFont durumları değiştirir
@@ -1196,6 +1240,17 @@ bool KoTouchOverlay::HitPlayerMenu(int x, int y)
 	return false;
 }
 
+
+std::string KoTouchOverlay::DialogNameAt(int x, int y) const
+{
+	CUIManager* mgr = CGameProcedure::s_pUIMgr;
+	if (!mgr)
+		return std::string();
+	for (CN3UIBase* child : mgr->GetChildren())
+		if (child != nullptr && child->IsVisible() && child->IsIn(x, y))
+			return child->m_szID + " / " + child->FileName();
+	return std::string();
+}
 
 bool KoTouchOverlay::IsOverDialogUI(int x, int y) const
 {

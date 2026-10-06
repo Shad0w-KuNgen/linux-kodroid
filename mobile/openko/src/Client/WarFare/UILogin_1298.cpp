@@ -504,6 +504,13 @@ bool CUILogIn_1298::Load(File& file)
 		}
 
 		m_pGroup_LogIn->SetVisible(true);
+
+		// 2369 UIF'leri kutularda örnek metin taşır (ID kutusunda "Dark path", şifrede "USA"); yazılan ad bu metnin
+		// sonuna ekleniyor ve sunucu "hesap yok" (sonuç 2) diyordu. Kayıtlı kimlik varsa sonra yeniden yazılır.
+		if (m_pEdit_id != nullptr)
+			m_pEdit_id->SetString("");
+		if (m_pEdit_pw != nullptr)
+			m_pEdit_pw->SetString("");
 	}
 
 	// get notice boxes

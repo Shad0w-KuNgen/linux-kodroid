@@ -1141,10 +1141,12 @@ void CGameProcedure::ProcessUIKeyInput(bool bEnable)
 		{
 			if (s_pLocalInput->IsKeyPress(i))
 			{
+				bool bAte = false;
 				if (pUIFocus->m_pChildUI && pUIFocus->m_pChildUI->IsVisible())
-					s_bKeyPress |= pUIFocus->m_pChildUI->OnKeyPress(i);
+					bAte = pUIFocus->m_pChildUI->OnKeyPress(i);
 				else
-					s_bKeyPress |= pUIFocus->OnKeyPress(i);
+					bAte = pUIFocus->OnKeyPress(i);
+				s_bKeyPress |= bAte;
 			}
 			if (s_pLocalInput->IsKeyPressed(i))
 			{

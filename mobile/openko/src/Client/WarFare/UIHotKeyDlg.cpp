@@ -20,6 +20,46 @@
 #include <cmath>
 #include <algorithm>
 #include <format>
+#include <set>
+#include <sys/stat.h>
+
+// 2369: kullanılabilir eşyaların (pot vb.) beceri ikonu "UI\skillicon_XX_N.dxt" istemci verisinde yok; ikon
+// yüklenmeyince yuvada yalnız sayı görünüyordu. Dosya yoksa eşyanın kendi ikonu (UI\ItemIcon_...) kullanılır.
+// Eşya ikonu verilmemişse (kayıtlı kısayol) becerinin tükettiği eşyadan (dwExhaustItem) üretilir.
+static std::string KoHotkeyIconFN(const __TABLE_UPC_SKILL* pSkill, const std::string& szItemIconFN)
+{
+	std::string fn = fmt::format("UI\\skillicon_{:02}_{}.dxt", pSkill->dwID % 100, pSkill->dwID / 100);
+	auto exists    = [](const std::string& f) {
+		std::string r = KoResolvePath(f);
+		struct stat sb {};
+		return !r.empty() && ::stat(r.c_str(), &sb) == 0 && S_ISREG(sb.st_mode);
+	};
+	if (exists(fn))
+		return fn;
+	std::string alt = szItemIconFN;
+	if (alt.empty() && pSkill->dwExhaustItem != 0)
+	{
+		__TABLE_ITEM_BASIC* pItem = CGameBase::s_pTbl_Items_Basic.Find(pSkill->dwExhaustItem / 1000 * 1000);
+		__TABLE_ITEM_EXT* pExt    = nullptr;
+		if (pItem && pItem->byExtIndex >= 0 && pItem->byExtIndex < MAX_ITEM_EXTENSION)
+			pExt = CGameBase::s_pTbl_Items_Exts[pItem->byExtIndex].Find(pSkill->dwExhaustItem % 1000);
+		if (pItem && pExt)
+		{
+			std::string szResrc;
+			e_PartPosition ePart = PART_POS_UNKNOWN;
+			e_PlugPosition ePlug = PLUG_POS_UNKNOWN;
+			CGameBase::MakeResrcFileNameForUPC(pItem, pExt, &szResrc, &alt, ePart, ePlug);
+		}
+	}
+	if (!alt.empty())
+	{
+		static std::set<uint32_t> s_Logged;
+		if (s_Logged.insert(pSkill->dwID).second)
+			CLogWriter::Write("Kısayol ikonu: {} yok, eşya ikonu kullanılıyor: {}", fn, alt);
+		return alt;
+	}
+	return fn;
+}
 
 CUIHotKeyDlg::CUIHotKeyDlg()
 {
@@ -423,7 +463,7 @@ void CUIHotKeyDlg::InitIconUpdate()
 			spSkill->pSkill          = pUSkill;
 
 			// 아이콘 이름 만들기.. ^^
-			spSkill->szIconFN        = fmt::format("UI\\skillicon_{:02}_{}.dxt", HD.iID % 100, HD.iID / 100);
+			spSkill->szIconFN        = KoHotkeyIconFN(pUSkill, std::string());
 
 			// 아이콘 로드하기.. ^^
 			spSkill->pUIIcon         = new CN3UIIcon;
@@ -893,8 +933,7 @@ bool CUIHotKeyDlg::ReceiveIconDrop(__IconItemSkill* /*spItem*/, POINT ptCur)
 	spSkill->pSkill   = pUSkill;
 
 	// 아이콘 이름 만들기.. ^^
-	spSkill->szIconFN = fmt::format(
-		"UI\\skillicon_{:02}_{}.dxt", spItem->pItemBasic->dwEffectID1 % 100, spItem->pItemBasic->dwEffectID1 / 100);
+	spSkill->szIconFN = KoHotkeyIconFN(pUSkill, spItem->szIconFN);
 
 	// 아이콘 로드하기.. ^^
 	spSkill->pUIIcon = new CN3UIIcon;
@@ -945,8 +984,7 @@ bool CUIHotKeyDlg::SetReceiveSelectedItem(int iIndex)
 	spSkill->pSkill          = pUSkill;
 
 	// Create the icon name
-	spSkill->szIconFN        = fmt::format(
-        "UI\\skillicon_{:02}_{}.dxt", spItem->pItemBasic->dwEffectID1 % 100, spItem->pItemBasic->dwEffectID1 / 100);
+	spSkill->szIconFN        = KoHotkeyIconFN(pUSkill, spItem->szIconFN);
 
 	// load icon
 	spSkill->pUIIcon = new CN3UIIcon();

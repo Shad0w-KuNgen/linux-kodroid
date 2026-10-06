@@ -197,8 +197,28 @@ bool CUICharacterSelect::ReceiveMessage(CN3UIBase* pSender, uint32_t dwMsg)
 		}
 		else if (pSender != nullptr && (pSender == m_pBtnStart || pSender == m_pBtnCreate))
 		{
-			// 2369: BAŞLAT = seçili karakterle oyuna gir; OLUŞTUR = boş yuvada karakter yarat (Enter ile aynı yol)
-			CGameProcedure::s_pProcCharacterSelect->ProcessOnReturn();
+			// 2369: BAŞLAT = seçili (yoksa ilk dolu) yuvadaki karakterle gir; OLUŞTUR = ilk boş yuvada karakter yarat.
+			// ProcessOnReturn seçim değil (Main'e geçiş/ışık), bu yüzden doğrudan yuva seçilip CharacterSelectOrCreate.
+			CGameProcCharacterSelect* pSel = CGameProcedure::s_pProcCharacterSelect;
+			if (pSel != nullptr && pSel->m_eCurProcess == PROCESS_PRESELECT)
+			{
+				const bool bStart = pSender == m_pBtnStart;
+				int iCur          = pSel->m_eCurPos == POS_LEFT ? 1 : pSel->m_eCurPos == POS_RIGHT ? 2 : 0;
+				int iSlot         = -1;
+				if (bStart && pSel->m_pChrs[iCur] != nullptr)
+					iSlot = iCur;
+				for (int i = 0; iSlot < 0 && i < MAX_AVAILABLE_CHARACTER; i++)
+					if ((pSel->m_pChrs[i] != nullptr) == bStart)
+						iSlot = i;
+				if (iSlot >= 0)
+				{
+					CGameProcedure::s_iChrSelectIndex = iSlot;
+					CLogWriter::Write("Karakter seçimi düğmesi {}: yuva {}", bStart ? "BASLAT" : "OLUSTUR", iSlot);
+					pSel->CharacterSelectOrCreate();
+				}
+				else
+					CLogWriter::Write("Karakter seçimi düğmesi {}: uygun yuva yok", bStart ? "BASLAT" : "OLUSTUR");
+			}
 		}
 		else if (pSender == m_pBtnDelete)
 		{

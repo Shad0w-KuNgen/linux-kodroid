@@ -186,3 +186,33 @@ std::string KoZoneBgmFile(int iZone)
 	}
 	return std::string();
 }
+
+#include <N3Base/N3UIBase.h>
+
+static void KoUiHideDeepRec(CN3UIBase* p, const std::vector<std::string>& ids, std::vector<std::string>& found)
+{
+	for (CN3UIBase* ch : p->GetChildren())
+	{
+		if (ch == nullptr)
+			continue;
+		for (const std::string& id : ids)
+			if (ch->m_szID == id)
+			{
+				ch->SetVisible(false);
+				found.push_back(id);
+			}
+		KoUiHideDeepRec(ch, ids, found);
+	}
+}
+
+void KoUiHideDeep(CN3UIBase* pRoot, const std::vector<std::string>& ids, const char* szWhere)
+{
+	if (pRoot == nullptr)
+		return;
+	std::vector<std::string> found;
+	KoUiHideDeepRec(pRoot, ids, found);
+	std::string s;
+	for (const std::string& f : found)
+		s += (s.empty() ? "" : ", ") + f;
+	CLogWriter::Write("{}: varsayılan açık alt gruplar gizlendi: {}", szWhere, s.empty() ? std::string("(yok)") : s);
+}

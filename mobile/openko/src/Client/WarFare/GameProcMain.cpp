@@ -4432,12 +4432,9 @@ void CGameProcMain::MsgRecv_MyInfo_PointChange(Packet& pkt)
 			s_pPlayer->m_InfoBase.iHP = pkt.read<uint16_t>();
 			s_pPlayer->m_InfoExt.iMSP = pkt.read<uint16_t>();
 		}
-		if (iType >= 1 && iType <= 5 && s_pPlayer->m_InfoExt.iBonusPointRemain > 0)
-			s_pPlayer->m_InfoExt.iBonusPointRemain--; // sunucu her başarılı yanıtta bir puan düşer
+		// Kalan puan aşağıdaki ortak kısımda bir kez düşülür (burada da düşülünce ekranda 2'şer azalıyordu)
 		CLogWriter::Write("WIZ_POINT_CHANGE (2369): tür {} yeni {} HP {}/{} MP {}/{} kalan puan {}", iType, iVal, s_pPlayer->m_InfoBase.iHP,
-			s_pPlayer->m_InfoBase.iHPMax, s_pPlayer->m_InfoExt.iMSP, s_pPlayer->m_InfoExt.iMSPMax, s_pPlayer->m_InfoExt.iBonusPointRemain);
-		if (m_pUIVar && m_pUIVar->m_pPageState)
-			m_pUIVar->m_pPageState->UpdateBonusPointAndButtons(s_pPlayer->m_InfoExt.iBonusPointRemain);
+			s_pPlayer->m_InfoBase.iHPMax, s_pPlayer->m_InfoExt.iMSP, s_pPlayer->m_InfoExt.iMSPMax, s_pPlayer->m_InfoExt.iBonusPointRemain - 1);
 	}
 	else
 	{
@@ -4516,6 +4513,8 @@ void CGameProcMain::InitUI()
 
 	m_pUIChatDlg->Init(s_pUIMgr); //Manager 자식으로 리스트에 추가
 	m_pUIChatDlg->LoadFromFile(pTbl->szChat);
+	if (KoProto::Is2369())
+		KoUiHideDeep(m_pUIChatDlg, { "base_filter", "base_mapuserlist" }, "Sohbet (2369)");
 	rc          = m_pUIChatDlg->GetRegion();
 	RECT rcCmd  = m_pUICmd->GetRegion();
 	rcCmd.top  += 5; // .. 하드 코딩..
@@ -4717,6 +4716,8 @@ void CGameProcMain::InitUI()
 
 	m_pUIInventory->Init(s_pUIMgr);
 	m_pUIInventory->LoadFromFile(pTbl->szInventory);
+	if (KoProto::Is2369())
+		KoUiHideDeep(m_pUIInventory, { "base_cos", "base_bag", "base_inven_notice" }, "Çanta (2369)");
 	m_pUIInventory->SetVisibleWithNoSound(false);
 	m_pUIInventory->SetPos(465, 10);
 	m_pUIInventory->InitIconWnd(UIWND_INVENTORY);
@@ -5480,6 +5481,11 @@ bool CGameProcMain::CommandToggleUIState()
 	}
 	else
 		m_pUIVar->Close();
+	{
+		RECT rc = m_pUIVar->GetRegion();
+		CLogWriter::Write("Karakter penceresi {}: görünür {} bölge ({},{})-({},{})", bNeedOpen ? "açılıyor" : "kapanıyor",
+			m_pUIVar->IsVisible(), rc.left, rc.top, rc.right, rc.bottom);
+	}
 
 	// 커맨드 버튼 업데이트..
 	//	if(m_pUICmd->m_pBtn_Character)
@@ -6004,6 +6010,16 @@ void CGameProcMain::MsgRecv_Notice(Packet& pkt)
 		}
 	}
 
+	if (m_pUINotice && iNoticeCount > 0 && CGameProcedure::s_bTouchControls)
+	{
+		// Dokunmatik: büyük duyuru penceresi ekranın dörtte birini kaplıyordu; duyurular sohbete yazılır
+		for (const std::string& s : m_pUINotice->m_Texts)
+			if (!s.empty())
+				MsgOutput(s, 0xffffff00);
+		m_pUINotice->m_Texts.clear();
+		m_pUINotice->SetVisible(false);
+		return;
+	}
 	if (m_pUINotice && iNoticeCount > 0)
 	{
 		m_pUINotice->GenerateText();

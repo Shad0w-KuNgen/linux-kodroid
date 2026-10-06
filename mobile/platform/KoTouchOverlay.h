@@ -61,6 +61,7 @@ public:
 	/// Kaplamayı çizer (Present'ten hemen önce çağrılır)
 	void Render(IDirect3DDevice9* dev);
 	void AddInfoLine(const std::string& text, uint32_t color); // bilgi/hasar iletisi (MsgOutput)
+	std::string DialogNameAt(int x, int y) const; // tanı: (x,y)'deki ilk görünür pencere
 
 	bool IsInGame() const;
 	/// Giriş: sunucu seçme ekranı açık mı? (büyük BAĞLAN düğmesi çizilir; Enter yerine geçer)

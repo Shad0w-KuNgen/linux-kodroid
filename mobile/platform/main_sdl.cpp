@@ -362,6 +362,193 @@ void HandleTextInputKey(const SDL_KeyboardEvent& key)
 	}
 }
 
+// ---------------------------------------------------------------------------
+// KO_INPUT_SCRIPT: telefonsuz dokunmatik testi. Dosyadaki komutlar sırayla, kare kare işlenir
+// (koordinatlar mantıksal piksel). Komutlar:
+//   wait <kare>                 bekle
+//   waitmain [azamiKare]        oyun içine (CGameProcMain) geçilene kadar bekle
+//   tap <x> <y>                 dokun-bırak
+//   hold <x> <y> <kare>         basılı tut, sonra bırak (uzun basış)
+//   drag <x1> <y1> <x2> <y2> <kare>   sürükle
+//   text <metin...>             odaklı kutuya metin yaz
+//   enter                       Enter tuşu (odaklı kutu)
+//   shot <dosya.ppm>            ekran görüntüsü
+//   log <metin...>              Log.txt'ye işaret
+//   quit                        çık
+// ---------------------------------------------------------------------------
+namespace
+{
+struct ScriptCmd
+{
+	std::string op;
+	std::vector<std::string> a;
+	std::string rest;
+};
+std::vector<ScriptCmd> g_script;
+size_t g_scriptPos      = 0;
+long g_scriptWait       = 0;
+int g_scriptPhase       = 0; // hold/drag ara durumu
+long g_scriptPhaseLeft  = 0;
+const int64_t kScriptFinger = 9001;
+
+void LoadInputScript()
+{
+	const char* path = std::getenv("KO_INPUT_SCRIPT");
+	if (!path)
+		return;
+	FILE* f = std::fopen(path, "rb");
+	if (!f)
+	{
+		CLogWriter::Write("[script] açılamadı: {}", path);
+		return;
+	}
+	char line[1024];
+	while (std::fgets(line, sizeof(line), f))
+	{
+		std::string s(line);
+		while (!s.empty() && (s.back() == '\n' || s.back() == '\r'))
+			s.pop_back();
+		if (s.empty() || s[0] == '#')
+			continue;
+		ScriptCmd c;
+		size_t sp = s.find(' ');
+		c.op      = s.substr(0, sp);
+		c.rest    = sp == std::string::npos ? "" : s.substr(sp + 1);
+		size_t i  = 0;
+		while (i < c.rest.size())
+		{
+			size_t j = c.rest.find(' ', i);
+			if (j == std::string::npos)
+				j = c.rest.size();
+			if (j > i)
+				c.a.push_back(c.rest.substr(i, j - i));
+			i = j + 1;
+		}
+		g_script.push_back(c);
+	}
+	std::fclose(f);
+	CLogWriter::Write("[script] {} komut yüklendi ({})", g_script.size(), path);
+}
+
+int ArgI(const ScriptCmd& c, size_t i) { return i < c.a.size() ? std::atoi(c.a[i].c_str()) : 0; }
+
+// Her karede bir kez; true = betik bitti
+void TickInputScript()
+{
+	if (g_scriptPos >= g_script.size())
+		return;
+	KoInput().windowFocused = true; // başsız (Xvfb) ortamda pencere odağı gelmez; betik boyunca odaklı say
+	CGameProcedure::s_bIsWindowInFocus = true;
+	if (g_scriptWait > 0)
+	{
+		--g_scriptWait;
+		return;
+	}
+	const ScriptCmd& c = g_script[g_scriptPos];
+	auto next          = [&]() { ++g_scriptPos; g_scriptPhase = 0; };
+	if (c.op == "wait")
+	{
+		g_scriptWait = ArgI(c, 0);
+		next();
+	}
+	else if (c.op == "waitmain")
+	{
+		bool inMain = CGameProcedure::s_pProcActive != nullptr && CGameProcedure::s_pProcActive == CGameProcedure::s_pProcMain;
+		if (g_scriptPhase == 0)
+		{
+			g_scriptPhase     = 1;
+			g_scriptPhaseLeft = c.a.empty() ? 3000 : ArgI(c, 0);
+		}
+		if (inMain || --g_scriptPhaseLeft <= 0)
+		{
+			CLogWriter::Write("[script] waitmain: {}", inMain ? "oyun içi" : "zaman aşımı");
+			next();
+		}
+	}
+	else if (c.op == "tap")
+	{
+		KoTouch().OnFingerDown(kScriptFinger, ArgI(c, 0), ArgI(c, 1));
+		KoTouch().OnFingerUp(kScriptFinger, ArgI(c, 0), ArgI(c, 1));
+		CLogWriter::Write("[script] tap {} {} (odaktaki yazı kutusu: {})", ArgI(c, 0), ArgI(c, 1),
+			CN3UIBase::GetFocusedEdit() ? CN3UIBase::GetFocusedEdit()->m_szID : std::string("yok"));
+		next();
+	}
+	else if (c.op == "hold")
+	{
+		if (g_scriptPhase == 0)
+		{
+			KoTouch().OnFingerDown(kScriptFinger, ArgI(c, 0), ArgI(c, 1));
+			g_scriptPhase     = 1;
+			g_scriptPhaseLeft = ArgI(c, 2);
+		}
+		else if (--g_scriptPhaseLeft <= 0)
+		{
+			KoTouch().OnFingerUp(kScriptFinger, ArgI(c, 0), ArgI(c, 1));
+			CLogWriter::Write("[script] hold {} {}", ArgI(c, 0), ArgI(c, 1));
+			next();
+		}
+	}
+	else if (c.op == "drag")
+	{
+		int x1 = ArgI(c, 0), y1 = ArgI(c, 1), x2 = ArgI(c, 2), y2 = ArgI(c, 3), n = std::max(2, ArgI(c, 4));
+		if (g_scriptPhase == 0)
+		{
+			KoTouch().OnFingerDown(kScriptFinger, x1, y1);
+			g_scriptPhase     = 1;
+			g_scriptPhaseLeft = 0;
+		}
+		else if (g_scriptPhaseLeft < n)
+		{
+			++g_scriptPhaseLeft;
+			KoTouch().OnFingerMotion(kScriptFinger, x1 + (x2 - x1) * (int) g_scriptPhaseLeft / n, y1 + (y2 - y1) * (int) g_scriptPhaseLeft / n);
+		}
+		else
+		{
+			KoTouch().OnFingerUp(kScriptFinger, x2, y2);
+			CLogWriter::Write("[script] drag {} {} -> {} {}", x1, y1, x2, y2);
+			next();
+		}
+	}
+	else if (c.op == "text")
+	{
+		CN3UIEdit::InputText(c.rest.c_str());
+		next();
+	}
+	else if (c.op == "enter")
+	{
+		CN3UIEdit::InputKey(CN3UIEdit::EDITKEY_RETURN);
+		next();
+	}
+	else if (c.op == "shot")
+	{
+		SaveScreenshotPPM(c.rest.c_str());
+		CLogWriter::Write("[script] shot {}", c.rest);
+		next();
+	}
+	else if (c.op == "probe")
+	{
+		CLogWriter::Write("[script] probe {} {}: '{}'", ArgI(c, 0), ArgI(c, 1), KoTouch().DialogNameAt(ArgI(c, 0), ArgI(c, 1)));
+		next();
+	}
+	else if (c.op == "log")
+	{
+		CLogWriter::Write("[script] {}", c.rest);
+		next();
+	}
+	else if (c.op == "quit")
+	{
+		CLogWriter::Write("[script] quit");
+		g_quit = true;
+		next();
+	}
+	else
+	{
+		CLogWriter::Write("[script] bilinmeyen komut: {}", c.op);
+		next();
+	}
+}
+} // namespace
+
 void PumpEvents()
 {
 	KoInputState& in = KoInput();
@@ -753,9 +940,11 @@ int main(int argc, char** argv)
 		}
 	}
 
+	LoadInputScript();
 	while (!g_quit)
 	{
 		PumpEvents();
+		TickInputScript();
 		KoTouch().Update();
 		KoWinsockPoll(OnSocketEvent);
 		// Oyun içi arayüz ölçeği (UiScale>100): ana sahneye geçerken mantıksal çözünürlüğü düşür,
