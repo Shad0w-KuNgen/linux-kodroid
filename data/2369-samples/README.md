@@ -10,3 +10,4 @@ ISTIRAP 2369 istemcisinin `Zones/` klasöründen değiştirilmeden alındı. Bi�
 - `upc_el_ba.n3joint`, `upc_el_ba.n3chr`, `npc_el_ba.n3Anim`: 2369 Chr örnekleri
 - `2017_esl_a001_0.gtt`: moradon.gtd'nin ilk GTT döşeme dokusu (DTex)
 - `moradon.tct`, `moradon.tlt`: Moradon zemin renk/ışık dosyaları
+- `mob_kecoon.n3joint/.n3anim`, `mob_snowman.n3joint/.n3anim`: mob modeli örnekleri (NPC_Looks satır 100 = kecoon)
