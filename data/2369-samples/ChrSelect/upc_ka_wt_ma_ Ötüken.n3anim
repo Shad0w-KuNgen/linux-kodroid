@@ -1,0 +1,13 @@
+[_King:SD_BlackList_Start_]
+King:SD_BlackList_Start=1
+[_King:SD_BlackList_]
+=
+King:SD_BlackList_1=Chat Quests
+[_King:SD_BlackList_End_]
+King:SD_BlackList_End=1
+[_KingSD_BlackList_Start_]
+KingSD_BlackList_Start=1
+[_KingSD_BlackList_]
+=
+[_KingSD_BlackList_End_]
+KingSD_BlackList_End=0
