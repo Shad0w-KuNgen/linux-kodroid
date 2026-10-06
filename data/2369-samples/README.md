@@ -12,3 +12,4 @@ ISTIRAP 2369 istemcisinin `Zones/` klasöründen değiştirilmeden alındı. Bi�
 - `moradon.tct`, `moradon.tlt`: Moradon zemin renk/ışık dosyaları
 - `mob_kecoon.n3joint/.n3anim`, `mob_snowman.n3joint/.n3anim`: mob modeli örnekleri (NPC_Looks satır 100 = kecoon)
 - `DTex/`: 2369 istemcisinin bütün zemin dokuları (1102 dosya, 1096 GTT; tüm haritalar). Moradon'un kullandığı 42 GTT'nin adları moradon.gtd ofset 607016'dan 260 bayt adımla.
+- `fx/ice_cast0_3.fxb` + `fx/object/31110ice_cm/`: fx paketinden. Not: "ice_cm.n32hape" yazım hatası orijinal fxb'nin içinde (ofset 380), okuma hatası değil.
