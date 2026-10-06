@@ -51,6 +51,7 @@ set(WARFARE_SCENE_CHARACTER_CREATION_SOURCES
 
 set(WARFARE_SCENE_INGAME_SOURCES
   GameProcMain.cpp
+  KoUiSlots2369.cpp
   GameProcMain.h
 )
 

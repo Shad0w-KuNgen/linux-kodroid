@@ -312,6 +312,16 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
   bu değerleri yükseklik verisinden yeniden hesaplar (1.298 dosyalarının kendi değerleriyle birebir aynı formül).
   Masaüstünde `KO_TERRAIN_TEST` ile 2369 Moradon tüm 174 döşeme ve 42 GTT ile eksiksiz çizildi.
 
+- **2369 UIs_us.tbl yuva eşlemesi**: tablo 347 sütun; 1.298 struct'ı sütunları konumla alır ve bazı yuvalar
+  ISTIRAP'ta başka pencerelere ayrılmış (ör. [5] `co_soccer_state.uif` durum çubuğu yuvasında, [37]
+  `re_search_monster_drop.istirap`). `CN3TableBaseImpl::s_pfnRowStrings` kancası satırın tüm sütunlarını
+  yakalar, `KoUiApplySlots2369` yuvaları ad desenine göre yeniden eşler ve Log.txt'ye `UI yuva …` satırları ile
+  tüm sütun dökümünü (`UIs_us.tbl ulus N sütunları`) yazar. Desenler tam döküm geldikçe daraltılır.
+- 2369 ek paketler: `WIZ_ADD_MSG` (0xDB, sohbete), `WIZ_NOTICE_SEND` (0xC4), `WIZ_PARTY_HP` (0xE8, üye HP);
+  `WIZ_TERRAIN_EFFECTS/STORY/PRESET/MINING/XSAFE/KILLASSIST/DAILYRANK/LOADING_LOGIN/RANK/GENIE/…` bilinen olarak
+  sessizce yutulur (opcode başına bir günlük satırı). Sunucu `shared/packets.h` ile istemci enum'u birebir aynı
+  numaralardadır; kalan fark yalnız istemcide işlenmeyen paketlerdir.
+
 ### Oyun verisini telefona kurma
 
 Launcher oyun verisini arar; yoksa "Veriyi indir ve kur" (varsayılan adres) ya da "Veriyi onar /

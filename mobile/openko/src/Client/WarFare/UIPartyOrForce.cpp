@@ -381,10 +381,12 @@ void CUIPartyOrForce::MemberHPChange(int iID, int iHP, int iHPMax, int iMP, int 
 		{
 			pIP->iHP             = iHP;
 			pIP->iHPMax          = iHPMax;
-			pIP->iMP             = iMP;
-			pIP->iMPMax          = iMPMax;
+			if (iMP >= 0) // 2369 WIZ_PARTY_HP yalnız HP taşır (-1 = dokunma)
+				pIP->iMP = iMP;
+			if (iMPMax >= 0)
+				pIP->iMPMax = iMPMax;
 
-			const int iHPPercent = pIP->iHP * 100 / pIP->iHPMax;
+			const int iHPPercent = pIP->iHPMax > 0 ? pIP->iHP * 100 / pIP->iHPMax : 0;
 
 			if (m_pProgress_HPs[i] != nullptr)
 				m_pProgress_HPs[i]->SetCurValue(iHPPercent, 0.7f, 50.0f);

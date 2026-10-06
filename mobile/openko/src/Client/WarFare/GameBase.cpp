@@ -9,6 +9,7 @@
 #include "PlayerOtherMgr.h"
 #include "PlayerMySelf.h"
 #include "KoProtocol.h"
+#include "KoUiSlots2369.h"
 
 #include <N3Base/N3ShapeMgr.h>
 #include <N3Base/LogWriter.h>
@@ -56,7 +57,22 @@ void CGameBase::StaticMemberInit()
 	szFN = "Data\\Zones.tbl";
 	s_pTbl_Zones.LoadFromFile(szFN);
 	szFN = "Data\\UIs" + szLangTail;
+	if (KoProto::Is2369())
+	{
+		CN3TableBaseImpl::s_pfnRowStrings   = KoUiRowCapture; // 347 sütunu yakala (ad tabanlı yuva eşlemesi)
+		CN3TableBaseImpl::s_szRowStringsFile = "uis";
+	}
 	s_pTbl_UI.LoadFromFile(szFN);
+	CN3TableBaseImpl::s_pfnRowStrings = nullptr;
+	if (KoProto::Is2369())
+	{
+		std::vector<uint32_t> keys;
+		for (const auto& kv : s_pTbl_UI.GetMap())
+			keys.push_back(kv.first);
+		for (uint32_t k : keys)
+			if (__TABLE_UI_RESRC* pRow = s_pTbl_UI.Find(k))
+				KoUiApplySlots2369(k, *pRow);
+	}
 	szFN = "Data\\UPC_DefaultLooks.tbl";
 	s_pTbl_UPC_Looks.LoadFromFile(szFN);
 	szFN = "Data\\Item_Org" + szLangTail;

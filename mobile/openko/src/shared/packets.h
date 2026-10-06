@@ -134,6 +134,40 @@ enum e_GameOpcode : uint8_t
 	WIZ_BIFROST             = 0x7B,
 	WIZ_SERVER_KILL         = 0x7F,
 
+	// 2369 (ISTIRAP) sunucusunun gönderdiği ek paketler (shared/packets.h); istemcide karşılığı olmayanlar
+	// ProcessPacket'te bilinen olarak yutulur
+	WIZ_RANK                = 0x80,
+	WIZ_STORY               = 0x81,
+	WIZ_NATION_TRANSFER     = 0x82,
+	WIZ_TERRAIN_EFFECTS     = 0x83,
+	WIZ_MOVING_TOWER        = 0x84,
+	WIZ_CAPTURE             = 0x85,
+	WIZ_MINING              = 0x86,
+	WIZ_HELMET              = 0x87,
+	WIZ_PVP                 = 0x88,
+	WIZ_CHANGE_HAIR         = 0x89,
+	WIZ_VIPWAREHOUSE        = 0x8B,
+	WIZ_GENDER_CHANGE       = 0x8D,
+	WIZ_LOYALTY_SHOP        = 0x90,
+	WIZ_GENIE               = 0x97,
+	WIZ_USER_INFORMATIN     = 0x98,
+	WIZ_USER_ACHIEVE        = 0x99,
+	WIZ_EXP_SEAL            = 0x9A,
+	WIZ_KURIAN_SP_CHANGE    = 0x9B,
+	WIZ_LOADING_LOGIN       = 0x9F,
+	WIZ_VANGUARD            = 0xB6,
+	WIZ_PRESET              = 0xB9,
+	WIZ_DAILYRANK           = 0xC2,
+	WIZ_AKARA               = 0xC3,
+	WIZ_NOTICE_SEND         = 0xC4,
+	WIZ_KILLASSIST          = 0xC8,
+	WIZ_CLANWAREHOUSE       = 0xD1,
+	WIZ_ADD_MSG             = 0xDB,
+	WIZ_PARTY_HP            = 0xE8,
+	WIZ_XSAFE               = 0xE9, // ISTIRAP XSafe/panel (DeathNotice, tüccar görüntüleyici...)
+	WIZ_PASSWORD_LOGIN      = 0xEA,
+	WIZ_KNIGHT_ROYALE       = 0xEF,
+
 	// NOTE(srmeier): testing this debug string functionality
 	WIZ_DEBUG_STRING_PACKET = 0xFE,
 

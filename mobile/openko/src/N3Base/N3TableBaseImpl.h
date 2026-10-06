@@ -42,6 +42,13 @@ protected:
 	static void LogTable(const std::string& szMsg); // _N3GAME: Log.txt, değilse stdout
 
 	std::string m_szFileName; // LoadFromFile'da verilen ad (şema hizalaması için)
+
+public:
+	// Ham satır yakalama: dosya adı (küçük harf) s_szRowStringsFile'ı içeriyorsa her satır için TÜM sütunlar
+	// metin olarak (sayılar ondalık, dizeler olduğu gibi) kancaya verilir. 2369 UIs_us.tbl'nin 347 sütununu
+	// 1.298 yuvalarına ad tabanlı eşlemek için kullanılır.
+	static void (*s_pfnRowStrings)(const std::string& szFile, uint32_t dwKey, const std::vector<std::string>& cols);
+	static std::string s_szRowStringsFile;
 };
 
 #endif // CLIENT_N3BASE_N3TABLEBASEIMPL_H

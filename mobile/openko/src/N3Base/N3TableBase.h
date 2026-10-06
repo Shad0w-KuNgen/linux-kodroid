@@ -162,12 +162,51 @@ bool CN3TableBase<Type>::Load(File& file)
 	if (iRC < 0 || iRC > 5000000)
 		return false;
 
+	bool bCapture = false;
+	if (s_pfnRowStrings != nullptr && !s_szRowStringsFile.empty())
+	{
+		std::string szLower = m_szFileName;
+		for (char& c : szLower)
+			c = (char) tolower((unsigned char) c);
+		bCapture = szLower.find(s_szRowStringsFile) != std::string::npos;
+	}
+	std::vector<std::string> cols;
+
 	Type Data {};
 	for (int i = 0; i < iRC; i++)
 	{
+		if (bCapture)
+			cols.assign(iDataTypeCount, std::string());
 		for (int j = 0; j < iDataTypeCount; j++)
 		{
 			int k = colMap[j];
+			if (bCapture)
+			{
+				// Sütunu geçici alana oku, metne çevir; struct'a düşen sütunları ayrıca kopyala
+				if (fileTypes[j] == DT_STRING)
+				{
+					std::string sz;
+					ReadData(file, DT_STRING, &sz);
+					cols[j] = sz;
+					if (k >= 0)
+						*reinterpret_cast<std::string*>(reinterpret_cast<char*>(&Data) + offsets[k]) = sz;
+				}
+				else
+				{
+					alignas(8) char buf[8] {};
+					ReadData(file, fileTypes[j], buf);
+					int sz = SizeOf(fileTypes[j]);
+					if (k >= 0)
+						memcpy(reinterpret_cast<char*>(&Data) + offsets[k], buf, (size_t) sz);
+					long long v = 0;
+					if (sz == 1) v = *(uint8_t*) buf;
+					else if (sz == 2) v = *(int16_t*) buf;
+					else if (sz == 4 && fileTypes[j] == DT_FLOAT) v = (long long) *(float*) buf;
+					else if (sz == 4) v = *(int32_t*) buf;
+					cols[j] = std::to_string(v);
+				}
+				continue;
+			}
 			if (k >= 0)
 				// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 				ReadData(file, fileTypes[j], reinterpret_cast<char*>(&Data) + offsets[k]);
@@ -176,6 +215,8 @@ bool CN3TableBase<Type>::Load(File& file)
 		}
 
 		uint32_t dwKey           = *((uint32_t*) (&Data));
+		if (bCapture)
+			s_pfnRowStrings(m_szFileName, dwKey, cols);
 		[[maybe_unused]] auto pt = m_Datas.insert(std::make_pair(dwKey, Data));
 
 		__ASSERT(pt.second, "CN3TableBase<Type> : Key 중복 경고.");

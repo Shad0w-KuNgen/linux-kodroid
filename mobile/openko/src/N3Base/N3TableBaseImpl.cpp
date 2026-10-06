@@ -10,6 +10,9 @@
 
 #ifdef _N3GAME
 #include "LogWriter.h"
+
+void (*CN3TableBaseImpl::s_pfnRowStrings)(const std::string&, uint32_t, const std::vector<std::string>&) = nullptr;
+std::string CN3TableBaseImpl::s_szRowStringsFile;
 #endif
 
 CN3TableBaseImpl::CN3TableBaseImpl()

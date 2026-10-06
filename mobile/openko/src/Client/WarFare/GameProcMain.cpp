@@ -1094,6 +1094,66 @@ bool CGameProcMain::ProcessPacket(Packet& pkt)
 			MsgRecv_ItemUpgrade(pkt);
 			return true;
 
+		// ---- 2369 (ISTIRAP) ek paketleri ----
+		case WIZ_ADD_MSG: // u8 tür (1 tüccar, 2 duyuru), u16 uzunluklu metin, u32 renk, u32 renk
+		{
+			uint8_t byType = pkt.read<uint8_t>();
+			std::string szMsg;
+			pkt.DByte();
+			if (!pkt.readString(szMsg))
+				return true;
+			uint32_t dwColor = pkt.read<uint32_t>();
+			if (m_pUIChatDlg != nullptr && !szMsg.empty())
+				m_pUIChatDlg->AddChatMsg(byType == 1 ? N3_CHAT_NORMAL : N3_CHAT_PUBLIC, szMsg, (dwColor & 0x00FFFFFF) ? (dwColor | 0xFF000000) : 0xFFFFE080);
+			return true;
+		}
+		case WIZ_NOTICE_SEND: // u16 uzunluklu metin (hoş geldin duyurusu)
+		{
+			std::string szMsg;
+			pkt.DByte();
+			if (pkt.readString(szMsg) && !szMsg.empty())
+			{
+				if (m_pUIChatDlg != nullptr)
+					m_pUIChatDlg->AddChatMsg(N3_CHAT_PUBLIC, szMsg, 0xFFFFE080);
+				MsgOutput(szMsg, 0xFFFFE080);
+			}
+			return true;
+		}
+		case WIZ_PARTY_HP: // u8 1, ad, u16 maxHP, u16 HP — üye HP güncellemesi (adla)
+		{
+			pkt.read<uint8_t>();
+			std::string szName;
+			pkt.DByte();
+			if (!pkt.readString(szName))
+				return true;
+			int iHPMax = pkt.read<uint16_t>();
+			int iHP    = pkt.read<uint16_t>();
+			if (m_pUIPartyOrForce != nullptr)
+			{
+				int iID = (szName == s_pPlayer->IDString()) ? s_pPlayer->IDNumber() : -1;
+				if (iID < 0)
+					for (const auto& [_, pUPC] : s_pOPMgr->m_UPCs)
+						if (pUPC != nullptr && pUPC->IDString() == szName)
+						{
+							iID = pUPC->IDNumber();
+							break;
+						}
+				if (iID >= 0)
+					m_pUIPartyOrForce->MemberHPChange(iID, iHP, iHPMax, -1, -1);
+			}
+			return true;
+		}
+		case WIZ_TERRAIN_EFFECTS: case WIZ_STORY: case WIZ_PRESET: case WIZ_MINING: case WIZ_XSAFE: case WIZ_KILLASSIST:
+		case WIZ_DAILYRANK: case WIZ_LOADING_LOGIN: case WIZ_RANK: case WIZ_GENIE: case WIZ_USER_INFORMATIN: case WIZ_HELMET:
+		case WIZ_CAPTURE: case WIZ_MOVING_TOWER: case WIZ_EXP_SEAL: case WIZ_VANGUARD: case WIZ_AKARA: case WIZ_LOYALTY_SHOP:
+		{
+			// Bilinen 2369 paketleri; bu istemcide karşılığı yok — sessizce yutulur (opcode başına bir kez günlük)
+			static std::set<int> s_Known;
+			if (s_Known.insert(iCmd).second)
+				CLogWriter::Write("2369 paketi 0x{:02x} ({} bayt) bilinen, işlenmiyor", iCmd, pkt.size());
+			return true;
+		}
+
 		default:
 			break;
 	}
