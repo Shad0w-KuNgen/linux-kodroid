@@ -85,6 +85,87 @@ tutulur. Her büyük değişiklik commit mesajında ve burada kısaca açıklan�
    `JoyDeadZone` (5–60, 22), `JoyRotateSpeed` (30–400 °/sn, 220), `JoyTurnAndRun` (0/1), `LongPressMs`, `PotHpSlot`,
    `PotMpSlot`, `UiScale`, `RenderScale`. Launcher Settings ve oyun içi menü UI'si bu anahtarları yazmalı (kolay iş, yerel Claude).
 
+## v170 devir (araştırma tamam, kod yazılmadı — yerel Claude uygular)
+Kaynaklar okundu, kök nedenler ve paket/dosya düzenleri aşağıda. Her madde doğrudan uygulanabilir.
+
+### 1. NPC'ye tıklanmıyor → kaplamada "NPC AÇ" düğmesi
+- Hedef seçimi çalışıyor (Log `SALDIR: hedef 11046 (Duke) … saldırılabilir 0`), konuşma ise yalnız uzun basış /
+  ikinci dokunuşla tetikleniyor (`GameProcMain.cpp` ~8484 `m_iTouchTalkNpcID` bloğu; Tick'te ~513 menzile girince `MsgSend_NPCEvent`).
+- Yapılacak: `CGameProcMain`'e public `bool TouchInteractTarget()` ekle: hedef `s_pOPMgr->CharacterGetByID(m_iIDTarget,true)`;
+  `PlayerType()==PLAYER_NPC && !IsHostileTarget` ise: `m_pShapeExtraRef` varsa mesafe `(Radius+shape->Radius)*2` içinde
+  `MsgSend_ObjectEvent(shape->m_iEventID, IDNumber())`; değilse mesafe `(Radius+Radius)*3` içindeyse
+  `ActionMove(PSM_STOP); RotateTo; MsgSend_NPCEvent(id); m_pUITransactionDlg->m_iNpcID=id`; uzaksa
+  `m_iTouchTalkNpcID=id; CommandMove(MD_FORWARD,true); SetMoveTargetPos(pos)`. (8484–8499'daki kodun aynısı.)
+- Kaplama (`KoTouchOverlay.cpp`): oyuncu menüsü (`LayoutPlayerMenu/HitPlayerMenu`, satır ~1162) örneğiyle tek satırlık
+  "NPC AC" kutusu; `pMain->TouchTargetIsNpc()` doğruysa hedef sütununun solunda çiz, `OnFingerDown`'da HitPlayerMenu'den
+  önce test et → `TouchInteractTarget()`.
+
+### 2. 2. karakter oluştururken kilitlenme
+- `UICharacterSelect.cpp` ~198: `btn_start`/`btn_create` → `ProcessOnReturn()` çağırıyor. Bu fonksiyon seçim DEĞİL;
+  `m_bReceivedCharacterSelect` sonrası Main'e geçiş. Yanlış bağlama → düğme ya hiçbir şey yapmaz ya da seçimsiz Main'e atlar.
+  Doğrusu: `s_iChrSelectIndex` = (başlat: dolu yuva, oluştur: boş yuva; önce m_eCurPos'un yuvası) ve
+  `CGameProcedure::s_pProcCharacterSelect->CharacterSelectOrCreate()` (kaplamadaki BASLA/YENI KARAKTER zaten bunu yapıyor, 
+  `KoTouchOverlay.cpp` ~183–204). Yalnız `m_eCurProcess == PROCESS_PRESELECT` iken.
+- Sunucu 4 karaktere izin verir (`bCharIndex > 3` hata), istemci arayüzü 3 yuva. ALLCHAR yanıtı: `u8 1, u8 sonuç, 4×(str16 ad,
+  u8 ırk, u16 sınıf, u8 seviye, u8 yüz, u32 saç, u8 bölge, 8×(u32 eşya,u16 dayanıklılık))` — `ParseAllCharInfo2369` doğru.
+  NEW_CHAR yanıtı `u8 sonuç` (0 başarı). Oluşturma başarılıysa sunucu yeni karaktere `giveGenieHour` saat Genie verir.
+- Kilitlenmenin logunu iste: `WIZ_NEW_CHAR gönderildi`, `WIZ_NEW_CHAR yanıtı`, `ProcActiveSet:` satırları.
+
+### 3. Pot ikonu yok, yalnız sayı
+- Yuvadaki eşya (pot) ikonu `UIHotKeyDlg.cpp` 897/949: `UI\skillicon_{XX}_{N}.dxt` (eşyanın `dwEffectID1` becerisinden).
+  2369'da bu dosya yok → doku yüklenmiyor. Çözüm: dosya yoksa (`KoResolvePath`+stat) `spItem->szIconFN` (eşyanın kendi
+  `UI\ItemIcon_…dxt` ikonu) kullan. `DrawSkillIcons` (kaplama) o zaman çizer. İsteğe bağlı: halkada adet
+  (`m_pUIInventory->GetCountInInvByID(pSkill->dwExhaustItem)`) küçük yazı.
+
+### 4. Karakter seçim sahnesi (orijinal 24xx görünümü)
+- Bulgu: `ChrSelect\el_elmo_chairs.n3shape` / `ka_cave.n3shape` konumu (0,1.69,0); 2369 kamera dosyaları ise dünya
+  koordinatında: `ChrSelect\Data\el_center_left_camera.n3camera` göz (200.22,0.85,132.09) → bakış (184.3,2.31,132.13);
+  sol uç göz (224.05,0.65,120.92) → bakış (220.03,2.31,110.5); sağ (`el_center_right`) göz (224.82,0.66,137.16) →
+  bakış (219.02,2.31,147.53). Karus: merkez göz (128.03,0.53,85.93) → bakış (128.07,4.09,105.85); sol (113.55,1.11,61.0)→(103.11,2.44,65.04);
+  sağ (136.58,1.22,66.65)→(147.89,2.0,71.04). `*_lording_camera` = 6 sn giriş süzülmesi (180 kare). Bu koordinatlar
+  **Zones.tbl 10000 `Zones\elmorad_intro.gtd` / 10001 `Zones\karus_intro.gtd`** bölgesine ait (24xx karakter seçimi bir arazi
+  bölgesidir, n3shape değil). Dosya düzeni (CN3Camera::Load'dan farklı!): `u32 adUz, ad, 3f konum, 4f quat, 3f, 
+  anahtar{i32 sayı, i32 tür(0=Vector3), f32 hız, sayı×3f} ×3 (konum, BAKIŞ, ölçek), 3f at, __CameraData`. Yani 2. anahtar
+  dizisi bakış noktasının animasyonudur; kendi ayrıştırıcını yaz (python ile doğrulandı).
+- Uygulama: `GameProcCharacterSelect::Init` 2369 dalında bölge dosyası varsa `s_pWorldMgr->InitWorld(10000/10001)` +
+  `SetGameTimeWithSky(…,12,0)`; kamera dosyasından göz/bakış; karakterleri kameraların bakış noktasının XZ'sine
+  `GetHeightWithTerrain` yüksekliğiyle koy, kameraya döndür; Render'da `RenderSky/RenderTerrain/RenderShape` sonra karakterler
+  (örnek: `main_sdl.cpp` 623–733 KO_TERRAIN_TEST bloğu, ışık için `CLightMgr`+`LoadZoneLight(pZ->szLightObjFN)`).
+  Sol/sağ geçişte `*_center_left_camera` anahtarlarını oynat (`RotateLeft` yerine). Masaüstü test verisinde
+  `Zones/elmorad_intro.*` (1.298) + 2369 kameralar var → başsız test yapılabilir.
+- **Yerel Claude'dan istenecek dosyalar**: telefondaki `Zones\elmorad_intro.*`, `Zones\karus_intro.*` (gtd/tct/tlt/opd/opdext/gev/ens/glo/gmd),
+  `DTex\*intro*.gtt`, `Misc\Sky\…` ve 2369 `Zones.tbl` 10000/10001 satırlarının dökümü (Log'da `Zones.tbl 101 satır`).
+
+### 5. Eksik eşyalar ("yusuf"a eklenenler görünmüyor)
+- Tablolar tam yükleniyor (Item_Ext_0..23, Log). Eşya ikon/mesh dosyaları `Item\item.src` (613 MB) ve `UI\ui.src` paketlerinden
+  `compat/win32/ko_vfs.cpp` ile çıkarılıyor (`item_cache/`). Görünmeyen eşyalar için iki olasılık: (a) Item_Org/Ext satırı yok
+  (`MyInfo - Inv - Unknown Item <id>` Log satırı), (b) `MakeResrcFileNameForUPC` (`GameBase.cpp` 629–668) ürettiği
+  `UI\ItemIcon_A_BBBB_CC_D.dxt` / `Item\A_BBBB_CC_D.n3cpart|n3cplug` paket dizininde yok.
+- Yapılacak: `KoUiSlots2369.cpp`'ye `KoAuditItem(id, pItem, pItemExt, szIconFN, szResrcFN, yer)` ekle; `GameProcMain.cpp`
+  MYINFO yuva döngüsü (~2278) ve çanta döngüsü (~2370), `MsgRecv_UserLookChange` (~4004) çağırsın; dosya yoksa
+  `EŞYA DENETİMİ: <id> '<ad>' ikon yok: … | mesh yok: …` + özet. `ko_vfs.cpp ExtractFromPack` bulunamayan ada bir kez Log.
+  Sonra yusuf'un eşya kimliklerini yerel Claude Log'dan okuyup eksik tablo satırı/paket girdisini ekler.
+
+### 6. Genie (oto av) — sunucu protokolü (`GameServer/GenieHandler.cpp`, `GameDefine.h` 4616–4645)
+- İstemci→sunucu: `WIZ_GENIE(0x97) | u8 1 | u8 alt`: 2 seçenekleri yükle, 3 kaydet (+100 bayt), **4 başlat, 5 durdur**;
+  `0x97 | u8 2 | u8 (1 hareket, 2 dönüş, 3 saldırı, 4 büyü) | normal paket gövdesi` (sunucu MoveProcess/Rotate/Attack/MagicPacket'e
+  aynen iletir; zorunlu değil, normal paketler de çalışır).
+- Sunucu→istemci: `0x97 | 1 | 2 | 100 bayt` seçenekler; `0x97 | 1 | 4 | u16 1 | u16 saat` başladı; `0x97 | 1 | 5 | u16 1 | u16 saat` durdu;
+  `0x97 | 1 | 6 | u16 saat` kalan süre (dakikada bir, yalnız süre>0 iken); `0x97 | 1 | 7 | u16 oyuncuID | u8 açık` bölgeye yayın.
+  Ayrıca `XSafe(0xE9) | 0xDB | u8 açık`.
+- **DİKKAT**: süre 0 iken ya da `LootandGeniePremium=1` ve premium yokken `4 başlat` gönderilirse sunucu **bağlantıyı keser**
+  ("GENİE HACK … Dc Edildi"). Başlat'ı yalnız `1|6` ile saat>0 geldikten sonra gönder; aksi halde yerel oto av (sunucuya bildirmeden).
+- Sunucu av mantığı yapmaz; Genie istemci tarafı bottur. Önerilen istemci tasarımı (`KoGenie.cpp`, Tick 300 ms):
+  HP% < eşik → `m_pUIHotKeyDlg->DoOperate(m_pMyHotkey[sayfa][PotHpSlot-1])`; hedef yoksa en yakın düşman NPC
+  (`m_NPCs`, `IsHostileTarget`, `IsAlive`, başlangıç noktasına ≤ menzil) → `TargetSelect` + `TryStartAttack()` (uzaksa yürür);
+  menzildeyken etkin yuvaların becerileri `MsgSend_MagicProcess(hedefID, pSkill)` (`GetCooldown<=0`); hedef ölünce
+  `CorpseGetNearstNPC(true, ulus, konum)` → yaklaş → `MsgSend_RequestItemBundleOpen` → açılınca her eşya için
+  `WIZ_ITEM_GET | u32 kutu | u32 eşya | u16 yuva` (`UIDroppedItemDlg.cpp` 480–491). Kaplamada GENIE düğmesi + panel
+  (BAŞLAT/DURDUR, HP%, MP%, menzil, yağma, yuva seçimi); seçenekler `Option.ini [Genie]`.
+- Arayüz: `ui.hdr` paketinde `re_genie.uif` (66936 B) ve `re_genie_sub.uif` var (telefonda `ISTIRAP\re_genie.istirap` da var);
+  `CUIGeneric2369` ile yükleyip `UI ağacı` dökümünü Log'a yazdır, düğme adlarını sonra bağla.
+- `WIZ_GENIE` şu an `GameProcMain.cpp` ~1199'da sessizce yutuluyor; oradan çıkarıp işleyiciye yönlendir.
+
 ## Açık işler (kolaylar — yerel Claude)
 - Metin/etiket düzeltmeleri (kaplama etiketleri ASCII: PARTI, FISILDA…; Türkçe karakterli etiketler için fontta ğ/ş var).
 - Klan sayfası metinleri ("Membe", "LevelClas") kesiliyor: yazı tipi genişliği; `co_page_clan.uif` yerine
