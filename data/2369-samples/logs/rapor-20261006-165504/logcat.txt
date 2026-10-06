@@ -1,0 +1,31 @@
+--------- beginning of crash
+10-05 15:38:04.643 F/libc    (18344): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72eb8d7ee8)
+10-05 15:38:04.643 F/libc    (18344): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72eb8d7ee8)
+10-05 15:38:04.643 F/libc    (18344): Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 20447 (hwuiTask1), pid 18344 (SDLActivity)
+10-05 15:38:04.756 F/libc    (18344): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72d2fba998)
+10-05 15:38:04.760 F/libc    (18344): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72d2fbac18)
+10-05 15:42:50.145 F/libc    (21586): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72eb8d7ee8)
+10-05 15:42:50.145 F/libc    (21586): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72eb8d7ee8)
+10-05 15:42:50.145 F/libc    (21586): Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 24575 (hwuiTask1), pid 21586 (SDLActivity)
+10-05 15:42:50.260 F/libc    (21586): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72d2fba998)
+10-05 15:42:50.261 F/libc    (21586): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72d2fbac18)
+10-05 16:07:53.876 F/libc    (23599): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72eb8d7ee8)
+10-05 16:07:53.876 F/libc    (23599): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72eb8d7ee8)
+10-05 16:07:53.877 F/libc    (23599): Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 24694 (hwuiTask0), pid 23599 (SDLActivity)
+10-05 16:07:54.005 F/libc    (23599): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72d2fba998)
+10-05 16:07:54.005 F/libc    (23599): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72d2fbac18)
+10-05 16:09:28.221 F/libc    (30103): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72eb8d7ee8)
+10-05 16:09:28.222 F/libc    (30103): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72eb8d7ee8)
+10-05 16:09:28.222 F/libc    (30103): Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 32540 (hwuiTask1), pid 30103 (SDLActivity)
+10-05 16:09:28.310 F/libc    (30103): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72d2fba998)
+10-05 16:09:28.310 F/libc    (30103): FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x72d2fbac18)
+--------- beginning of main
+10-06 16:55:02.810 W/AnimatedVectorDrawable(28033): Duration for the animation is too long :2000, the animation will subsample the keyframe or path data.
+10-06 16:55:02.810 W/AnimatedVectorDrawable(28033): Duration for the animation is too long :2000, the animation will subsample the keyframe or path data.
+10-06 16:55:02.810 W/AnimatedVectorDrawable(28033): Duration for the animation is too long :2000, the animation will subsample the keyframe or path data.
+10-06 16:55:02.810 W/AnimatedVectorDrawable(28033): Duration for the animation is too long :2000, the animation will subsample the keyframe or path data.
+10-06 16:55:02.818 W/Choreographer(28033): Already have a pending vsync event.  There should only be one at a time.
+10-06 16:55:02.840 E/ImeBackDispatcher(28033): Ime callback not found. Ignoring unregisterReceivedCallback. callbackId: 184503083
+10-06 16:55:02.849 I/ImeTracker(28033): online.knight.mobile:c05f5b3b: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+10-06 16:55:04.330 I/VRI[LauncherActivity](28033): enqueueInputEvent: event = MotionEvent { action=ACTION_DOWN, actionButton=0, id[0]=0, x[0]=2241.75, y[0]=924.9375, rawx[0]=2358.75, rawy[0]=924.9375, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=257504326, downTime=257504326, deviceId=5, source=0x1002, displayId=0, eventId=57906279 },processImmediately = true,mProcessInputEventsScheduled = false,bufferedMoveCount = 0
+10-06 16:55:04.417 I/VRI[LauncherActivity](28033): enqueueInputEvent: event = MotionEvent { action=ACTION_UP, actionButton=0, id[0]=0, x[0]=2241.75, y[0]=924.9375, rawx[0]=2358.75, rawy[0]=924.9375, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=257504415, downTime=257504326, deviceId=5, source=0x1002, displayId=0, eventId=219802098 },processImmediately = true,mProcessInputEventsScheduled = false,bufferedMoveCount = 0
