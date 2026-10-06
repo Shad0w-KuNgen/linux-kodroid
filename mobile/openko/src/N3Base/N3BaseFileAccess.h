@@ -71,6 +71,10 @@ public:
 	virtual bool LoadSupportedVersions(File& file);
 	virtual bool Load(File& file);                            // 핸들에서 읽어오기..
 
+	// 2369 (ISTIRAP) harita dosyaları: başlık [int32 adUzunluk][ad: tablo akış XOR'u ile şifreli][int32 sürüm]
+	// (1264: [sürüm][adUzunluk][ad]). Uzunluk 1..30 ve sürüm 0..2 değilse false (dosya 2369 değil).
+	static bool ReadHeader2369(File& file, std::string& szName, int& iVersion);
+
 	virtual bool SaveToFile();                                // 현재 파일 이름대로 저장.
 	virtual bool SaveToFile(const std::string& szFileName);   // 새이름으로 저장.
 	virtual bool Save(File& file);                            // 핸들을 통해 저장..

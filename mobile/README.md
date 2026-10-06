@@ -221,6 +221,16 @@ ya da klasördeki herhangi bir `*.hdr/*.src` çifti) VFS aynı dizin biçimiyle 
 çıkarır (`ko_vfs_test` sentetik item paketi). `re_charactercreate.uif`'te `area_character` olmadığından
 önizleme dikdörtgeni varsayılan olarak orta panel ile sınıf sütunu arasına (%62–80 × %12–86) konur.
 
+**2369 harita dosyaları (GTD/OPD):** ISTIRAP istemcisinde `Zones\*.gtd` ve `*.opd/.opdext` başlığı
+`[int32 adUzunluk][ad: tablo akış XOR'u 0x0816/0x6081/0x1608][int32 sürüm]` (1264: `[sürüm][adUzunluk][ad]`);
+gövde 1264 ile aynı, GTD'de çim özniteliğinden sonra 4096 baytlık ek blok var. `CN3Terrain` ve `CN3ShapeMgr`
+önce 1264, sonra 2369 başlığı (`CN3BaseFileAccess::ReadHeader2369`), sonra 1098 dener. 2369'da nehir/havuz
+bölümü henüz çözülmedi: 1264 düzeni denenir, uymazsa su atlanır ve ilk 96 bayt Log.txt'ye dökülür
+(`CN3Terrain: su verisi dökümü`); nesne kayıtlarından biri uymazsa kalanlar atlanır. Zemin yüklenemezse
+`Tick/Render` erken döner (v146: `SetLODLevel` SIGSEGV). 2369 `Zones.tbl` 28 sütun: 8. sütun geliştirici
+yolu (`d:\mgame\zone\…dxt`), mini harita ve gökyüzü bir kaydırılır (`KoTableSchemas` elle eşleme).
+`InitZone` bölge dosya adlarını, `CN3Chr::PartSet` bozuk (yazdırılamayan) parça adlarını günlükler.
+
 **Ses:** istemciyle gelen `Option.ini` `[Sound] Bgm=0 Effect=0` olduğundan `s_SndMgr.Init()` hiç çağrılmıyor,
 OpenAL bağlamı olmadan `alListener*` her kare A004 (`AL_INVALID_OPERATION`) üretiyordu. Dinleyici çağrıları
 ses kapalıyken atlanır; telefonda ilk açılışta (`[Mobile] SoundInit` yoksa) ses açılıp Option.ini'ye yazılır,

@@ -87,12 +87,16 @@ bool CN3ShapeMgr::LoadSupportedVersions(File& file)
 	// Fetch current offset, so we can rewind and try reading the file again.
 	const int64_t originalOffset = static_cast<int64_t>(file.Offset());
 
-	// Try supported file format versions, starting with our preferred version:
-	constexpr int SupportedVersions[] { N3FORMAT_VER_1264, N3FORMAT_VER_1098 };
-	for (int iFileFormatVersion : SupportedVersions)
+	// Try supported file format versions, starting with our preferred version
+	// (2369: 1264 gövdesi + farklı başlık; 2. deneme)
+	struct Attempt { int iFormat; bool b2369; };
+	constexpr Attempt Attempts[] { { N3FORMAT_VER_1264, false }, { N3FORMAT_VER_1264, true }, { N3FORMAT_VER_1098, false } };
+	for (const Attempt& a : Attempts)
 	{
 		// Attempt to load with the provided file format version.
-		m_iFileFormatVersion = iFileFormatVersion;
+		m_iFileFormatVersion = a.iFormat;
+		m_bHeader2369        = a.b2369;
+		const int iFileFormatVersion = a.b2369 ? 2369 : a.iFormat;
 
 		try
 		{
@@ -139,7 +143,12 @@ bool CN3ShapeMgr::Load(File& file)
 	constexpr int MAX_SUPPORTED_NAME_LENGTH = 30;
 
 	int iVersion                            = 0;
-	if (m_iFileFormatVersion >= N3FORMAT_VER_1264)
+	if (m_bHeader2369)
+	{
+		if (!ReadHeader2369(file, m_szName, iVersion))
+			throw std::runtime_error("CN3ShapeMgr: not a 2369 header");
+	}
+	else if (m_iFileFormatVersion >= N3FORMAT_VER_1264)
 	{
 		file.Read(&iVersion, sizeof(int));
 
@@ -193,7 +202,25 @@ bool CN3ShapeMgr::Load(File& file)
 			// pShape->m_iNPC_ID; 조종할 Object ID
 			// pShape->m_iNPC_Status; toggle 0, 1
 
-			pShape->Load(file);
+			if (m_bHeader2369)
+			{
+				// 2369: nesne kaydı 1264 düzenine uymazsa kalan nesneler atlanır, zemin ve yüklenenler kalır
+				try
+				{
+					pShape->Load(file);
+				}
+				catch (const std::runtime_error& ex)
+				{
+#ifdef _N3GAME
+					CLogWriter::Write("CN3ShapeMgr: 2369 nesne {}/{} yüklenemedi ({}), kalan nesneler atlandı", i, iSC, ex.what());
+#endif
+					m_Shapes.pop_back();
+					delete pShape;
+					break;
+				}
+			}
+			else
+				pShape->Load(file);
 
 			//  ID 가 있는 오브젝트 ... NPC 로 쓸수 있다..
 			if (pShape->m_iEventID != 0)

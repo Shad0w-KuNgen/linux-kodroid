@@ -312,9 +312,11 @@ bool CN3Terrain::LoadSupportedVersions(File& file)
 	// Fetch current offset, so we can rewind and try reading the file again.
 	const int64_t originalOffset = static_cast<int64_t>(file.Offset());
 
-	// Try supported file format versions, starting with our preferred version:
-	constexpr int SupportedVersions[] { N3FORMAT_VER_1264, N3FORMAT_VER_1098 };
-	for (int iFileFormatVersion : SupportedVersions)
+	// Try supported file format versions, starting with our preferred version
+	// (2369: 1264 gövdesi + farklı başlık; 2. deneme)
+	struct Attempt { int iFormat; bool b2369; };
+	constexpr Attempt Attempts[] { { N3FORMAT_VER_1264, false }, { N3FORMAT_VER_1264, true }, { N3FORMAT_VER_1098, false } };
+	for (const Attempt& a : Attempts)
 	{
 		Init();
 
@@ -322,7 +324,9 @@ bool CN3Terrain::LoadSupportedVersions(File& file)
 		m_szFileName         = szFNBackup;
 
 		// Attempt to load with the provided file format version.
-		m_iFileFormatVersion = iFileFormatVersion;
+		m_iFileFormatVersion = a.iFormat;
+		m_bHeader2369        = a.b2369;
+		const int iFileFormatVersion = a.b2369 ? 2369 : a.iFormat;
 
 		try
 		{
@@ -352,7 +356,12 @@ bool CN3Terrain::Load(File& file)
 
 	int iVersion                            = 0;
 
-	if (m_iFileFormatVersion >= N3FORMAT_VER_1264)
+	if (m_bHeader2369)
+	{
+		if (!ReadHeader2369(file, m_szName, iVersion))
+			throw std::runtime_error("CN3Terrain: not a 2369 header");
+	}
+	else if (m_iFileFormatVersion >= N3FORMAT_VER_1264)
 	{
 		file.Read(&iVersion, sizeof(int));
 
@@ -434,6 +443,10 @@ bool CN3Terrain::Load(File& file)
 	// Grass attributes
 	file.Seek(sizeof(uint8_t) * m_ti_MapSize * m_ti_MapSize, SEEK_CUR);
 
+	// 2369: çim özniteliğinden sonra 4096 baytlık ek blok (moradon.gtd'de sıfır)
+	if (m_bHeader2369)
+		file.Seek(4096, SEEK_CUR);
+
 	// Grass filename
 	file.Seek(MAX_PATH, SEEK_CUR);
 
@@ -443,17 +456,57 @@ bool CN3Terrain::Load(File& file)
 	if (pUILoading != nullptr)
 		pUILoading->Render("Loading Lightmap Data...", 0);
 
-	int NumLightMap = 0;
+	const int64_t iAfterTiles = static_cast<int64_t>(file.Offset());
+	int NumLightMap           = 0;
 	file.Read(&NumLightMap, sizeof(int));
 
 	if (NumLightMap != 0)
-		throw std::runtime_error("CN3Terrain: unexpected lightmap count; this is deprecated");
+	{
+		if (!m_bHeader2369)
+			throw std::runtime_error("CN3Terrain: unexpected lightmap count; this is deprecated");
+		CLogWriter::Write("CN3Terrain: 2369 lightmap sayısı {} (beklenmedik), su verisi atlanıyor", NumLightMap);
+		return true;
+	}
 
 	if (pUILoading != nullptr)
 		pUILoading->Render("Loading River Data...", 0);
 
-	m_pRiver->Load(file); // 맵데이터 올때까지만 잠시만 막자..2002.11.15
-	m_pPond->Load(file, iVersion);
+	if (m_bHeader2369)
+	{
+		// 2369 nehir/havuz bölümü henüz tam çözülmedi: 1264 düzenini dene, uymazsa zemin susuz kalır
+		// (yürümeyi engellemez); çözüm için ilk 96 bayt Log.txt'ye dökülür.
+		const int64_t iWaterOffset = static_cast<int64_t>(file.Offset());
+		try
+		{
+			m_pRiver->Load(file);
+			m_pPond->Load(file, iVersion);
+		}
+		catch (const std::runtime_error& ex)
+		{
+			CLogWriter::Write("CN3Terrain: 2369 su verisi (ofset {}) 1264 düzenine uymadı: {} — nehir/havuz atlandı", iWaterOffset,
+				ex.what());
+			m_pRiver->Release();
+			m_pPond->Release();
+			file.Seek(iWaterOffset, SEEK_SET);
+			uint8_t by[96] {};
+			size_t n = 0;
+			for (; n < sizeof(by); n++)
+			{
+				size_t rd = 0;
+				if (!file.Read(&by[n], 1, &rd) || rd != 1)
+					break;
+			}
+			std::string szHex;
+			for (size_t i = 0; i < n; i++)
+				szHex += fmt::format("{:02x}{}", by[i], (i % 16 == 15) ? " | " : " ");
+			CLogWriter::Write("CN3Terrain: su verisi dökümü (döşeme sonu ofset {}): {}", iAfterTiles, szHex);
+		}
+	}
+	else
+	{
+		m_pRiver->Load(file); // 맵데이터 올때까지만 잠시만 막자..2002.11.15
+		m_pPond->Load(file, iVersion);
+	}
 
 	if (pUILoading != nullptr)
 		pUILoading->Render("", 100);
@@ -705,6 +758,9 @@ void CN3Terrain::SetBlunt()
 //
 void CN3Terrain::Tick()
 {
+	if (m_pMapData == nullptr || m_ti_MapSize <= 0) // zemin yüklenemedi: SetLODLevel/DispositionPatch null veriyle çökerdi
+		return;
+
 	int iLOD           = 0; // LOD 수준 계산.. 나중에 계산식을 바꾸어야 한다.
 	iLOD               = (int) (3.0f * s_CameraData.fFP / 512.0f);
 	bool ChangeLOD     = this->SetLODLevel(iLOD);
@@ -1196,6 +1252,9 @@ bool CN3Terrain::CheckRenderablePatch()
 //
 void CN3Terrain::Render()
 {
+	if (m_pMapData == nullptr || m_ti_MapSize <= 0)
+		return;
+
 	__Matrix44 WorldMtx;
 	WorldMtx.Identity();
 	s_lpD3DDev->SetTransform(D3DTS_WORLD, WorldMtx.toD3D());

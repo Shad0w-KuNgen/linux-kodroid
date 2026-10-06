@@ -42,6 +42,7 @@ public:
 	int m_iDistanceTable[DISTANCE_TABLE_SIZE][DISTANCE_TABLE_SIZE];
 
 	//MapInfo..
+	bool m_bHeader2369 = false; // 2369 GTD: başlık sırası farklı, çim özniteliğinden sonra 4096 bayt ek
 	MAPDATA* m_pMapData;
 	int m_ti_MapSize;  // 셀이 몇개 들어가나.. 4096Meter -> 1024 + 1
 	int m_pat_MapSize; // 패치 갯수.. 사이즈에 따라 틀리다..

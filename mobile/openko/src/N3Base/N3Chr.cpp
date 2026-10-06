@@ -2145,7 +2145,22 @@ CN3CPart* CN3Chr::PartSet(int iIndex, const std::string& szFN)
 	if (szFN.empty())
 		m_Parts[iIndex]->Release();
 	else
+	{
+#ifdef _N3GAME
+		for (char c : szFN)
+		{
+			if ((uint8_t) c < 0x20 || (uint8_t) c >= 0x7F)
+			{
+				std::string szHex;
+				for (char d : szFN)
+					szHex += fmt::format("{:02x} ", (uint8_t) d);
+				CLogWriter::Write("CN3Chr::PartSet: bozuk parça adı (karakter {}, parça {}): [{}]", m_szName, iIndex, szHex);
+				break;
+			}
+		}
+#endif
 		m_Parts[iIndex]->LoadFromFile(szFN);
+	}
 
 	return m_Parts[iIndex];
 }

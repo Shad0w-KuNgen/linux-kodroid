@@ -41,6 +41,32 @@ void CN3BaseFileAccess::FileNameSet(const std::string& szFileName)
 		m_szFileName = szTmpFN;
 }
 
+bool CN3BaseFileAccess::ReadHeader2369(File& file, std::string& szName, int& iVersion)
+{
+	int iNL = -1;
+	file.Read(&iNL, sizeof(int));
+	if (iNL <= 0 || iNL > 30)
+		return false;
+	std::string sz(iNL, '\0');
+	file.Read(&sz[0], iNL);
+	// Tablo düzenleyicinin klasik akış XOR'u (0x0816 / 0x6081 / 0x1608)
+	uint16_t key_r = 0x0816;
+	for (int i = 0; i < iNL; i++)
+	{
+		uint8_t by = (uint8_t) sz[i];
+		sz[i]      = (char) (by ^ (key_r >> 8));
+		key_r      = (uint16_t) ((by + key_r) * 0x6081 + 0x1608);
+		if ((uint8_t) sz[i] < 0x20 || (uint8_t) sz[i] >= 0x7F)
+			return false;
+	}
+	iVersion = -1;
+	file.Read(&iVersion, sizeof(int));
+	if (iVersion < 0 || iVersion > 2)
+		return false;
+	szName = sz;
+	return true;
+}
+
 bool CN3BaseFileAccess::LoadSupportedVersions(File& file)
 {
 	return Load(file);

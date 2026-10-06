@@ -4687,6 +4687,9 @@ void CGameProcMain::InitZone(int iZone, const __Vector3& vPosPlayer)
 			return;
 		}
 
+		CLogWriter::Write("InitZone: bölge {} dosyaları: zemin={} nesne={} nesneEk={} miniHarita={} gökyüzü={} ışık={}", iZone,
+			pZoneData->szTerrainFN, pZoneData->szObjectPostDataFN, pZoneData->szOpdExtFN, pZoneData->szMiniMapFN,
+			pZoneData->szSkySetting, pZoneData->szLightObjFN);
 		s_pOPMgr->Release(); // 다른 넘들 다 날린다..
 		s_pWorldMgr->InitWorld(iZone);
 

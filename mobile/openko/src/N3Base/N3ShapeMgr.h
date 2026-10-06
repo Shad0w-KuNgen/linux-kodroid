@@ -141,6 +141,7 @@ protected:
 #endif // end of #ifndef _3DSERVER
 
 	// 맵 너비.. 미터 단위
+	bool m_bHeader2369                                 = false; // 2369 OPD/OPDEXT: [adUzunluk][XOR ad][sürüm] başlığı
 	float m_fMapWidth                                  = 0.0f;
 
 	// 맵 길이.. 미터 단위
