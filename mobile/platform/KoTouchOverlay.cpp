@@ -254,7 +254,7 @@ void KoTouchOverlay::Layout(int w, int h)
 		const struct { int dik; const char* label; } bar[] = {
 			{KM_TOGGLE_INVENTORY, "CANTA"}, {KM_TOGGLE_STATE, "KARAKTER"}, {KM_TOGGLE_SKILL, "BECERI"},
 			{KM_TOGGLE_SITDOWN, "OTUR"}, {KM_TOGGLE_MINIMAP, "HARITA"}, {KM_DROPPED_ITEM_OPEN, "AL"},
-			{DIK_RETURN, "SOHBET"}, {KM_TOGGLE_CMDLIST, "MENU"}, {KM_TOGGLE_HELP, "YARDIM"}, {DIK_ESCAPE, "KAPAT"}};
+			{DIK_RETURN, "SOHBET"}, {KM_TOGGLE_PUS, "PUS"}, {KM_TOGGLE_CMDLIST, "MENU"}, {KM_TOGGLE_HELP, "YARDIM"}, {DIK_ESCAPE, "KAPAT"}};
 		int n = (int) (sizeof(bar) / sizeof(bar[0]));
 		float bgap = 6.0f * u;
 		float bw   = std::min(110.0f * u, (w - 16.0f * u - (n - 1) * bgap) / n);
@@ -314,6 +314,7 @@ void KoTouchOverlay::Layout(int w, int h)
 		const float tr = r * 0.8f, step = tr * 2.0f + gap;
 		const float cx = w - gap - tr;
 		float cy       = atkCy - atkR - gap - tr;
+		CGameProcedure::s_iTouchInsetRight = (int) (w - (cx - tr) + gap); // hedef sütunu: oyun pencereleri bunun soluna
 		circle(Action::Key, KM_TARGET_NEAREST_ENEMY, "HEDEF", cx, cy, tr, COL_TARGET); cy -= step;
 		circle(Action::Key, KM_TARGET_NEAREST_NPC, "NPC", cx, cy, tr, COL_TARGET); cy -= step;
 		circle(Action::Key, KM_TARGET_NEAREST_PARTY, "PARTI", cx, cy, tr, COL_TARGET); cy -= step;
@@ -325,6 +326,8 @@ void KoTouchOverlay::Layout(int w, int h)
 		const float cr = r * 0.8f, step = cr * 2.0f + gap;
 		const float cy = gap + cr + 40.0f * u; // durum çubuğu/mini harita altı
 		float cx       = w - gap - cr;
+		CGameProcedure::s_iTouchInsetTop    = (int) (cy + cr + gap); // kamera düğmelerinin altı
+		CGameProcedure::s_iTouchInsetBottom = (int) barH;
 		circle(Action::Key, KM_CAMERA_CHANGE, "KAM", cx, cy, cr, COL_CAM); cx -= step;
 		circle(Action::Yaw180, 0, "180", cx, cy, cr, COL_CAM); cx -= step;
 		circle(Action::ZoomIn, 0, "+", cx, cy, cr, COL_CAM); cx -= step;
@@ -437,9 +440,10 @@ void KoTouchOverlay::OnFingerDown(int64_t id, int x, int y)
 		{
 			f.role        = Role::Button;
 			f.buttonIndex = b;
-			m_buttons[b].finger = id;
-			m_buttons[b].down   = true;
-			m_buttons[b].fired  = false;
+			m_buttons[b].finger    = id;
+			m_buttons[b].down      = true;
+			m_buttons[b].fired     = false;
+			m_buttons[b].tapQueued = true; // Update() çalışmadan parmak kalksa bile tuş bir kare işlenir
 			m_fingers.push_back(f);
 			return;
 		}
@@ -691,7 +695,9 @@ void KoTouchOverlay::Update()
 	CGameEng* eng = CGameProcedure::s_pEng;
 	for (Button& b : m_buttons)
 	{
-		if (!b.down)
+		bool bPressed = b.down || b.tapQueued;
+		b.tapQueued   = false;
+		if (!bPressed)
 			continue;
 		switch (b.action)
 		{

@@ -328,6 +328,26 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
   kaplamada üst ortada GİZLE/GÖSTER; `JoyRotateSpeed` 220. Hedefe yürüme/çarpışma ve bölge becerisi için günlük satırları.
 - Işınlanma listesi sunucu tarafından süzülür (`GetWarpList`: savaş durumuna göre Ardream/Ronark gizlenir); istemci
   listeyi olduğu gibi gösterir.
+- v162 (v161 geri bildirimi):
+  - **Bot/oyuncu hareketi**: 2369 botları `WIZ_MOVE`'da hızı `float` (4 bayt) yazar (`CBot::MoveProcess`), oyuncular
+    `int16`. İstemci kalan bayta göre ayırır (5 → float); eskiden hız 0 ve bayrak çöp okununca botlar ışınlanıyordu.
+  - **Ölüm bildirimi**: tür 26 `noticeType` ile orijinal kalıplar (`packets.h`: `- %s defeat %s ( %d, %d ) -`,
+    `- %s has been defeated by %s -`, `- %s has avenged %s -`, `- %s slained Vanguard %s -`); Texts_us.tbl'de aynı
+    kalıp bulunursa o kullanılır (Log: `Ölüm bildirimi kalıpları`). Sohbette sarı, bilgi kutusuna da yazılır.
+  - **Eşya alma yanıtı** (`WIZ_ITEM_GET`, BundleSystem.cpp): `u8 sonuç, u32 kutu, i8 yuva, u32 eşya, u16 adet, u32 altın,
+    u16 kutuYuvası` (2: adet yok; 3: `u32 kutu, u32 eşya, str16 ad`; 6/7 ağırlık/yer dolu). Eskiden `u32 kutu`
+    atlanmadığı için eşya kimliği `16777216` gibi okunuyor, kutudaki eşya/para alınamıyordu.
+  - **HUD (re_hpbar.uif)**: `progress_VP`/`Text_VP` tecrübe (`exp / sonraki`), `text_level_id` "Lv.N ad",
+    `burning` çerçevesi ve posta/muhabir simgeleri gizli; UIF örnek metinleri (34/34, 12345/12345) veri gelene dek boş.
+  - **Yerleşim (dokunmatik)**: kısayol çubuğu sağ üste (kamera düğmelerinin altı, hedef sütununun solu), bilgi kutusu
+    sol üste (durum çubuğunun altı); kaplama `CGameProcedure::s_iTouchInset*` değerlerini verir.
+  - **Alt çubuk**: dokunuş aynı karede basıp kalksa da tuş bir kare basılı sayılır (`tapQueued`); yeni **PUS** düğmesi
+    (`P`, `KM_TOGGLE_PUS`) UIs_us.tbl'deki `re_powerupstore.istirap` dosyasını genel pencere (`CUIGeneric2369`) olarak
+    açar/kapatır (kapat/çıkış düğmeleri çalışır; satın alma sunucuya bağlı değil).
+  - **Kutu penceresi**: `DROP_ITEM` alanı yoksa pencere içindeki alanlar satır/sütun sırasına göre yuva olur; yoksa ağaç günlüğe.
+  - **Yazı tipi çökmesi** (`CDFont::DrawText` SIGSEGV 0x58): köşe tamponu denetimi üçgen sayısını köşe sayısıyla
+    kıyaslıyordu (300 üçgen > 300 köşe → tampon taşması); düzeltildi. Ayrıca doku yokken çizim yok, aygıt
+    sıfırlamada yedek yüz ve ilkel sayısı sıfırlanır, glif/yüz boşsa atlanır.
 
 ### Oyun verisini telefona kurma
 

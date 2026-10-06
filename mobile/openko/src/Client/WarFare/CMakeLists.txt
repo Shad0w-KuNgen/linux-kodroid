@@ -150,6 +150,8 @@ set(WARFARE_SCENE_INGAME_UI_SOURCES
   UIWareHouseDlg.h
   UIWarp.cpp
   UIWarp.h
+  UIGeneric2369.cpp
+  UIGeneric2369.h
 )
 
 set(WARFARE_NETWORK_SOURCES

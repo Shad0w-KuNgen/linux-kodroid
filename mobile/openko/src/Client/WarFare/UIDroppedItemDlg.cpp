@@ -3,6 +3,9 @@
 //////////////////////////////////////////////////////////////////////
 #include "StdAfx.h"
 #include "UIDroppedItemDlg.h"
+#include <functional>
+#include <algorithm>
+#include <vector>
 #include "KoProtocol.h"
 #include "PacketDef.h"
 #include "LocalInput.h"
@@ -143,13 +146,57 @@ void CUIDroppedItemDlg::InitIconUpdate()
 			m_pMyDroppedItem[i]->pUIIcon->SetStyle(UISTYLE_ICON_ITEM | UISTYLE_ICON_CERTIFICATION_NEED);
 
 			CN3UIArea* pArea = GetChildAreaByiOrder(UI_AREA_TYPE_DROP_ITEM, i);
+			if (pArea == nullptr)
+				pArea = FallbackSlotArea2369(i);
 			if (pArea != nullptr)
 			{
 				m_pMyDroppedItem[i]->pUIIcon->SetRegion(pArea->GetRegion());
 				m_pMyDroppedItem[i]->pUIIcon->SetMoveRect(pArea->GetRegion());
 			}
+			else
+			{
+				static bool s_bLogged = false;
+				if (!s_bLogged)
+				{
+					s_bLogged = true;
+					CLogWriter::Write("Kutu penceresi: yuva alanı {} yok (DROP_ITEM alanı bulunamadı); ağaç: {}", i, DumpTreeForLog());
+				}
+			}
 		}
 	}
+}
+
+// 2369 re_DroppedItem.uif: yuvalar "0".."5" kimlikli DROP_ITEM alanı olmayabilir; tüm alanları (derin) satır/sütun
+// sırasına dizip i. alanı kullan.
+CN3UIArea* CUIDroppedItemDlg::FallbackSlotArea2369(int iOrder)
+{
+	std::vector<CN3UIArea*> areas;
+	std::function<void(CN3UIBase*)> walk = [&](CN3UIBase* p) {
+		for (CN3UIBase* c : p->GetChildren())
+		{
+			if (c == nullptr)
+				continue;
+			if (c->UIType() == UI_TYPE_AREA)
+				areas.push_back(static_cast<CN3UIArea*>(c));
+			walk(c);
+		}
+	};
+	walk(this);
+	// Önce DROP_ITEM türündekiler; yoksa herhangi bir alan
+	std::vector<CN3UIArea*> typed;
+	for (CN3UIArea* a : areas)
+		if (a->m_eAreaType == UI_AREA_TYPE_DROP_ITEM)
+			typed.push_back(a);
+	std::vector<CN3UIArea*>& use = typed.empty() ? areas : typed;
+	std::stable_sort(use.begin(), use.end(), [](CN3UIArea* a, CN3UIArea* b) {
+		RECT ra = a->GetRegion(), rb = b->GetRegion();
+		if (std::abs(ra.top - rb.top) > 8)
+			return ra.top < rb.top;
+		return ra.left < rb.left;
+	});
+	if (iOrder < 0 || iOrder >= (int) use.size())
+		return nullptr;
+	return use[iOrder];
 }
 
 __IconItemSkill* CUIDroppedItemDlg::GetHighlightIconItem(CN3UIIcon* pUIIcon)

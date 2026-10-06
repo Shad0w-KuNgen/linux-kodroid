@@ -144,7 +144,17 @@ bool CUIStateBar::Load(File& file)
 	N3_VERIFY_UI_COMPONENT(m_pProgress_HP, GetChildByID<CN3UIProgress>("Progress_HP"));
 	N3_VERIFY_UI_COMPONENT(m_pProgress_MSP, GetChildByID<CN3UIProgress>("Progress_MSP"));
 	N3_VERIFY_UI_COMPONENT(m_pProgress_ExpC, GetChildByID<CN3UIProgress>("Progress_ExpC"));
-	N3_VERIFY_UI_COMPONENT(m_pProgress_ExpP, GetChildByID<CN3UIProgress>("Progress_ExpP"));
+	// 2369 re_hpbar.uif: tecrübe çubuğu "progress_VP", metni "Text_VP"; seviye+ad "text_level_id"; "burning" çerçevesi kullanılmıyor
+	CN3UIProgress* pExpP = GetChildByID<CN3UIProgress>("Progress_ExpP");
+	if (pExpP == nullptr)
+		pExpP = GetChildByID<CN3UIProgress>("progress_VP");
+	N3_VERIFY_UI_COMPONENT(m_pProgress_ExpP, pExpP);
+	m_pText_LevelID = GetChildByID<CN3UIString>("text_level_id");
+	if (m_pText_LevelID)
+		m_pText_LevelID->SetString("");
+	for (const char* szHide : {"base_burning_frame", "Text_burning", "img_Reporter", "img_mail_on", "img_mail_normal"})
+		if (CN3UIBase* pHide = GetChildByID(szHide))
+			pHide->SetVisible(false);
 
 	if (m_pProgress_HP)
 		m_pProgress_HP->SetRange(0, 100);
@@ -181,7 +191,16 @@ bool CUIStateBar::Load(File& file)
 	// NOTE: new components to display the text
 	N3_VERIFY_UI_COMPONENT(m_pText_HP, GetChildByID<CN3UIString>("Text_HP"));
 	N3_VERIFY_UI_COMPONENT(m_pText_MP, GetChildByID<CN3UIString>("Text_MSP"));
-	N3_VERIFY_UI_COMPONENT(m_pText_Exp, GetChildByID<CN3UIString>("Text_ExpP"));
+	CN3UIString* pTextExp = GetChildByID<CN3UIString>("Text_ExpP");
+	if (pTextExp == nullptr)
+	{
+		pTextExp = GetChildByID<CN3UIString>("Text_VP");
+		m_bExpAsCount2369 = (pTextExp != nullptr);
+	}
+	N3_VERIFY_UI_COMPONENT(m_pText_Exp, pTextExp);
+	for (CN3UIString* pSample : {m_pText_HP, m_pText_MP, m_pText_Exp})
+		if (pSample)
+			pSample->SetString(""); // UIF'deki örnek metinler (34/34, 12345/12345) veri gelene kadar görünmesin
 
 	CN3UIString* m_pText_SysTime = GetChildByID<CN3UIString>("SystemTime");
 	if (m_pText_SysTime)
@@ -256,8 +275,15 @@ void CUIStateBar::UpdateExp(int64_t iExp, int64_t iExpNext, bool bUpdateImmediat
 
 	double iPercentage2 = 100.0 * ((double) iExp / (double) iExpNext);
 
-	std::string buff    = fmt::format("{:.2f} %", iPercentage2);
+	std::string buff    = m_bExpAsCount2369 ? fmt::format("{} / {}", iExp, iExpNext) : fmt::format("{:.2f} %", iPercentage2);
 	m_pText_Exp->SetString(buff);
+}
+
+void CUIStateBar::UpdateLevelAndID(int iLevel, const std::string& szID)
+{
+	if (m_pText_LevelID == nullptr)
+		return;
+	m_pText_LevelID->SetString(fmt::format("Lv.{} {}", iLevel, szID));
 }
 
 void CUIStateBar::UpdateMSP(int iMSP, int iMSPMax, bool bUpdateImmediately)

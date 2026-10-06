@@ -30,6 +30,8 @@ struct __TABLE_UPC_SKILL;
 class CUIStateBar : public CN3UIBase
 {
 protected:
+	CN3UIString* m_pText_LevelID = nullptr; // 2369 re_hpbar: "Lv.N ad"
+	bool m_bExpAsCount2369       = false;   // 2369: tecrübe metni "exp / sonraki" (Text_VP)
 	CN3UIString* m_pText_HP;
 	CN3UIString* m_pText_MP;
 	CN3UIString* m_pText_Exp;
@@ -84,6 +86,7 @@ public:
 	void UpdateExp(int64_t iExp, int64_t iExpNext, bool bUpdateImmediately);
 	void UpdateMSP(int iMSP, int iMSPMax, bool bUpdateImmediately);
 	void UpdateHP(int iHP, int iHPMax, bool bUpdateImmediately);
+	void UpdateLevelAndID(int iLevel, const std::string& szID); // 2369 re_hpbar: text_level_id
 
 	void UpdatePosition(const __Vector3& vPos, float fYaw);
 

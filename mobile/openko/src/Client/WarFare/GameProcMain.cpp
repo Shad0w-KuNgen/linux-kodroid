@@ -47,6 +47,8 @@
 #include "UIWareHouseDlg.h"
 #include "UINPCChangeEvent.h"
 #include "UIWarp.h"
+#include "UIGeneric2369.h"
+#include "KoUiSlots2369.h"
 #include "UIInn.h"
 #include "UICreateClanName.h"
 #include "UITradeSellBBS.h"
@@ -135,6 +137,7 @@ CGameProcMain::CGameProcMain()     // r기본 생성자.. 각 변수의 역활�
 	m_pUIWareHouseDlg       = new CUIWareHouseDlg();
 	m_pUINpcChange          = new CUINPCChangeEvent();
 	m_pUIWarp               = new CUIWarp();
+	m_pUIPowerUpStore       = new CUIGeneric2369();
 	m_pUIInn                = new CUIInn();
 	m_pUICreateClanName     = new CUICreateClanName();
 	m_pUITradeBBS           = new CUITradeSellBBS();
@@ -186,6 +189,7 @@ CGameProcMain::~CGameProcMain()
 	delete m_pUIWareHouseDlg;
 	delete m_pUINpcChange;
 	delete m_pUIWarp;
+	delete m_pUIPowerUpStore;
 	delete m_pUIInn;
 	delete m_pUICreateClanName;
 	delete m_pUITradeBBS;
@@ -246,6 +250,7 @@ void CGameProcMain::ReleaseUIs()
 	m_pUIWareHouseDlg->Release();
 	m_pUINpcChange->Release();
 	m_pUIWarp->Release();
+	m_pUIPowerUpStore->Release();
 	m_pUIInn->Release();
 	m_pUICreateClanName->Release();
 	m_pUIUpgradeSelect->Release();
@@ -1466,6 +1471,14 @@ void CGameProcMain::ProcessLocalInput(uint32_t dwMouseFlags)
 		if (s_pLocalInput->IsKeyPress(KM_TOGGLE_MINIMAP))
 			CommandToggleUIMiniMap();
 
+		if (s_pLocalInput->IsKeyPress(KM_TOGGLE_PUS) && m_pUIPowerUpStore != nullptr && KoProto::Is2369())
+		{
+			if (m_pUIPowerUpStore->GetChildren().empty())
+				MsgOutput("PUS penceresi bu veri setinde yok (re_powerupstore.istirap)", 0xffff9b9b);
+			else
+				m_pUIPowerUpStore->Toggle();
+		}
+
 		if (m_pUIHotKeyDlg != nullptr)
 		{
 			if (s_pLocalInput->IsKeyPress(DIK_PRIOR))
@@ -2217,6 +2230,7 @@ bool CGameProcMain::MsgRecv_MyInfo_All(Packet& pkt)
 	m_pUIStateBarAndMiniMap->UpdateExp(s_pPlayer->m_InfoExt.iExp, s_pPlayer->m_InfoExt.iExpNext, true);
 	m_pUIStateBarAndMiniMap->UpdateHP(s_pPlayer->m_InfoBase.iHP, s_pPlayer->m_InfoBase.iHPMax, true);
 	m_pUIStateBarAndMiniMap->UpdateMSP(s_pPlayer->m_InfoExt.iMSP, s_pPlayer->m_InfoExt.iMSPMax, true);
+	m_pUIStateBarAndMiniMap->UpdateLevelAndID(s_pPlayer->m_InfoBase.iLevel, s_pPlayer->IDString());
 
 	m_pUIPartyOrForce->MemberInfoReInit(); // 파티 창.. 갱신..
 
@@ -2409,6 +2423,60 @@ bool CGameProcMain::MsgRecv_MyInfo_All(Packet& pkt)
 	return true;
 }
 
+// 2369 ölüm bildirimi metni: önce Texts tablosunda orijinal kalıp aranır ("defeat", "defeated by", "avenged", "Vanguard"),
+// bulunamazsa sunucu kaynağındaki (packets.h) İngilizce kalıp kullanılır.
+static std::string KoDeathNoticeFormat(uint8_t byType, const std::string& szKiller, const std::string& szVictim, int iX, int iZ)
+{
+	static std::string s_szTbl[4];
+	static bool s_bSearched = false;
+	if (!s_bSearched)
+	{
+		s_bSearched = true;
+		for (const auto& kv : CGameBase::s_pTbl_Texts.GetMap())
+		{
+			const std::string& t = kv.second.szText;
+			if (t.find("%s") == std::string::npos)
+				continue;
+			if (s_szTbl[0].empty() && t.find("defeat ") != std::string::npos && t.find("%d") != std::string::npos)
+				s_szTbl[0] = t;
+			else if (s_szTbl[1].empty() && t.find("defeated by") != std::string::npos)
+				s_szTbl[1] = t;
+			else if (s_szTbl[2].empty() && t.find("avenged") != std::string::npos)
+				s_szTbl[2] = t;
+			else if (s_szTbl[3].empty() && t.find("Vanguard") != std::string::npos)
+				s_szTbl[3] = t;
+		}
+		CLogWriter::Write("Ölüm bildirimi kalıpları (Texts): 0 {} | 1 {} | 2 {} | 3 {}", s_szTbl[0].empty() ? "yerleşik" : s_szTbl[0],
+			s_szTbl[1].empty() ? "yerleşik" : s_szTbl[1], s_szTbl[2].empty() ? "yerleşik" : s_szTbl[2], s_szTbl[3].empty() ? "yerleşik" : s_szTbl[3]);
+	}
+	// printf kalıbını iki %s (ve 0 türünde iki %d) ile doldur
+	auto fill = [](std::string fmtStr, const std::string& a, const std::string& b, int x, int z) {
+		std::string out;
+		size_t i = 0;
+		int iS = 0, iD = 0;
+		while (i < fmtStr.size())
+		{
+			if (fmtStr[i] == '%' && i + 1 < fmtStr.size())
+			{
+				char c = fmtStr[i + 1];
+				if (c == 's') { out += (iS++ == 0) ? a : b; i += 2; continue; }
+				if (c == 'd') { out += std::to_string((iD++ == 0) ? x : z); i += 2; continue; }
+				if (c == '%') { out += '%'; i += 2; continue; }
+			}
+			out += fmtStr[i++];
+		}
+		return out;
+	};
+	switch (byType)
+	{
+		case 0: return fill(s_szTbl[0].empty() ? "- %s defeat %s ( %d, %d ) -" : s_szTbl[0], szKiller, szVictim, iX, iZ);
+		case 1: return fill(s_szTbl[1].empty() ? "- %s has been defeated by %s -" : s_szTbl[1], szVictim, szKiller, iX, iZ);
+		case 2: return fill(s_szTbl[2].empty() ? "- %s has avenged %s -" : s_szTbl[2], szKiller, szVictim, iX, iZ);
+		case 3: return fill(s_szTbl[3].empty() ? "- %s slained Vanguard %s -" : s_szTbl[3], szKiller, szVictim, iX, iZ);
+		default: return fill("- %s defeat %s -", szKiller, szVictim, iX, iZ);
+	}
+}
+
 bool CGameProcMain::MsgRecv_Chat(Packet& pkt)
 {
 	std::string szChat;                                  // 버퍼..
@@ -2439,13 +2507,23 @@ bool CGameProcMain::MsgRecv_Chat(Packet& pkt)
 				}
 				return true;
 			}
-			if (m_pUIChatDlg != nullptr && !szKiller.empty() && !szVictim.empty())
+			int iPosX = 0, iPosZ = 0;
+			if (pkt.size() >= pkt.rpos() + 4)
 			{
-				// Ekran metni 1254 kod sayfasıdır; kaynaktaki UTF-8 sabit 1254'e çevrilir, ok işareti ASCII "->"
-				std::string szLine = fmt::format("{} -> {}", szKiller, szVictim) + KoTextUtf8To1254(" \xC3\xB6ld\xC3\xBCrd\xC3\xBC"); // " öldürdü"
-				if (byNoticeType != 0)
-					szLine += fmt::format(" ({})", (int) byNoticeType);
-				m_pUIChatDlg->AddChatMsg(N3_CHAT_PUBLIC, szLine, D3DCOLOR_ARGB(255, 255, 128, 96));
+				iPosX = pkt.read<uint16_t>();
+				iPosZ = pkt.read<uint16_t>();
+			}
+			if (!szKiller.empty() && !szVictim.empty())
+			{
+				// Orijinal istemci biçimleri (sunucu packets.h DeathNoticeType açıklamaları):
+				//  0 "- %s defeat %s ( %d, %d ) -"   1 "- %s has been defeated by %s -"
+				//  2 "- %s has avenged %s -"         3 "- %s slained Vanguard %s -"
+				// Texts_us.tbl'de aynı kalıp varsa o kullanılır (KoDeathNoticeFormat), yoksa yerleşik İngilizce kalıp.
+				std::string szLine = KoDeathNoticeFormat(byNoticeType, szKiller, szVictim, iPosX, iPosZ);
+				if (m_pUIChatDlg != nullptr)
+					m_pUIChatDlg->AddChatMsg(N3_CHAT_PUBLIC, szLine, D3DCOLOR_ARGB(255, 255, 255, 0)); // sohbet: sarı
+				if (byNoticeType != 1)
+					MsgOutput(szLine, D3DCOLOR_ARGB(255, 255, 255, 0)); // bilgi kutusu (orijinalde ekranın üstünde kayar yazı)
 			}
 			return true;
 		}
@@ -2594,8 +2672,18 @@ bool CGameProcMain::MsgRecv_UserMove(Packet& pkt)
 	float fX           = (pkt.read<uint16_t>()) / 10.0f; // 출발하거나 이동중일때에는 다음 위치. 정지할때는 현재 위치를 받는다.
 	float fZ           = (pkt.read<uint16_t>()) / 10.0f;
 	float fY           = (pkt.read<int16_t>()) / 10.0f;
-	float fSpeed       = (pkt.read<int16_t>()) / 10.0f;  // 출발하거나 이동중일때에는 움직이는 속도. 정지할때는 0 이 온다.
+	float fSpeed       = 0.0f;
+	if (KoProto::Is2369() && pkt.size() >= pkt.rpos() + 5)
+	{
+		// 2369 botları (CBot::MoveProcess / MoveRegionProcess) hızı float (4 bayt) yazar; oyuncular int16.
+		// int16 okununca hız 0 ve bayrak çöp çıkıyordu → botlar ışınlanır gibi görünüyordu.
+		fSpeed = pkt.read<float>() / 10.0f;
+	}
+	else
+		fSpeed = (pkt.read<int16_t>()) / 10.0f;  // 출발하거나 이동중일때에는 움직이는 속도. 정지할때는 0 이 온다.
 	uint8_t byMoveFlag = pkt.read<uint8_t>();            // 움직이는 플래그.. 0 정지 1 출발, 2 계속 움직임
+	if (byMoveFlag > 2 && byMoveFlag != 0xff)
+		byMoveFlag = 2; // bilinmeyen bayrak: sürekli hareket say
 
 	// 함수가 와야 할 부분.. ^^
 	// 아이디, 플레이어 상태 1, 플레이어 상태 2, 현재 xzy 위치, 현재 xzy 방향, 1초뒤 x, z, y dnlcl..
@@ -4133,6 +4221,7 @@ bool CGameProcMain::MsgRecv_MyInfo_LevelChange(Packet& pkt)
 		m_pUIStateBarAndMiniMap->UpdateExp(pInfoExt->iExp, pInfoExt->iExpNext, true);
 		m_pUIStateBarAndMiniMap->UpdateHP(pInfoBase->iHP, pInfoBase->iHPMax, false);
 		m_pUIStateBarAndMiniMap->UpdateMSP(pInfoExt->iMSP, pInfoExt->iMSPMax, false);
+		m_pUIStateBarAndMiniMap->UpdateLevelAndID(iLevel, s_pPlayer->IDString());
 
 		m_pUISkillTreeDlg->m_iSkillInfo[0] = bExtraSkillPoint;
 		m_pUISkillTreeDlg->InitIconUpdate(); // 레벨이 변화되었으므로 .. 스킬도 추가될 수 있다..
@@ -4322,6 +4411,13 @@ void CGameProcMain::InitUI()
 	// 채팅창과 메시지 창 위치 맞추기..
 	m_pUIChatDlg->MoveOffset(0, -1);
 	m_pUIMsgDlg->MoveOffset(0, -1);
+	if (KoProto::Is2369() && s_bTouchControls)
+	{
+		// Dokunmatik: bilgi kutusu sohbetin sağında kaplama düğmeleriyle (HP/MP, 1-8) çakışıyordu; sol üste, durum çubuğunun altına
+		RECT rcMsg = m_pUIMsgDlg->GetRegion();
+		int iTop   = s_iTouchInsetTop > 0 ? s_iTouchInsetTop : iH / 6;
+		m_pUIMsgDlg->SetPos(0, std::min(iH - (rcMsg.bottom - rcMsg.top), iTop + 4));
+	}
 
 	m_pUIStateBarAndMiniMap->Init(s_pUIMgr);
 	m_pUIStateBarAndMiniMap->LoadFromFile(pTbl->szStateBar);
@@ -4425,6 +4521,27 @@ void CGameProcMain::InitUI()
 	m_pUIWarp->SetPos(iX, iY);
 	m_pUIWarp->SetStyle(UISTYLE_USER_MOVE_HIDE | UISTYLE_SHOW_ME_ALONE);
 
+	// 2369 PUS: UIs_us.tbl sütun 115 (re_powerupstore.istirap); P tuşu / kaplamadaki PUS düğmesi açar
+	if (KoProto::Is2369())
+	{
+		m_pUIPowerUpStore->Init(s_pUIMgr);
+		const std::vector<std::string>* pCols = KoUiCapturedColumns((uint32_t) eNation);
+		std::string szPus;
+		if (pCols != nullptr)
+			for (size_t i = 0; i < pCols->size(); i++)
+			{
+				std::string szLow = (*pCols)[i];
+				for (char& c : szLow)
+					c = (char) tolower((unsigned char) c);
+				if (szLow.find("powerupstore") != std::string::npos || szLow.find("power_up_store") != std::string::npos)
+				{
+					szPus = (*pCols)[i];
+					break;
+				}
+			}
+		m_pUIPowerUpStore->LoadCentered(szPus, iW, iH, "PUS");
+	}
+
 	m_pUIRepairTooltip->Init(s_pUIMgr);
 	m_pUIRepairTooltip->LoadFromFile(pTbl->szRepairTooltip);
 	m_pUIRepairTooltip->SetVisibleWithNoSound(false);
@@ -4527,6 +4644,16 @@ void CGameProcMain::InitUI()
 	}
 	m_pUIHotKeyDlg->SetStyle(UISTYLE_HIDE_UNABLE);
 	UIPostData_Read(UI_POST_WND_HOTKEY, m_pUIHotKeyDlg, rc.left, rc.bottom);
+	if (KoProto::Is2369() && s_bTouchControls)
+	{
+		// Dokunmatik: kısayol çubuğu sohbetin üstünden kalkar, sağ üstte (kamera düğmelerinin altı, hedef sütununun solu)
+		RECT rcHK  = m_pUIHotKeyDlg->GetRegion();
+		int iWH    = rcHK.right - rcHK.left, iHH = rcHK.bottom - rcHK.top;
+		int iRight = s_iTouchInsetRight > 0 ? s_iTouchInsetRight : iW / 12;
+		int iTop   = s_iTouchInsetTop > 0 ? s_iTouchInsetTop : iH / 6;
+		m_pUIHotKeyDlg->SetPos(std::max(0, iW - iRight - iWH), std::min(iH - iHH, iTop + 4));
+		CLogWriter::Write("Kısayol çubuğu dokunmatik konumu: ({}, {}) boyut {}x{}", iW - iRight - iWH, iTop + 4, iWH, iHH);
+	}
 	m_pUIHotKeyDlg->SetVisibleWithNoSound(true); // 무조건 보인다!!!
 	m_pUIHotKeyDlg->InitIconWnd(UIWND_HOTKEY);
 	m_pUIHotKeyDlg->SetUIType(UI_TYPE_ICON_MANAGER);
@@ -5352,7 +5479,41 @@ bool CGameProcMain::MsgRecv_ItemDroppedGetResult(Packet& pkt) // 땅에 떨어�
 	std::string szString;
 
 	bResult = pkt.read<uint8_t>();
-	if ((bResult == 0x01) || (bResult == 0x02) || (bResult == 0x05))
+	if (KoProto::Is2369())
+	{
+		// 2369 (BundleSystem.cpp ItemGet): 1/5: u32 kutu, i8 yuva, u32 eşya, u16 adet, u32 altın, u16 kutuYuvası
+		//                                  2:   u32 kutu, i8 -1,   u32 eşya,           u32 altın, u16 kutuYuvası
+		//                                  3:   u32 kutu, u32 eşya, str16 ad, u16 kutuYuvası   (0/4/6/7: yük yok)
+		int iSlot = -1;
+		if (bResult == 0x01 || bResult == 0x02 || bResult == 0x05)
+		{
+			pkt.read<uint32_t>(); // kutu kimliği
+			bPos    = pkt.read<uint8_t>();
+			iItemID = (int) pkt.read<uint32_t>();
+			if (bResult != 0x02)
+				sItemCount = (int16_t) pkt.read<uint16_t>();
+			iGoldID = (int) pkt.read<uint32_t>();
+			if (pkt.size() >= pkt.rpos() + 2)
+				iSlot = pkt.read<uint16_t>();
+		}
+		else if (bResult == 0x03)
+		{
+			pkt.read<uint32_t>();
+			iItemID = (int) pkt.read<uint32_t>();
+			iStrLen = (int) pkt.read<int16_t>();
+			pkt.readString(szString, iStrLen);
+		}
+		else if (bResult == 0x06 || bResult == 0x07)
+		{
+			MsgOutput(bResult == 0x06 ? fmt::format_text_resource(IDS_ITEM_WEIGHT_OVERFLOW) : fmt::format_text_resource(IDS_INV_ITEM_FULL), 0xff9b9bff);
+			bResult = 0;
+		}
+		static int s_iLogged = 0;
+		if (s_iLogged++ < 8)
+			CLogWriter::Write("Eşya alma yanıtı (2369): sonuç {} yuva {} eşya {} adet {} altın {} kutuYuvası {}", (int) bResult, (int) bPos, iItemID,
+				(int) sItemCount, iGoldID, iSlot);
+	}
+	else if ((bResult == 0x01) || (bResult == 0x02) || (bResult == 0x05))
 	{
 		bPos    = pkt.read<uint8_t>();
 		iItemID = pkt.read<uint32_t>();
@@ -5362,8 +5523,7 @@ bool CGameProcMain::MsgRecv_ItemDroppedGetResult(Packet& pkt) // 땅에 떨어�
 		}
 		iGoldID = pkt.read<uint32_t>();
 	}
-
-	if (bResult == 0x03)
+	else if (bResult == 0x03)
 	{
 		iItemID = pkt.read<uint32_t>();
 		iStrLen = (int) pkt.read<int16_t>();

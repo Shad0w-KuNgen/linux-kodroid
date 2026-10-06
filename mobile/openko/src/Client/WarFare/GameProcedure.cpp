@@ -90,6 +90,9 @@ bool CGameProcedure::s_bNeedReportConnectionClosed = false;   // 서버접속이
 bool CGameProcedure::s_bReconnectLogInRequested    = false;
 bool CGameProcedure::s_bGameStarted2369             = false;
 bool CGameProcedure::s_bTouchControls               = false;
+int CGameProcedure::s_iTouchInsetTop                = 0;
+int CGameProcedure::s_iTouchInsetRight              = 0;
+int CGameProcedure::s_iTouchInsetBottom             = 0;
 int CGameProcedure::s_iSendLogLeft                  = 0;
 int CGameProcedure::s_iRecvLogLeft                  = 0;
 

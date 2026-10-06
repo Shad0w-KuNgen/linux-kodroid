@@ -74,6 +74,7 @@ public:
 
 	class CUINPCChangeEvent* m_pUINpcChange;
 	class CUIWarp* m_pUIWarp;
+	class CUIGeneric2369* m_pUIPowerUpStore = nullptr; // 2369 PUS (UIs_us.tbl [115] re_powerupstore.istirap)
 	class CWarMessage* m_pWarMessage; // 전쟁관련 메시지
 	class CLightMgr* m_pLightMgr;
 

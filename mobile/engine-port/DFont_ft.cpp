@@ -296,7 +296,9 @@ HRESULT CDFont::InvalidateDeviceObjects()
 		m_pVB->Release();
 		m_pVB = nullptr;
 	}
-	m_ftFace = nullptr; // yüzler önbellekte paylaşılır; burada serbest bırakılmaz
+	m_ftFace         = nullptr; // yüzler önbellekte paylaşılır; burada serbest bırakılmaz
+	m_ftFaceFallback = nullptr; // ana yüzle birlikte yeniden seçilir (LoadFace)
+	m_iPrimitiveCount = 0;      // tampon gitti; yeniden SetText gelene kadar çizilecek bir şey yok
 	return S_OK;
 }
 
@@ -314,6 +316,9 @@ HRESULT CDFont::DeleteDeviceObjects()
 // Glif seçimi: ana yüz, yoksa yedek yüz, o da yoksa '?'
 static FT_Face PickGlyph(FT_Face primary, FT_Face fallback, uint32_t cp, FT_UInt& gi)
 {
+	gi = 0;
+	if (primary == nullptr)
+		return fallback; // çağıran null denetimi yapar
 	gi = FT_Get_Char_Index(primary, cp);
 	if (gi != 0)
 		return primary;
@@ -338,7 +343,7 @@ int CDFont::MeasureWidth(const uint32_t* cps, size_t n) const
 	{
 		FT_UInt gi = 0;
 		FT_Face f  = PickGlyph(face, (FT_Face) m_ftFaceFallback, cps[i], gi);
-		if (FT_Load_Glyph(f, gi, FT_LOAD_DEFAULT) != 0)
+		if (f == nullptr || f->glyph == nullptr || FT_Load_Glyph(f, gi, FT_LOAD_DEFAULT) != 0)
 			continue;
 		if (m_dwFontFlags & D3DFONT_BOLD)
 			FT_GlyphSlot_Embolden(f->glyph);
@@ -357,7 +362,7 @@ void CDFont::DrawGlyphs(const uint32_t* cps, size_t n, int x, int y)
 	{
 		FT_UInt gi = 0;
 		FT_Face f  = PickGlyph(face, (FT_Face) m_ftFaceFallback, cps[i], gi);
-		if (FT_Load_Glyph(f, gi, FT_LOAD_DEFAULT) != 0)
+		if (f == nullptr || f->glyph == nullptr || FT_Load_Glyph(f, gi, FT_LOAD_DEFAULT) != 0)
 			continue;
 		if (m_dwFontFlags & D3DFONT_BOLD)
 			FT_GlyphSlot_Embolden(f->glyph);
@@ -366,6 +371,11 @@ void CDFont::DrawGlyphs(const uint32_t* cps, size_t n, int x, int y)
 		if (FT_Render_Glyph(f->glyph, FT_RENDER_MODE_NORMAL) != 0)
 			continue;
 		const FT_Bitmap& bm = f->glyph->bitmap;
+		if (bm.buffer == nullptr || bm.pixel_mode != FT_PIXEL_MODE_GRAY)
+		{
+			penX += (int) ((f->glyph->advance.x + 32) >> 6);
+			continue;
+		}
 		int gx              = penX + f->glyph->bitmap_left;
 		int gy              = y + m_iAscender - f->glyph->bitmap_top;
 		for (unsigned r = 0; r < bm.rows; ++r)
@@ -456,8 +466,12 @@ HRESULT CDFont::SetText(const std::string& szText, uint32_t dwFlags)
 	{
 		int iMipMapCount = (dwFlags & D3DFONT_FILTERED) ? 0 : 1;
 		HRESULT hr = m_pd3dDevice->CreateTexture(m_dwTexWidth, m_dwTexHeight, iMipMapCount, 0, D3DFMT_A4R4G4B4, D3DPOOL_MANAGED, &m_pTexture, nullptr);
-		if (FAILED(hr))
-			return hr;
+		if (FAILED(hr) || m_pTexture == nullptr)
+		{
+			m_pTexture        = nullptr;
+			m_iPrimitiveCount = 0; // doku yok: eski üçgenler çizilmesin
+			return FAILED(hr) ? hr : E_FAIL;
+		}
 	}
 
 	// Kapsama tamponu (GDI DIB'inin karşılığı)
@@ -529,7 +543,7 @@ void CDFont::Make2DVertex(const int iFontHeight, const std::string& szText)
 		float ty2 = ((float) (y + iFontHeight)) / m_dwTexHeight;
 		float w   = (tx2 - tx1) * m_dwTexWidth / m_fTextScale;
 		float h   = (ty2 - ty1) * m_dwTexHeight / m_fTextScale;
-		if (dwNumTriangles + 2 >= MAX_NUM_VERTICES)
+		if ((dwNumTriangles + 2) * 3 > MAX_NUM_VERTICES) // tampon köşe sayısıyla sınırlı (üçgen × 3)
 			return false;
 		float fLeft = vtx_sx - 0.5f, fRight = vtx_sx + w - 0.5f, fTop = vtx_sy - 0.5f, fBottom = vtx_sy + h - 0.5f;
 		pVertices->Set(fLeft, fBottom, Z_DEFAULT, RHW_DEFAULT, dwColor, tx1, ty2); ++pVertices;
@@ -603,8 +617,13 @@ HRESULT CDFont::DrawText(FLOAT sx, FLOAT sy, uint32_t dwColor, uint32_t dwFlags)
 		return E_FAIL;
 	if (m_iPrimitiveCount <= 0)
 		return S_OK;
-	if (m_pd3dDevice == nullptr)
+	if (m_pd3dDevice == nullptr || m_pTexture == nullptr)
+		return E_FAIL; // doku yokken (SetText başarısız / aygıt sıfırlandı) çizim yapılmaz
+	if (m_iPrimitiveCount * 3 > MAX_NUM_VERTICES)
+	{
+		m_iPrimitiveCount = 0;
 		return E_FAIL;
+	}
 
 	__Vector2 vDiff = __Vector2(sx, sy) - m_PrevLeftTop;
 	if (fabs(vDiff.x) > 0.5f || fabs(vDiff.y) > 0.5f || dwColor != m_dwFontColor)

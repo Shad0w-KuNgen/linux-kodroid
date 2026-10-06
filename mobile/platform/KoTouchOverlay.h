@@ -85,6 +85,7 @@ private:
 		bool down      = false;
 		int64_t finger = -1;
 		bool fired     = false;
+		bool tapQueued = false; // parmak aynı karede basıp kalktıysa tuş yine de bir kare basılı sayılır
 	};
 	enum class Role { None, Joystick, Button, Pending, Camera, LeftDrag, Done };
 	struct Finger

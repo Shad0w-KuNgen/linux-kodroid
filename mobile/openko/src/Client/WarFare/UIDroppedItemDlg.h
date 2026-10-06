@@ -24,6 +24,7 @@ public:
 protected:
 	int GetInventoryEmptyInviOrder(__IconItemSkill* spItem = nullptr);
 	int GetItemiOrder(__IconItemSkill* spItem);
+	class CN3UIArea* FallbackSlotArea2369(int iOrder); // 2369 UIF: DROP_ITEM alanı yoksa sıralı alan
 
 public:
 	CUIDroppedItemDlg();

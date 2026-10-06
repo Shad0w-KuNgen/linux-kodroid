@@ -85,7 +85,8 @@ enum eKeyMap : uint8_t
 	KM_SKILL_PAGE_5          = DIK_F5,
 	KM_SKILL_PAGE_6          = DIK_F6,
 	KM_SKILL_PAGE_7          = DIK_F7,
-	KM_SKILL_PAGE_8          = DIK_F8
+	KM_SKILL_PAGE_8          = DIK_F8,
+	KM_TOGGLE_PUS            = DIK_P // 2369: Power-Up Store penceresi (re_powerupstore.istirap)
 };
 
 enum e_PlayerType : uint8_t
