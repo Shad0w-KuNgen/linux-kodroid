@@ -261,6 +261,10 @@ yeniden denenmez. 2369 sunucusu `WIZ_ATTACK` sonunda bir `u8` ve `WIZ_MAGIC_PROC
 2369'da buna göre uzatılır. Oyun içinde tanınmayan opcode'lar (0x83, 0xE9 XSafe/panel, 0x6C, 0xDB, 0xC4, 0xB9)
 opcode başına bir kez günlüklenir.
 
+**2369 NPC görünümü:** `GetNpcInfo` varsayılan düzeninde ad yoktur; `NPC_Looks.tbl` resim ID'si (`pid`) ile
+anahtarlıdır (1.298'de de `100 = mob_kecoon` gibi), `protoID` sunucunun K_NPC kimliğidir. `MsgRecv_NPCIn` 2369'da
+modeli `pid` ile arar (bulunamazsa `protoID`), eksik satırları bir kez günlükler.
+
 **Ses:** istemciyle gelen `Option.ini` `[Sound] Bgm=0 Effect=0` olduğundan `s_SndMgr.Init()` hiç çağrılmıyor,
 OpenAL bağlamı olmadan `alListener*` her kare A004 (`AL_INVALID_OPERATION`) üretiyordu. Dinleyici çağrıları
 ses kapalıyken atlanır; telefonda ilk açılışta (`[Mobile] SoundInit` yoksa) ses açılıp Option.ini'ye yazılır,

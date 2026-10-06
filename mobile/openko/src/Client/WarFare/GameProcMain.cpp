@@ -11,6 +11,8 @@
 #include "PacketDef.h"
 #include "KoProtocol.h"
 
+#include <set>
+
 #include "PlayerMySelf.h"
 #include "PlayerOtherMgr.h"
 #include "ServerMesh.h"
@@ -3051,7 +3053,18 @@ bool CGameProcMain::MsgRecv_NPCIn(Packet& pkt)
 			CLogWriter::Write("NPC In (2369): bozuk paket, ID {}", iID);
 			return false;
 		}
-		iIDResrc = n.protoID;
+		// 2369: görünüm tablosu (NPC_Looks) resim ID'si (PID) ile anahtarlı; protoID sunucu tarafı K_NPC kimliğidir.
+		// Eski kod protoID ile arıyordu → yanlış/eksik modeller ve "NPC 8643" adları.
+		iIDResrc = n.pid != 0 ? (int) n.pid : (int) n.protoID;
+		if (s_pTbl_NPC_Looks.Find(iIDResrc) == nullptr && s_pTbl_NPC_Looks.Find(n.protoID) != nullptr)
+			iIDResrc = n.protoID;
+		if (s_pTbl_NPC_Looks.Find(iIDResrc) == nullptr)
+		{
+			static std::set<int> s_Logged;
+			if (s_Logged.insert(iIDResrc).second)
+				CLogWriter::Write("NPC In (2369): görünüm satırı yok (pid {}, proto {}, tür {}, boyut {})", n.pid, n.protoID, (int) n.type,
+					n.size);
+		}
 		iScale   = n.size;
 		iItemID0 = (int) n.weapon1;
 		iItemID1 = (int) n.weapon2;
