@@ -208,6 +208,21 @@ bool KoTableLayer2DecryptRaw(std::vector<uint8_t>& data)
 	return true;
 }
 
+bool KoTableLayer2DecryptDesOnly(std::vector<uint8_t>& data)
+{
+	if (!KoTableIsLayer2(data.data(), data.size()))
+		return false;
+	uint32_t length = ((uint32_t) data[16] << 24) | ((uint32_t) data[17] << 16) | ((uint32_t) data[18] << 8) | data[19];
+	std::vector<uint8_t> out(data.begin() + 20, data.end());
+	if (length > out.size())
+		return false;
+	for (size_t i = 0; i + 8 <= out.size(); i += 8)
+		DesBlock(out.data() + i);
+	out.resize(length);
+	data.swap(out);
+	return true;
+}
+
 bool KoTableLayer2Decrypt(std::vector<uint8_t>& data, uint8_t* pPrefix, size_t* pPrefixLen)
 {
 	std::vector<uint8_t> out = data;

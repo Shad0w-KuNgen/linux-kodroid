@@ -182,6 +182,12 @@ if(KO_BUILD_TESTS AND NOT ANDROID)
   target_compile_definitions(ko_tbl_test PRIVATE KO_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/platform/tests/data")
   add_test(NAME ko_tbl_test COMMAND ko_tbl_test)
 
+  # 2369 .n3anim (DES katmanlı kayıtlar) — gerçek örnek dosyalarla
+  add_executable(ko_anim_test platform/tests/anim_test.cpp)
+  target_link_libraries(ko_anim_test PRIVATE ko_n3base)
+  target_compile_definitions(ko_anim_test PRIVATE KO_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/platform/tests/data")
+  add_test(NAME ko_anim_test COMMAND ko_anim_test)
+
   # Sanal dosya katmanı: UI paketi (ui.hdr/ui.src) ve .istirap çözümü
   add_executable(ko_vfs_test platform/tests/vfs_test.cpp)
   target_link_libraries(ko_vfs_test PRIVATE ko_compat)

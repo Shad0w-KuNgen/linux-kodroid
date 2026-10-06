@@ -428,27 +428,38 @@ std::string KoVfsResolve(const std::string& normalizedPath)
 	std::string dirPart = low.substr(0, slash); // "…/ui" ya da "ui"
 	if (name.empty())
 		return std::string();
-	size_t slash2       = dirPart.find_last_of('/');
-	std::string dirName = slash2 == std::string::npos ? dirPart : dirPart.substr(slash2 + 1);
-	std::string base    = slash2 == std::string::npos ? std::string() : path.substr(0, slash2 + 1); // "" ya da "…/"
-	if (dirName.empty())
-		return std::string();
-	std::vector<std::string> dirs { dirName };
-	if (dirName == "ui_us")
-		dirs.push_back("ui");
-	else if (dirName == "ui")
-		dirs.push_back("ui_us");
 	std::lock_guard<std::mutex> lock(g_mutex);
-	for (const std::string& d : dirs)
+	// Paket klasörü yolun herhangi bir üst klasörü olabilir: "…/fx/billboard/x/y.dxt" → fx paketi, kayıt "billboard/x/y.dxt"
+	// (fx.hdr kayıtları alt yollu). En derinden başlayarak en çok 4 seviye yukarı bakılır.
+	std::string rel = name;    // paket içi göreli ad
+	std::string cur = dirPart; // aday paket klasörü (tam yol)
+	for (int level = 0; level < 4 && !cur.empty(); level++)
 	{
-		UiPack& pack = LoadPack(base, d);
-		if (!pack.valid)
-			continue;
-		std::string r = ExtractFromPack(pack, name);
-		if (r.empty())
-			r = ExtractFromPack(pack, d + "/" + name);
-		if (!r.empty())
-			return r;
+		size_t slash2       = cur.find_last_of('/');
+		std::string dirName = slash2 == std::string::npos ? cur : cur.substr(slash2 + 1);
+		std::string base    = slash2 == std::string::npos ? std::string() : path.substr(0, slash2 + 1); // "" ya da "…/"
+		if (dirName.empty())
+			break;
+		std::vector<std::string> dirs { dirName };
+		if (dirName == "ui_us")
+			dirs.push_back("ui");
+		else if (dirName == "ui")
+			dirs.push_back("ui_us");
+		for (const std::string& d : dirs)
+		{
+			UiPack& pack = LoadPack(base, d);
+			if (!pack.valid)
+				continue;
+			std::string r = ExtractFromPack(pack, rel);
+			if (r.empty())
+				r = ExtractFromPack(pack, d + "/" + rel);
+			if (r.empty() && rel != name)
+				r = ExtractFromPack(pack, name); // yalın ad
+			if (!r.empty())
+				return r;
+		}
+		rel = dirName + "/" + rel;
+		cur = slash2 == std::string::npos ? std::string() : cur.substr(0, slash2);
 	}
 	return std::string();
 }

@@ -3,6 +3,11 @@
 //////////////////////////////////////////////////////////////////////
 #include "StdAfxBase.h"
 #include "N3AnimControl.h"
+#include "KoTableCrypt.h"
+
+#include <cstring>
+#include <stdexcept>
+#include <vector>
 
 CN3AnimControl::CN3AnimControl()
 {
@@ -29,6 +34,59 @@ bool CN3AnimControl::Load(File& file)
 	file.Read(&nCount, 4);
 
 	m_Datas.clear(); // animation Data List
+
+	// 2369 (ISTIRAP) .n3anim: her kayıt [u32 parçaUzunluğu][DES katmanı parçası (16 bayt sabit başlık + u32 BE uzunluk +
+	// 8'lik bloklar, iç XOR yok)]; çözülen parça = [u16 9][1.298 kaydı: int (yer tutucu, 15.0f) + 11 alan + ad].
+	// Tanıma: ilk kaydın uzunluğundan sonra sabit DES başlığı gelir.
+	const int64_t iStart = static_cast<int64_t>(file.Offset());
+	bool b2369           = false;
+	if (nCount > 0 && nCount < 100000)
+	{
+		uint8_t byPeek[20] {};
+		size_t rd = 0;
+		if (file.Read(byPeek, sizeof(byPeek), &rd) && rd == sizeof(byPeek))
+			b2369 = KoTableIsLayer2(byPeek + 4, 20); // boyut denetimi için 20 yeter (başlık karşılaştırması)
+		file.Seek(iStart, SEEK_SET);
+	}
+	if (b2369)
+	{
+		for (int i = 0; i < nCount; i++)
+		{
+			uint32_t uLen = 0;
+			if (!file.Read(&uLen, 4) || uLen < 20 || uLen > 4096)
+				throw std::runtime_error("CN3AnimControl: 2369 kayıt uzunluğu geçersiz");
+			std::vector<uint8_t> chunk(uLen);
+			if (!file.Read(chunk.data(), uLen))
+				throw std::runtime_error("CN3AnimControl: 2369 kayıt okunamadı");
+			if (!KoTableLayer2DecryptDesOnly(chunk))
+				throw std::runtime_error("CN3AnimControl: 2369 kayıt DES çözülemedi");
+			// [u16][int yer tutucu][11 x 4 bayt][u32 adUzunluk][ad]
+			if (chunk.size() < 2 + 4 + 44 + 4)
+				throw std::runtime_error("CN3AnimControl: 2369 kayıt kısa");
+			const uint8_t* p = chunk.data() + 2 + 4;
+			__AnimData Data;
+			auto f = [&](int k) { float v; memcpy(&v, p + k * 4, 4); return v; };
+			Data.fFrmStart          = f(0);
+			Data.fFrmEnd            = f(1);
+			Data.fFrmPerSec         = f(2);
+			Data.fFrmPlugTraceStart = f(3);
+			Data.fFrmPlugTraceEnd   = f(4);
+			Data.fFrmSound0         = f(5);
+			Data.fFrmSound1         = f(6);
+			Data.fTimeBlend         = f(7);
+			memcpy(&Data.iBlendFlags, p + 8 * 4, 4);
+			Data.fFrmStrike0 = f(9);
+			Data.fFrmStrike1 = f(10);
+			uint32_t uNL = 0;
+			memcpy(&uNL, p + 11 * 4, 4);
+			if (uNL > 256 || 2 + 4 + 48 + uNL > chunk.size())
+				throw std::runtime_error("CN3AnimControl: 2369 kayıt adı geçersiz");
+			Data.szName.assign((const char*) p + 12 * 4, uNL);
+			m_Datas.push_back(Data);
+		}
+		return true;
+	}
+
 	for (int i = 0; i < nCount; i++)
 	{
 		__AnimData Data;

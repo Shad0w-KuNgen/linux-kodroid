@@ -10,6 +10,8 @@
 #include "LocalInput.h"
 #include "APISocket.h"
 #include "KoProtocol.h"
+
+#include <set>
 #include "N3FXMgr.h"
 #include "PlayerMySelf.h"
 #include "GameProcLogIn.h"
@@ -456,7 +458,12 @@ void CGameProcedure::Tick()
 				// gönderir; oyun öncesi süreçte karşılığı yok, yutulur (bilgiler WIZ_MYINFO ile yeniden gelir)
 				CLogWriter::Write("Oyun öncesi: opcode 0x{:02x} bu süreçte işlenmiyor, yutuldu", pkt->GetOpcode());
 			else
-				CLogWriter::Write("Invalid Packet... ({})", pkt->GetOpcode());
+			{
+				// Oyun içi: 2369'a özel/ISTIRAP paketleri (0x83, 0xE9, 0x6C, 0xDB, 0xC4, 0xB9, WIZ_QUEST…) opcode başına bir kez
+				static std::set<int> s_LoggedOpcodes;
+				if (s_LoggedOpcodes.insert(pkt->GetOpcode()).second)
+					CLogWriter::Write("Invalid Packet... (0x{:02x}, {} bayt; bu opcode için bir kez yazılır)", pkt->GetOpcode(), pkt->size());
+			}
 		}
 
 		delete pkt;

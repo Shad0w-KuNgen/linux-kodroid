@@ -135,6 +135,34 @@ static void TestItemPack()
 	fs::remove_all(tmp);
 }
 
+// 2369 fx paketi: fx/fx.hdr, kayıt adları alt yollu ("billboard\\x\\y.dxt"); istek "\\fx\\billboard\\x\\y.dxt"
+static void TestFxPack()
+{
+	std::printf("[test] fx paketi (alt yollu kayitlar, ust klasor paketi)\n");
+	fs::path tmp = fs::temp_directory_path() / "ko_vfs_test_d";
+	fs::remove_all(tmp);
+	fs::create_directories(tmp / "fx");
+	std::string base = tmp.string() + "/";
+	std::vector<uint8_t> src(100, 0x5A), dataB(40, 0x6B);
+	src.insert(src.end(), dataB.begin(), dataB.end());
+	std::vector<uint8_t> hdr;
+	Put32(hdr, 2);
+	PutStr(hdr, "billboard\\20060222_mora_light\\mora_light.0000.dxt");
+	Put32(hdr, 0);
+	Put32(hdr, 100);
+	PutStr(hdr, "quest_second.fxb");
+	Put32(hdr, 100);
+	Put32(hdr, 40);
+	Write(tmp / "fx" / "fx.hdr", hdr);
+	Write(tmp / "fx" / "fx.src", src);
+	KoVfsReset();
+	std::string r1 = KoResolvePath(base + "\\fx\\billboard\\20060222_mora_light\\MORA_LIGHT.0000.dxt");
+	CHECK(fs::exists(r1) && Read(r1).size() == 100, "fx alt yollu kayit cikmadi: %s", r1.c_str());
+	std::string r2 = KoResolvePath(base + "fx\\quest_second.fxb");
+	CHECK(fs::exists(r2) && Read(r2) == dataB, "fx kok kayit cikmadi: %s", r2.c_str());
+	fs::remove_all(tmp);
+}
+
 static void TestIstirap()
 {
 	std::printf("[test] .istirap cozumu\n");
@@ -174,6 +202,7 @@ int main()
 {
 	TestPack();
 	TestItemPack();
+	TestFxPack();
 	TestIstirap();
 	if (g_fail)
 	{

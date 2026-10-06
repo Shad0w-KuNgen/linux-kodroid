@@ -4,6 +4,7 @@
 
 #include "StdAfx.h"
 #include "MagicSkillMng.h"
+#include "KoProtocol.h"
 #include "GameProcMain.h"
 #include "APISocket.h"
 #include "PacketDef.h"
@@ -1074,6 +1075,8 @@ void CMagicSkillMng::StartSkillMagicAtPosPacket(__TABLE_UPC_SKILL* pSkill, const
 		CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 		CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 
+		if (KoProto::Is2369())
+			CAPISocket::MP_AddShort(byBuff, iOffset, 0); // 2369: sunucu (CMagicProcess) 7 adet sData okur
 		CGameProcedure::s_pSocket->Send(byBuff, iOffset); // 보낸다..
 		return;
 	}
@@ -1128,6 +1131,8 @@ void CMagicSkillMng::StartSkillMagicAtPosPacket(__TABLE_UPC_SKILL* pSkill, const
 	CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 	CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 
+	if (KoProto::Is2369())
+		CAPISocket::MP_AddShort(byBuff, iOffset, 0); // 2369: sunucu (CMagicProcess) 7 adet sData okur
 	CGameProcedure::s_pSocket->Send(byBuff, iOffset); // 보낸다..
 	SetSkillCooldown(pSkill);
 
@@ -1205,6 +1210,8 @@ void CMagicSkillMng::StartSkillMagicAtTargetPacket(__TABLE_UPC_SKILL* pSkill, in
 		CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 		CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 
+		if (KoProto::Is2369())
+			CAPISocket::MP_AddShort(byBuff, iOffset, 0); // 2369: sunucu (CMagicProcess) 7 adet sData okur
 		CGameProcedure::s_pSocket->Send(byBuff, iOffset); // 보낸다..
 		SetSkillCooldown(pSkill);
 		return;
@@ -1231,6 +1238,8 @@ void CMagicSkillMng::StartSkillMagicAtTargetPacket(__TABLE_UPC_SKILL* pSkill, in
 		CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 		CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 
+		if (KoProto::Is2369())
+			CAPISocket::MP_AddShort(byBuff, iOffset, 0); // 2369: sunucu (CMagicProcess) 7 adet sData okur
 		CGameProcedure::s_pSocket->Send(byBuff, iOffset); // 보낸다..
 		SetSkillCooldown(pSkill);
 		return;
@@ -1286,6 +1295,8 @@ void CMagicSkillMng::StartSkillMagicAtTargetPacket(__TABLE_UPC_SKILL* pSkill, in
 	CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 	CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 
+	if (KoProto::Is2369())
+		CAPISocket::MP_AddShort(byBuff, iOffset, 0); // 2369: sunucu (CMagicProcess) 7 adet sData okur
 	CGameProcedure::s_pSocket->Send(byBuff, iOffset); // 보낸다..
 
 	if (pSkill->iTarget == SKILLMAGIC_TARGET_ENEMY_ONLY)
@@ -1401,6 +1412,8 @@ void CMagicSkillMng::Tick()
 			CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 			CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 
+			if (KoProto::Is2369())
+				CAPISocket::MP_AddShort(byBuff, iOffset, 0); // 2369: sunucu (CMagicProcess) 7 adet sData okur
 			CGameProcedure::s_pSocket->Send(byBuff, iOffset); // 보낸다..
 
 			m_dwCastingStateNonAction = 0;
@@ -1516,6 +1529,8 @@ void CMagicSkillMng::SuccessCast(__TABLE_UPC_SKILL* pSkill, CPlayerBase* pTarget
 		CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 		CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 
+		if (KoProto::Is2369())
+			CAPISocket::MP_AddShort(byBuff, iOffset, 0); // 2369: sunucu (CMagicProcess) 7 adet sData okur
 		CGameProcedure::s_pSocket->Send(byBuff, iOffset); // 보낸다..
 		SetSkillCooldown(pSkill);
 	}
@@ -1625,6 +1640,8 @@ void CMagicSkillMng::FailCast(__TABLE_UPC_SKILL* pSkill)
 	CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 	CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 
+	if (KoProto::Is2369())
+		CAPISocket::MP_AddShort(byBuff, iOffset, 0); // 2369: sunucu (CMagicProcess) 7 adet sData okur
 	CGameProcedure::s_pSocket->Send(byBuff, iOffset); // 보낸다..
 }
 
@@ -1701,6 +1718,8 @@ void CMagicSkillMng::MobCasting(__TABLE_UPC_SKILL* pSkill, int iSourceID)
 	CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 	CAPISocket::MP_AddShort(byBuff, iOffset, 0);
 
+	if (KoProto::Is2369())
+		CAPISocket::MP_AddShort(byBuff, iOffset, 0); // 2369: sunucu (CMagicProcess) 7 adet sData okur
 	CGameProcedure::s_pSocket->Send(byBuff, iOffset); // 보낸다..
 }
 

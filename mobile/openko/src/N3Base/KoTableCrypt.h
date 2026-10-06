@@ -27,6 +27,9 @@ bool KoTableLayer2Decrypt(std::vector<uint8_t>& data, uint8_t* pPrefix = nullptr
 // DES + iç XOR (önek/başlık denetimi yok; teşhis ve araçlar için). Düzen uymazsa false.
 bool KoTableLayer2DecryptRaw(std::vector<uint8_t>& data);
 
+// Yalnız DES (iç XOR yok): 2369 .n3anim kayıt parçaları bu düzendedir. Düzen uymazsa false.
+bool KoTableLayer2DecryptDesOnly(std::vector<uint8_t>& data);
+
 // Çözülmüş veride geçerli N3 başlığının ofseti (önce nPreferred, sonra 0..64 taraması); yoksa (size_t)-1.
 size_t KoTableFindHeaderOffset(const uint8_t* pData, size_t nSize, size_t nPreferred);
 

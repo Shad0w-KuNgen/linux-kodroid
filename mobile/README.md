@@ -249,6 +249,18 @@ dönüşünü başarı sayıp çöp adlarla (`\chr\???o`, `\item\???o`) yükleme
 (F10) açılışta kapalı. Karakter seçimi 2369'da UIs tablosunun 121. sütunu `szCharSelect`
 (`ui\re_characterselect.uif`) ile yüklenir, olmazsa eski `ka_/el_CharacterSelect`.
 
+**2369 .n3anim (DES katmanı):** ISTIRAP animasyon dosyaları `u32 kayıtSayısı` + her kayıt için `u32 uzunluk` + tablo DES
+katmanı parçası (16 bayt sabit başlık + u32 BE uzunluk + 8'lik bloklar, **iç XOR yok**). Çözülen parça
+`[u16 9][int yer tutucu (15.0f)][1.298 alanları][u32 ad uzunluğu][ad]`. `CN3AnimControl::Load` sabit başlıktan
+tanıyıp `KoTableLayer2DecryptDesOnly` ile çözer (`ko_anim_test`: `platform/tests/data/2369/upc_el_ba.n3anim`
+155 kayıt, 1.298 kopyasıyla ad/kare karşılaştırması). `.n3joint`/`.n3chr` düz. T duruşunun sebebi buydu.
+Paketler: `fx/fx.hdr` kayıtları alt yollu (`billboard\x\y.dxt`); `KoVfsResolve` istenen yolun üst klasörlerini
+(4 seviye) paket adayı olarak dener ve göreli adla arar (`ko_vfs_test` fx fikstürü). Yüklenemeyen kaynaklar
+(`skillicon_55_2062.dxt` gibi pakette olmayanlar) `CN3Mng` içinde "başarısız" olarak önbelleğe alınır, her karede
+yeniden denenmez. 2369 sunucusu `WIZ_ATTACK` sonunda bir `u8` ve `WIZ_MAGIC_PROCESS`'te 7. `sData` okur; gönderimler
+2369'da buna göre uzatılır. Oyun içinde tanınmayan opcode'lar (0x83, 0xE9 XSafe/panel, 0x6C, 0xDB, 0xC4, 0xB9)
+opcode başına bir kez günlüklenir.
+
 **Ses:** istemciyle gelen `Option.ini` `[Sound] Bgm=0 Effect=0` olduğundan `s_SndMgr.Init()` hiç çağrılmıyor,
 OpenAL bağlamı olmadan `alListener*` her kare A004 (`AL_INVALID_OPERATION`) üretiyordu. Dinleyici çağrıları
 ses kapalıyken atlanır; telefonda ilk açılışta (`[Mobile] SoundInit` yoksa) ses açılıp Option.ini'ye yazılır,

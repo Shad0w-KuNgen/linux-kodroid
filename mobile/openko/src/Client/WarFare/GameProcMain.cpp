@@ -1478,6 +1478,8 @@ void CGameProcMain::MsgSend_Attack(
 	CAPISocket::MP_AddShort(byBuff, iOffset, iTargetID);               // 상대방 아이디..
 	CAPISocket::MP_AddShort(byBuff, iOffset, (int) (fInterval * 100)); // 공격한 시간
 	CAPISocket::MP_AddShort(byBuff, iOffset, (int) (fDistance * 10));  // 공격한 거리
+	if (KoProto::Is2369())
+		CAPISocket::MP_AddByte(byBuff, iOffset, 0);                    // 2369: sunucu (CUser::Attack) sonda u8 "unknown" okur
 
 	s_pSocket->Send(byBuff, iOffset);                                  // 보냄..
 }

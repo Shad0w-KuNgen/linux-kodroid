@@ -13,6 +13,7 @@
 
 #include <string>
 #include <map>
+#include <set>
 
 template <class T>
 class CN3Mng
@@ -26,6 +27,7 @@ protected:
 
 	typename std::map<std::string, T*> m_Datas;
 	typename std::map<T*, int> m_Refs;
+	std::set<std::string> m_Failed; // yüklenemeyen adlar: her karede yeniden denenmesin (2369 skillicon_*)
 
 public:
 	int Count() const
@@ -103,6 +105,8 @@ public:
 		it_Data it = m_Datas.find(szFN2);
 		if (it == m_Datas.end())                     // 못 찾았다..
 		{
+			if (m_Failed.count(szFN2) != 0)
+				return nullptr;
 			pData         = new T();
 			pData->m_iLOD = iLOD;                    // 로딩시 LOD 적용
 
@@ -110,6 +114,8 @@ public:
 			{
 				delete pData;
 				pData = nullptr;
+				if (m_Failed.size() < 4096)
+					m_Failed.insert(szFN2);
 			}
 			else
 			{
@@ -210,6 +216,7 @@ public:
 
 		m_Datas.clear();
 		m_Refs.clear();
+		m_Failed.clear();
 	}
 
 	CN3Mng()
