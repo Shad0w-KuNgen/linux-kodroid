@@ -297,7 +297,13 @@ ve gönderilen paket yapıcılarını doğrular. Sonraki aşamalar: savaş/eşya
   ayrı ayrıştırılır ve "X → Y öldürdü" olarak sohbete yazılır. `ByteBuffer::readString` dize uzunluğu
   paketin kalanını aşarsa ayırma yapmadan `false` döner (okuma sonuna atlanır); `MsgRecv_Chat` böyle
   paketi atar ve türü bir kez günlükler (bilinmeyen sohbet düzeni artık çökertmez).
-- `[Mobile] MaxVisibleUsers` (varsayılan 60): kameraya en yakın N oyuncu çizilir (Ronark'ta 400 bot).
+- `[Mobile] MaxVisibleUsers` (varsayılan 120): oyuncuya en yakın N oyuncu çizilir (Ronark'ta 400 bot); küme
+  0,5 sn'de bir yenilenir ve %25 histerezisle korunur (yanıp sönme yok).
+- 2369 saç: `nHair` u32 = en üst bayt stil (`upc_xx_hairNN`), alt 3 bayt renk (`KoProto::HairIndex2369`).
+- Yazı tipi: ana yüzde (Android `NotoSansCJK`) ğ/ş/İ yoksa Roboto/NotoSans/DejaVu yedek yüzünden alınır
+  (`KO_FONT_FALLBACK` ile dosya verilebilir).
+- 2369 `.gtd` çim bloğu: yama başına 4 bayt (513 haritada 16384) — Ronark (freezone_b) döşemeleri artık yüklenir.
+- FX: `.fxb` parçasının şekli yüklenemezse (bozuk ad) efekt şekilsiz çalışır, çökmez; ad günlüğe yazılır.
 
 - **2369 zemin delikleri (turkuaz/boş görünen yamalar)**: 2369 `.gtd` dosyasındaki yama başına "orta yükseklik +
   yarıçap" bloğu bu motorun anlamında değil (eksi yarıçaplar); görüş alanı sınaması yamaları yanlış elediği için
@@ -369,10 +375,11 @@ ve `CN3Pond: havuz …` satırları yazılır; eksik `.gtt` dosyaları adıyla l
 
 ### Dokunmatik kontroller (oyun içi)
 
-- Sol yarı: parmağın bastığı yerde beliren joystick. Varsayılan **dön ve koş** (`JoyTurnAndRun=1`):
-  joystick yönü kameraya göre dünya yönüne çevrilir, karakter anında o yöne döner ve ileri koşar
-  (oyunun 60°/sn A/D dönüşü yerine). `JoyTurnAndRun=0`: eski W/S ileri-geri, A/D dönüş. Ölü bölge
-  `JoyDeadZone`. Serbest alanda sürükleme: kamera (sağ tuş sürüklemesi, hız `CameraSens`, varsayılan
+- Sol yarı: parmağın bastığı yerde beliren joystick. Varsayılan **klasik** kip: yukarı/aşağı ileri-geri,
+  yatay = dönüş; dönüş hızı joystick yatıklığıyla orantılı, en fazla `JoyRotateSpeed` °/sn (varsayılan 150;
+  oyunun A/D'si 60). `JoyTurnAndRun=1` (launcher Ayarlar): joystick yönü kameraya göre dünya yönüne
+  çevrilir, karakter o yöne döner ve koşar (kamera karakteri takip ettiğinden dönme hissi verebilir). Ölü
+  bölge `JoyDeadZone`. Serbest alanda sürükleme: kamera (sağ tuş sürüklemesi, hız `CameraSens`, varsayılan
   260 %); iki parmak: yakınlaştırma.
 - Tek dokunuş = sol tık (yürü / hedef seç / arayüz). **Seçili dost NPC'ye veya seçili kapı/bind
   nesnesine ikinci dokunuş = sağ tık** (konuş, dükkân, kapı olayı; uzaksa oyunun "çok uzak" iletisi

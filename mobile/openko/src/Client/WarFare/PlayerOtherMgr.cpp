@@ -3,6 +3,9 @@
 //////////////////////////////////////////////////////////////////////
 #include "StdAfx.h"
 #include "PlayerOtherMgr.h"
+#include <vector>
+#include <cfloat>
+#include <algorithm>
 #include "PlayerMySelf.h"
 
 #include <N3Base/DFont.h>
@@ -58,6 +61,32 @@ void CPlayerOtherMgr::Release()
 //////////////////////////////////////////////////////////////////////
 void CPlayerOtherMgr::Tick(const __Vector3& vPosPlayer)
 {
+	// Mobil görünür oyuncu sınırı: en yakın N oyuncu kümesi 0,5 sn'de bir seçilir; aradaki karelerde küme sabittir,
+	// küme dışına çıkan oyuncu ancak sınırdan %25 daha uzaksa (histerezis) bırakılır → yanıp sönme olmaz.
+	if (s_iMaxVisibleUsers > 0)
+	{
+		float fNow = CN3Base::TimeGet();
+		if (m_fVisibleUPCsTime < 0.0f || fNow - m_fVisibleUPCsTime > 0.5f || (int) m_UPCs.size() <= s_iMaxVisibleUsers)
+		{
+			m_fVisibleUPCsTime = fNow;
+			std::vector<std::pair<float, int>> dist;
+			dist.reserve(m_UPCs.size());
+			for (auto& [iID, pUPC] : m_UPCs)
+				dist.emplace_back(pUPC->Distance(vPosPlayer), iID);
+			std::sort(dist.begin(), dist.end());
+			std::set<int> vis;
+			float fLimit = dist.size() > (size_t) s_iMaxVisibleUsers ? dist[s_iMaxVisibleUsers - 1].first : FLT_MAX;
+			for (size_t i = 0; i < dist.size(); i++)
+			{
+				if ((int) i < s_iMaxVisibleUsers || (m_VisibleUPCs.count(dist[i].second) && dist[i].first <= fLimit * 1.25f))
+					vis.insert(dist[i].second);
+			}
+			m_VisibleUPCs.swap(vis);
+		}
+	}
+	else
+		m_VisibleUPCs.clear();
+
 	// 자동 캐릭터 LOD 조절..
 	int iLOD      = 0;
 	int iLODTotal = 0;
@@ -189,7 +218,7 @@ void CPlayerOtherMgr::Render(float fSunAngle)
 		{
 			if (!UPCs[i]->m_bVisible)
 				continue;
-			if (s_iMaxVisibleUsers > 0 && i >= s_iMaxVisibleUsers) // kameraya göre artan sıralı: uzaktakiler çizilmez (400 botlu Ronark)
+			if (s_iMaxVisibleUsers > 0 && !m_VisibleUPCs.count(UPCs[i]->IDNumber())) // en yakın N (histerezisli küme), 400 botlu Ronark
 				continue;
 			/*
 			if(UPCs[i]->m_InfoBase.iAuthority == AUTHORITY_MANAGER)

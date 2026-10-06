@@ -671,10 +671,13 @@ void KoTouchOverlay::Update()
 				}
 				else
 				{
+					// Klasik kip: yukarı/aşağı = ileri/geri, yatay = dönüş. Dönüş hızı joystick yatıklığıyla orantılı
+					// (en fazla joyRotateDegPerSec), oyunun sabit 60°/sn A/D'sinden hızlı.
 					if (ny < -0.35f) in.virtualKeysDIK[KM_MOVE_FOWARD] = 0x80;
 					if (ny > 0.35f) in.virtualKeysDIK[KM_MOVE_BACKWARD] = 0x80;
-					if (nx < -0.45f) in.virtualKeysDIK[KM_ROTATE_LEFT] = 0x80;
-					if (nx > 0.45f) in.virtualKeysDIK[KM_ROTATE_RIGHT] = 0x80;
+					float fTurn = std::fabs(nx) > 0.25f ? nx : 0.0f;
+					if (fTurn != 0.0f && pMe != nullptr && IsInGame() && pMe->IsAlive())
+						pMe->RotAdd(fTurn * m_tuning.joyRotateDegPerSec * 3.14159265f / 180.0f);
 				}
 			}
 		}

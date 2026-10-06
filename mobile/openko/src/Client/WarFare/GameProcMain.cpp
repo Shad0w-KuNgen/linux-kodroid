@@ -21,6 +21,7 @@
 #include "UIManager.h"
 #include "UILoading.h"
 #include "UIChat.h"
+#include <N3Base/KoText.h>
 #include "UIInventory.h"
 #include "UICmd.h"
 #include "UIVarious.h"
@@ -1238,6 +1239,13 @@ void CGameProcMain::ProcessLocalInput(uint32_t dwMouseFlags)
 
 		if (s_pLocalInput->IsKeyPress(KM_TOGGLE_ATTACK))
 		{
+			{
+				// Tanılama: SALDIR / R — hedef durumu (mobilde "SALDIR hedefe gitmiyor" raporu için)
+				CPlayerNPC* pT = s_pOPMgr->CharacterGetByID(s_pPlayer->m_iIDTarget, true);
+				CLogWriter::Write("SALDIR: hedef {} ({}), sürekli saldırı {}, yetki {}, saldırılabilir {}, uzaklık {:.1f}", s_pPlayer->m_iIDTarget,
+					pT ? pT->IDString() : "yok", (int) s_pPlayer->m_bAttackContinous, pT ? pT->m_InfoBase.iAuthority : -1,
+					pT ? (int) s_pPlayer->IsAttackableTarget(pT, false) : -1, pT ? (pT->Position() - s_pPlayer->Position()).Magnitude() : -1.0f);
+			}
 			// if the player is already attacking, stop it
 			if (s_pPlayer->m_bAttackContinous)
 			{
@@ -1891,7 +1899,7 @@ bool CGameProcMain::MsgRecv_MyInfo_All(Packet& pkt)
 		eRace              = (e_Race) m.race;
 		eClass             = (e_Class) m.cls;
 		iFace              = m.face;
-		iHair              = (int) m.hair;
+		iHair              = KoProto::HairIndex2369(m.hair);
 		iRank              = m.rank;
 		iTitle             = m.title;
 		iLevel             = m.level;
@@ -2346,8 +2354,13 @@ bool CGameProcMain::MsgRecv_Chat(Packet& pkt)
 				return true;
 			}
 			if (m_pUIChatDlg != nullptr && !szKiller.empty() && !szVictim.empty())
-				MsgOutput(fmt::format("{} → {} öldürdü{}", szKiller, szVictim, byNoticeType == 0 ? "" : fmt::format(" ({})", (int) byNoticeType)),
-					D3DCOLOR_ARGB(255, 255, 128, 96));
+			{
+				// Ekran metni 1254 kod sayfasıdır; kaynaktaki UTF-8 sabit 1254'e çevrilir, ok işareti ASCII "->"
+				std::string szLine = fmt::format("{} -> {}", szKiller, szVictim) + KoTextUtf8To1254(" \xC3\xB6ld\xC3\xBCrd\xC3\xBC"); // " öldürdü"
+				if (byNoticeType != 0)
+					szLine += fmt::format(" ({})", (int) byNoticeType);
+				m_pUIChatDlg->AddChatMsg(N3_CHAT_PUBLIC, szLine, D3DCOLOR_ARGB(255, 255, 128, 96));
+			}
 			return true;
 		}
 		// 2369 ChatType → N3 sohbet kipi (KoProtocol.cpp); 0 = gösterilmez
@@ -2733,7 +2746,7 @@ bool CGameProcMain::MsgRecv_UserIn(Packet& pkt, bool bWithFX)
 		fZPos         = u.z / 10.0f;
 		fYPos         = u.y / 10.0f;
 		iFace         = u.face;
-		iHair         = (int) u.hair;
+		iHair         = KoProto::HairIndex2369(u.hair);
 		iStatus       = u.resHpType;
 		iStatusSize   = u.abnormalType;
 		iRecruitParty = u.needParty;

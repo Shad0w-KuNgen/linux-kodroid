@@ -465,9 +465,10 @@ bool CN3Terrain::Load(File& file)
 	// Grass attributes
 	file.Seek(sizeof(uint8_t) * m_ti_MapSize * m_ti_MapSize, SEEK_CUR);
 
-	// 2369: çim özniteliğinden sonra 4096 baytlık ek blok (moradon.gtd'de sıfır)
+	// 2369: çim özniteliğinden sonra yama başına 4 baytlık ek blok (257 harita: 32²×4 = 4096, 513 harita: 64²×4 = 16384;
+	// moradon.gtd'de sıfır). Sabit 4096 varsayımı 513'lük haritalarda (freezone_b) döşeme tablosunu kaçırıyordu.
 	if (m_bHeader2369)
-		file.Seek(4096, SEEK_CUR);
+		file.Seek((int64_t) m_pat_MapSize * m_pat_MapSize * 4, SEEK_CUR);
 
 	// Grass filename
 	file.Seek(MAX_PATH, SEEK_CUR);

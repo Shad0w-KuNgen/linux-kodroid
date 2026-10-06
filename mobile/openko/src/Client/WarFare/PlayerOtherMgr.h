@@ -12,6 +12,7 @@
 #include "GameProcedure.h"
 
 #include <map>
+#include <set>
 
 //typedef std::list<CPlayerOther*>::iterator it_UPC;
 //typedef std::list<CPlayerNPC*>::iterator it_NPC;
@@ -35,6 +36,8 @@ public:
 	std::map<int, CPlayerOther*> m_UPCs;  // User Player Character
 	std::map<int, CPlayerNPC*> m_Corpses; // 죽은놈.. 죽는 에니메이션 및 시간이 지나면 없어지게 한다..
 	int m_iChrCountToRender;              // 렌더링되는 캐릭 카운트
+	std::set<int> m_VisibleUPCs;          // Mobil: çizilecek en yakın N oyuncu (0,5 sn'de bir yenilenir; histerezis)
+	float m_fVisibleUPCsTime = -1.0f;
 
 public:
 	bool IsValidCharacter(CPlayerBase* pCharacter);

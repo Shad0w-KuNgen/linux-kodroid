@@ -702,6 +702,12 @@ public class LauncherActivity extends Activity {
                 GameData.getIniValue(optionIni, "Mobile", "CameraSens", "100"));
         final EditText joyDead = settingField(box, "Joystick ölü bölgesi (%, 5-60)",
                 GameData.getIniValue(optionIni, "Mobile", "JoyDeadZone", "22"));
+        final EditText joyRot = settingField(box, "Joystick dönüş hızı (°/sn, 30-400; klasik kip)",
+                GameData.getIniValue(optionIni, "Mobile", "JoyRotateSpeed", "150"));
+        final CheckBox joyTurnRun = new CheckBox(this);
+        joyTurnRun.setText("Joystick \"dön ve koş\" kipi (yön = karakter yönü; kapalı = klasik ileri/geri + dönüş)");
+        joyTurnRun.setChecked("1".equals(GameData.getIniValue(optionIni, "Mobile", "JoyTurnAndRun", "0")));
+        box.addView(joyTurnRun);
         final EditText longPress = settingField(box, "Uzun basış süresi, ms (sağ tık: konuş / al)",
                 GameData.getIniValue(optionIni, "Mobile", "LongPressMs", "450"));
         final EditText hpSlot = settingField(box, "HP pot düğmesi → kısayol yuvası (1-8)",
@@ -741,6 +747,8 @@ public class LauncherActivity extends Activity {
                     GameData.setIniValue(oIni, "Mobile", "UiScale", String.valueOf(ui.getCheckedRadioButtonId() - 2000));
                     GameData.setIniValue(oIni, "Mobile", "CameraSens", String.valueOf(parseIntOr(camSens.getText().toString(), 100)));
                     GameData.setIniValue(oIni, "Mobile", "JoyDeadZone", String.valueOf(parseIntOr(joyDead.getText().toString(), 22)));
+                    GameData.setIniValue(oIni, "Mobile", "JoyRotateSpeed", String.valueOf(parseIntOr(joyRot.getText().toString(), 150)));
+                    GameData.setIniValue(oIni, "Mobile", "JoyTurnAndRun", joyTurnRun.isChecked() ? "1" : "0");
                     GameData.setIniValue(oIni, "Mobile", "LongPressMs", String.valueOf(parseIntOr(longPress.getText().toString(), 450)));
                     GameData.setIniValue(oIni, "Mobile", "PotHpSlot", String.valueOf(parseIntOr(hpSlot.getText().toString(), 7)));
                     GameData.setIniValue(oIni, "Mobile", "PotMpSlot", String.valueOf(parseIntOr(mpSlot.getText().toString(), 8)));

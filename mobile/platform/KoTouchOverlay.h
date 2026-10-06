@@ -36,7 +36,8 @@ public:
 	struct Tuning
 	{
 		float camSens        = 1.0f;  // kamera sürükleme hızı çarpanı (CameraSens %)
-		bool joyTurnAndRun   = true;  // joystick: yön = karakterin baktığı yön (kameraya göre) + ileri koşma; false = W/S + A/D tuşları
+		bool joyTurnAndRun   = false; // joystick: yön = karakterin baktığı yön (kameraya göre) + ileri koşma; false = klasik: ileri/geri + dönüş
+		float joyRotateDegPerSec = 150.0f; // klasik kipte tam yatık joystick ile dönüş hızı (oyunun A/D'si 60°/sn)
 		float joyDeadZone    = 0.22f; // joystick ölü bölge (yarıçap oranı, JoyDeadZone %)
 		uint32_t longPressMs = 450;   // uzun basış = sağ tık (NPC ile konuş / eşya al)
 		int hpSlot           = 7;     // HP pot düğmesinin bastığı kısayol yuvası (1..8)

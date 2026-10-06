@@ -106,6 +106,51 @@ FT_Face AcquireFace(const std::string& fontName, int pixelHeight)
 	return face;
 }
 
+/// Yedek yazı tipi: ana yazı tipinde (ör. NotoSansCJK) bulunmayan Latin Genişletilmiş glifler (ğ ş İ ı Ğ Ş) için.
+FT_Face AcquireFallbackFace(const std::string& primaryPath, int pixelHeight)
+{
+	static const char* const kFallbacks[] = {
+		"/system/fonts/Roboto-Regular.ttf", "/system/fonts/NotoSans-Regular.ttf", "/system/fonts/DroidSans.ttf",
+		"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+		"/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"};
+	if (const char* env = std::getenv("KO_FONT_FALLBACK"))
+	{
+		FaceKey key {env, pixelHeight};
+		auto it = g_faces.find(key);
+		if (it != g_faces.end())
+			return it->second;
+		FT_Face face = nullptr;
+		if (FT_New_Face(g_ftLib, env, 0, &face) == 0)
+		{
+			FT_Set_Pixel_Sizes(face, 0, (FT_UInt) std::max(1, pixelHeight));
+			g_faces[key] = face;
+			return face;
+		}
+	}
+	for (const char* path : kFallbacks)
+	{
+		if (primaryPath == path)
+			continue;
+		FaceKey key {path, pixelHeight};
+		auto it = g_faces.find(key);
+		if (it != g_faces.end())
+			return it->second;
+		FT_Face face = nullptr;
+		if (FT_New_Face(g_ftLib, path, 0, &face) != 0)
+			continue;
+		// Yalnız Türkçe glifleri olan bir yedek işe yarar
+		if (FT_Get_Char_Index(face, 0x011F) == 0 || FT_Get_Char_Index(face, 0x015F) == 0)
+		{
+			FT_Done_Face(face);
+			continue;
+		}
+		FT_Set_Pixel_Sizes(face, 0, (FT_UInt) std::max(1, pixelHeight));
+		g_faces[key] = face;
+		return face;
+	}
+	return nullptr;
+}
+
 /// Oyun metni: ASCII + CP949 (Korece) çift bayt. Unicode kod noktalarına çevir.
 std::vector<uint32_t> DecodeText(const std::string& s)
 {
@@ -194,6 +239,18 @@ bool CDFont::LoadFace()
 	m_ftFace     = face;
 	if (!face)
 		return false;
+	// Ana yazı tipinde ğ/ş yoksa (NotoSansCJK) yedek yüz
+	m_ftFaceFallback = nullptr;
+	if (FT_Get_Char_Index(face, 0x011F) == 0 || FT_Get_Char_Index(face, 0x015F) == 0 || FT_Get_Char_Index(face, 0x0130) == 0)
+	{
+		m_ftFaceFallback = AcquireFallbackFace(FindFontFile(m_szFontName), PixelHeightFor(m_dwFontHeight, m_fTextScale));
+		static bool s_bLogged = false;
+		if (!s_bLogged)
+		{
+			s_bLogged = true;
+			std::fprintf(stderr, "DFont: ana yazı tipinde Türkçe glifler yok; yedek %s\n", m_ftFaceFallback ? "bulundu" : "BULUNAMADI (KO_FONT_FALLBACK)");
+		}
+	}
 	m_iLineHeight = (int) ((face->size->metrics.height + 63) >> 6);
 	m_iAscender   = (int) ((face->size->metrics.ascender + 63) >> 6);
 	if (m_iLineHeight <= 0)
@@ -254,6 +311,23 @@ HRESULT CDFont::DeleteDeviceObjects()
 	return S_OK;
 }
 
+// Glif seçimi: ana yüz, yoksa yedek yüz, o da yoksa '?'
+static FT_Face PickGlyph(FT_Face primary, FT_Face fallback, uint32_t cp, FT_UInt& gi)
+{
+	gi = FT_Get_Char_Index(primary, cp);
+	if (gi != 0)
+		return primary;
+	if (fallback)
+	{
+		gi = FT_Get_Char_Index(fallback, cp);
+		if (gi != 0)
+			return fallback;
+	}
+	if (cp != '?')
+		gi = FT_Get_Char_Index(primary, '?');
+	return primary;
+}
+
 int CDFont::MeasureWidth(const uint32_t* cps, size_t n) const
 {
 	FT_Face face = (FT_Face) m_ftFace;
@@ -262,14 +336,13 @@ int CDFont::MeasureWidth(const uint32_t* cps, size_t n) const
 	int w = 0;
 	for (size_t i = 0; i < n; ++i)
 	{
-		FT_UInt gi = FT_Get_Char_Index(face, cps[i]);
-		if (gi == 0 && cps[i] != '?')
-			gi = FT_Get_Char_Index(face, '?');
-		if (FT_Load_Glyph(face, gi, FT_LOAD_DEFAULT) != 0)
+		FT_UInt gi = 0;
+		FT_Face f  = PickGlyph(face, (FT_Face) m_ftFaceFallback, cps[i], gi);
+		if (FT_Load_Glyph(f, gi, FT_LOAD_DEFAULT) != 0)
 			continue;
 		if (m_dwFontFlags & D3DFONT_BOLD)
-			FT_GlyphSlot_Embolden(face->glyph);
-		w += (int) ((face->glyph->advance.x + 32) >> 6);
+			FT_GlyphSlot_Embolden(f->glyph);
+		w += (int) ((f->glyph->advance.x + 32) >> 6);
 	}
 	return w;
 }
@@ -282,20 +355,19 @@ void CDFont::DrawGlyphs(const uint32_t* cps, size_t n, int x, int y)
 	int penX = x;
 	for (size_t i = 0; i < n; ++i)
 	{
-		FT_UInt gi = FT_Get_Char_Index(face, cps[i]);
-		if (gi == 0 && cps[i] != '?')
-			gi = FT_Get_Char_Index(face, '?');
-		if (FT_Load_Glyph(face, gi, FT_LOAD_DEFAULT) != 0)
+		FT_UInt gi = 0;
+		FT_Face f  = PickGlyph(face, (FT_Face) m_ftFaceFallback, cps[i], gi);
+		if (FT_Load_Glyph(f, gi, FT_LOAD_DEFAULT) != 0)
 			continue;
 		if (m_dwFontFlags & D3DFONT_BOLD)
-			FT_GlyphSlot_Embolden(face->glyph);
+			FT_GlyphSlot_Embolden(f->glyph);
 		if (m_dwFontFlags & D3DFONT_ITALIC)
-			FT_GlyphSlot_Oblique(face->glyph);
-		if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL) != 0)
+			FT_GlyphSlot_Oblique(f->glyph);
+		if (FT_Render_Glyph(f->glyph, FT_RENDER_MODE_NORMAL) != 0)
 			continue;
-		const FT_Bitmap& bm = face->glyph->bitmap;
-		int gx              = penX + face->glyph->bitmap_left;
-		int gy              = y + m_iAscender - face->glyph->bitmap_top;
+		const FT_Bitmap& bm = f->glyph->bitmap;
+		int gx              = penX + f->glyph->bitmap_left;
+		int gy              = y + m_iAscender - f->glyph->bitmap_top;
 		for (unsigned r = 0; r < bm.rows; ++r)
 		{
 			int ty = gy + (int) r;
@@ -311,7 +383,7 @@ void CDFont::DrawGlyphs(const uint32_t* cps, size_t n, int x, int y)
 				d          = std::max(d, v);
 			}
 		}
-		penX += (int) ((face->glyph->advance.x + 32) >> 6);
+		penX += (int) ((f->glyph->advance.x + 32) >> 6);
 	}
 }
 

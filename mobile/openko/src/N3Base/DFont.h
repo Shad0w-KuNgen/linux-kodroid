@@ -89,6 +89,7 @@ protected:
 #else
 	// FreeType portu (mobile/engine-port/DFont_ft.cpp)
 	void* m_ftFace;                  // FT_Face (paylaşılan önbellekten)
+	void* m_ftFaceFallback = nullptr; // ana yazı tipinde olmayan glifler için (ğ ş İ ı: NotoSansCJK'de yok → Roboto/DejaVu)
 	int m_iLineHeight;               // piksel satır yüksekliği
 	int m_iAscender;                 // taban çizgisi
 	std::vector<uint8_t> m_coverage; // SetText sırasında rasterize tamponu

@@ -1466,7 +1466,7 @@ void CGameProcCharacterSelect::MsgRecv_AllCharacterInfo(Packet& pkt)
 			chr.eClass                   = (e_Class) c.cls;
 			chr.iLevel                   = c.level;
 			chr.iFace                    = c.face;
-			chr.iHair                    = (int) c.hair;
+			chr.iHair                    = KoProto::HairIndex2369(c.hair);
 			chr.iZone                    = c.zone;
 			// Sunucu sırası: HEAD, BREAST, SHOULDER, RIGHTHAND, LEFTHAND, LEG, GLOVE, FOOT
 			chr.dwItemHelmet             = c.itemID[0];

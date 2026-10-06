@@ -6,6 +6,7 @@
 #include "N3FXBundle.h"
 #include "N3FXShape.h"
 #include "N3FXPartMesh.h"
+#include "LogWriter.h"
 #include "N3AnimKey.h"
 
 #include <shared/StringUtils.h>
@@ -230,6 +231,12 @@ bool CN3FXPartMesh::Load(File& file)
 	m_pShape    = new CN3FXShape();
 
 	m_pRefShape = s_MngFXShape.Get(szShapeFileName);
+	if (m_pRefShape == nullptr)
+	{
+		static int s_iLogged = 0;
+		if (s_iLogged++ < 20)
+			CLogWriter::Write("CN3FXPartMesh: efekt şekli yüklenemedi: \"{}\" (parça {}), efekt bu parça olmadan çalışır", szShapeFileName, m_szName);
+	}
 	m_pShape->Duplicate(m_pRefShape);
 	m_pShape->SetPartsMtl(
 		m_bAlpha, m_dwSrcBlend, m_dwDestBlend, m_dwZEnable, m_dwZWrite, m_dwLight, m_dwDoubleSide);
@@ -734,7 +741,8 @@ void CN3FXPartMesh::Duplicate(CN3FXPartMesh* pSrc)
 
 	m_pShape    = new CN3FXShape;
 
-	m_pRefShape = s_MngFXShape.Get(pSrc->m_pRefShape->FileName());
+	// Kaynak parçanın şekli yüklenememiş olabilir (2369'da bozuk dosya adı): null ile çökmek yerine şekilsiz kopya
+	m_pRefShape = pSrc->m_pRefShape != nullptr ? s_MngFXShape.Get(pSrc->m_pRefShape->FileName()) : nullptr;
 	m_pShape->Duplicate(m_pRefShape);
 	m_pShape->SetPartsMtl(
 		m_bAlpha, m_dwSrcBlend, m_dwDestBlend, m_dwZEnable, m_dwZWrite, m_dwLight, m_dwDoubleSide);

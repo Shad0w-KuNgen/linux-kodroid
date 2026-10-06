@@ -46,6 +46,12 @@ inline constexpr int USER_ITEM_SLOTS_2369 = 15; // BREAST, LEG, HEAD, GLOVE, FOO
 
 int Version();
 bool Is2369();
+/// 2369 saç değeri u32: en üst bayt = saç stili (dosya adı indeksi, upc_xx_hairNN), alt 3 bayt = renk.
+/// 1298 (ve 255'ten küçük değerler) olduğu gibi.
+inline int HairIndex2369(uint32_t hair)
+{
+	return hair > 0xFF ? (int) ((hair >> 24) & 0xFF) : (int) hair;
+}
 int LoginPort();
 int GamePort();
 void Configure(int version, int loginPort = 0, int gamePort = 0);
