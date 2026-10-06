@@ -143,9 +143,12 @@ std::shared_ptr<StreamedAudioHandle> StreamedAudioHandle::Create(std::shared_ptr
 
 		// Position the reader handle at the beginning of the data buffer.
 		handle->FileReaderHandle.File   = streamedAudioAsset->File.get();
-		handle->FileReaderHandle.Offset = streamedAudioAsset->PcmDataBuffer
-										  - static_cast<const uint8_t*>(
-											  streamedAudioAsset->File->Memory());
+		// Ogg: File boş, PCM bellek içinde (OwnedPcm); ofset PcmDataBuffer başından sayılır
+		handle->FileReaderHandle.Offset = streamedAudioAsset->File == nullptr
+											  ? 0
+											  : streamedAudioAsset->PcmDataBuffer
+													- static_cast<const uint8_t*>(
+														streamedAudioAsset->File->Memory());
 	}
 	else
 	{
@@ -204,8 +207,9 @@ void StreamedAudioHandle::RewindFrame()
 	}
 	else if (asset->DecoderType == AUDIO_DECODER_PCM)
 	{
-		FileReaderHandle.Offset = asset->PcmDataBuffer
-								  - static_cast<const uint8_t*>(asset->File->Memory());
+		FileReaderHandle.Offset = asset->File == nullptr
+									  ? 0
+									  : asset->PcmDataBuffer - static_cast<const uint8_t*>(asset->File->Memory());
 	}
 	else
 	{
