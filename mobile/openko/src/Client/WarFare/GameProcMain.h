@@ -302,6 +302,7 @@ public:
 	void MsgSend_RequestTargetHP(int16_t siIDTarget, uint8_t byUpdateImmediately); // 0x00 - 점차 늘어나게끔.. 0x01 - 즉시 업데이트..
 	void MsgSend_GameStart();
 	bool MsgSend_NPCEvent(int16_t siIDTarget);
+	bool TouchTalkSelectedNpc(); // dokunmatik NPC AC: seçili dost NPC'yi aç (uzaksa yürü); NPC seçili değilse false
 	void MsgSend_NPCInRequest(int iID);                                            // NPC 정보가 없을 경우 요청한다..
 	void MsgSend_UserInRequest(int iID);                                           // User 정보가 없을 경우 요청한다..
 	void MsgSend_Warp();                                                           // 워프?? - 존체인지가 될수도 있다..

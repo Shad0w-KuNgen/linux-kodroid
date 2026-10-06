@@ -1384,7 +1384,11 @@ void CGameProcMain::ProcessLocalInput(uint32_t dwMouseFlags)
 
 		// target nearest NPC with 'B'
 		if (s_pLocalInput->IsKeyPress(KM_TARGET_NEAREST_NPC))
-			CommandTargetSelect_NearestNPC();
+		{
+			// Dokunmatik "NPC AC": dost NPC zaten seçiliyse onu aç (uzaksa yürüyüp aç), değilse en yakın NPC'yi seç
+			if (!(CGameProcedure::s_bTouchControls && TouchTalkSelectedNpc()))
+				CommandTargetSelect_NearestNPC();
+		}
 
 		// 초당 60 도 돌기..
 		constexpr float RotKeyDelta = DegreesToRadians(60);
@@ -4973,12 +4977,24 @@ void CGameProcMain::MsgRecv_TargetHP(Packet& pkt)
 // 상거래..................
 bool CGameProcMain::MsgSend_NPCEvent(int16_t siIDTarget)
 {
-	uint8_t byBuff[4];
+	uint8_t byBuff[8];
 	int iOffset = 0;
 	CAPISocket::MP_AddByte(byBuff, iOffset, WIZ_NPC_EVENT);
-	CAPISocket::MP_AddShort(byBuff, iOffset, siIDTarget);
+	if (KoProto::Is2369())
+	{
+		// 2369 sunucusu (NPCHandler.cpp CUser::NpcEvent): u8 bilinmeyen | u16 npcID | i32 görevID.
+		// 1.298 düzeni (yalnız u16) gönderilince sunucu npcID'yi kaydırarak okuyor, NPC bulunamıyor ve yanıt gelmiyordu.
+		CAPISocket::MP_AddByte(byBuff, iOffset, 1);
+		CAPISocket::MP_AddShort(byBuff, iOffset, siIDTarget);
+		CAPISocket::MP_AddDword(byBuff, iOffset, 0xFFFFFFFF);
+	}
+	else
+	{
+		CAPISocket::MP_AddShort(byBuff, iOffset, siIDTarget);
+	}
 
 	s_pSocket->Send(byBuff, iOffset);
+	CLogWriter::Write("WIZ_NPC_EVENT gönderildi: NPC {} ({} bayt)", siIDTarget, iOffset);
 
 	return true;
 }
@@ -5629,6 +5645,35 @@ void CGameProcMain::MsgSend_FriendAdd(int iTargetID, const std::string& szName)
 	CAPISocket::MP_AddByte(byBuff, iOffset, (uint8_t) szName.size());
 	CAPISocket::MP_AddString(byBuff, iOffset, szName);
 	s_pSocket->Send(byBuff, iOffset);
+}
+
+bool CGameProcMain::TouchTalkSelectedNpc()
+{
+	const int iID = s_pPlayer->m_iIDTarget;
+	if (iID < 0)
+		return false;
+	CPlayerNPC* pNPC = s_pOPMgr->NPCGetByID(iID, false);
+	if (pNPC == nullptr || s_pPlayer->IsHostileTarget(pNPC))
+		return false;
+
+	float fD      = (s_pPlayer->Position() - pNPC->Position()).Magnitude();
+	float fDLimit = (s_pPlayer->Radius() + pNPC->Radius()) * 3.0f;
+	if (fD > fDLimit)
+	{
+		// Uzak: NPC'ye yürü, Tick menzile girince konuşma isteğini gönderir
+		m_iTouchTalkNpcID = iID;
+		CommandMove(MD_FORWARD, true);
+		s_pPlayer->SetMoveTargetPos(pNPC->Position());
+		CLogWriter::Write("Dokunmatik NPC AC: NPC {} ({}) uzak ({:.1f} m), yürünüyor", iID, pNPC->IDString(), fD);
+		return true;
+	}
+
+	pNPC->RotateTo(s_pPlayer);
+	MsgSend_NPCEvent((int16_t) iID);
+	if (m_pUITransactionDlg)
+		m_pUITransactionDlg->m_iNpcID = pNPC->IDNumber();
+	CLogWriter::Write("Dokunmatik NPC AC: NPC {} ({}) konuşma isteği", iID, pNPC->IDString());
+	return true;
 }
 
 void CGameProcMain::TouchMenuAction(int iAction)
